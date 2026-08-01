@@ -33,6 +33,8 @@ autosave, Chronicle progression, and accessibility/audio settings before restori
 local data.
 Append `?seed=SHARED-SIGNAL` to the local game URL to prepare the same deterministic
 expedition for another player or later playtest.
+Every Chronicle record can also reopen its exact seed and mode at loadout, carrying its
+relic when that heirloom remains recovered.
 
 See `docs/VALIDATION.md` for the current balance, browser, accessibility, visual,
 and dependency-audit evidence.

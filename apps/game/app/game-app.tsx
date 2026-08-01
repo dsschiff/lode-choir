@@ -26,6 +26,7 @@ import {
   type ModuleId,
   type RelicId,
   type RunMode,
+  type RunRecord,
 } from '@lode-choir/engine';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { choirAudio } from './audio';
@@ -518,7 +519,7 @@ function CompletionPanel({ view, onNewRun, onChronicle }: { view: GameView; onNe
   );
 }
 
-function Chronicle({ legacy, onBack }: { legacy: LegacyState; onBack: () => void }) {
+function Chronicle({ legacy, onRetry, onBack }: { legacy: LegacyState; onRetry: (record: RunRecord) => void; onBack: () => void }) {
   const standardScores = legacy.records.filter((record) => record.runMode === 'standard' && record.scoreVersion === 2).map((record) => record.score);
   const blackScores = legacy.records.filter((record) => record.runMode === 'black_descent' && record.scoreVersion === 2).map((record) => record.score);
   return (
@@ -536,6 +537,7 @@ function Chronicle({ legacy, onBack }: { legacy: LegacyState; onBack: () => void
           <span className={record.outcome === 'won' ? 'is-win' : 'is-loss'}>{record.outcome === 'won' ? 'CONCORDANT' : 'SILENCED'} · {record.runMode === 'black_descent' ? 'BLACK DESCENT' : 'STANDARD'}</span>
           <strong>{outcome}</strong><b>{record.score}</b>
           <small>{record.seed} · SHIFT {record.shift}/7 · {record.heartNotes} NOTES · {record.scars} SCARS{relic ? ` · ${relic.name}` : ''}{record.scoreVersion === 1 ? ' · ARCHIVED FORMULA' : record.runMode === 'black_descent' ? ` · BASE ${record.baseScore} × ${record.scoreMultiplier}` : ''}</small>
+          <button type="button" onClick={() => onRetry(record)}>PREPARE SAME SIGNAL</button>
         </li>;
       })}</ol> : <p className="empty-message">No expedition has yet returned to the archive.</p>}
       <h2>Resolved chords</h2>
@@ -664,7 +666,7 @@ function ManualPage({ onBack }: { onBack: () => void }) {
         <article><span>04 // DESCENT</span><h2>Carry the cost</h2><p>Every route consumes a ration. High strain creates a lasting scar and removes that person from the following shift. Vows and story choices build loyalty.</p></article>
         <article><span>05 // CITADEL</span><h2>Wake or mend</h2><p>After shifts two and four, spend alloy to build or improve Orison, plate two points of damaged hull, or conserve it. Every option ends development.</p></article>
         <article><span>06 // HEART-LODE</span><h2>Find three Notes</h2><p>Reach shift seven with three Heart Notes and a living citadel. Then choose what the crew does with the moon-song; each answer leaves a different legacy.</p></article>
-        <article><span>07 // CHRONICLE</span><h2>Leave a record</h2><p>Every ending unlocks an heirloom for later expeditions. The Chronicle keeps twelve deterministic scores with seed, outcome, scars, vows, relic, and descent mode.</p></article>
+        <article><span>07 // CHRONICLE</span><h2>Leave a record</h2><p>Every ending unlocks an heirloom for later expeditions. The Chronicle keeps twelve deterministic scores and can prepare any recorded seed, mode, and recovered relic for a rematch.</p></article>
         <article><span>08 // BLACK DESCENT</span><h2>Travel light</h2><p>Choose this optional contract at loadout for 1.25× score: 11 hull, three provisions, four alloy, one lumen, dearer plating, and twice the hidden fault on high-risk routes.</p></article>
       </div>
     </MenuPage>
@@ -943,6 +945,13 @@ export function GameApp() {
     setSurface('loadout');
     resetDocumentScroll();
   };
+  const prepareArchivedRun = (record: RunRecord) => {
+    setSeed(record.seed);
+    setSelectedRunMode(record.runMode);
+    setSelectedRelic(record.startingRelic && legacy.relics.includes(record.startingRelic) ? record.startingRelic : null);
+    setSurface('loadout');
+    resetDocumentScroll();
+  };
 
   const createProgressBackup = () => JSON.stringify({
     game: 'lode-choir-backup',
@@ -984,7 +993,7 @@ export function GameApp() {
   if (surface === 'title') return <div className={shellClasses}><TitleScreen seed={seed} hasSave={hasSave} savePreview={savePreview} notice={notice} onSeed={setSeed} onNew={() => prepareLoadout()} onContinue={continueRun} onNavigate={openMenuPage} /></div>;
   if (surface === 'loadout') return <div className={shellClasses}><LoadoutPage seed={seed} unlocked={legacy.relics} selected={selectedRelic} runMode={selectedRunMode} onSelect={setSelectedRelic} onMode={setSelectedRunMode} onBegin={() => startRun(seed, selectedRelic, selectedRunMode)} onBack={goBack} /></div>;
   if (surface === 'manual') return <div className={shellClasses}><ManualPage onBack={goBack} /></div>;
-  if (surface === 'chronicle') return <div className={shellClasses}><Chronicle legacy={legacy} onBack={goBack} /></div>;
+  if (surface === 'chronicle') return <div className={shellClasses}><Chronicle legacy={legacy} onRetry={prepareArchivedRun} onBack={goBack} /></div>;
   if (surface === 'settings') return <div className={shellClasses}><SettingsPage settings={settings} onChange={setSettings} onCreateBackup={createProgressBackup} onRestoreBackup={restoreProgressBackup} onBack={goBack} /></div>;
   if (surface === 'credits') return <div className={shellClasses}><MenuPage eyebrow="TRANSMISSION // AUTHORS" title="Credits" onBack={goBack}><div className="credits-copy"><p>Designed and built as an original game about care, extraction, and the cost of listening.</p><p>Rules, words, interface, vector marks, and procedural tones created for <em>Lode Choir</em>.</p><ToneMark active /></div></MenuPage></div>;
   if (!view) return null;

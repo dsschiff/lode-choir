@@ -101,7 +101,7 @@ recomputed honestly.
   scored Chronicle history, Black Descent keyboard selection, exact preview,
   save/resume, completion, archive categorization and fresh-run reset, later phase
   surfaces, validated backup rejection/restore across run, Chronicle, and settings,
-  shared-seed URL initialization, and test hooks.
+  shared-seed URL initialization, Chronicle rematch preparation, and test hooks.
 - Axe scans report no detectable violations on the title, manual, loadout, planning,
   expanded charting, or resource-gated event surfaces in either browser project.
 - Production static export passes. The bounded E2E runner builds, serves, tests, closes

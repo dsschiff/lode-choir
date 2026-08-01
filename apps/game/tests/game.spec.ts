@@ -184,6 +184,7 @@ test('Black Descent previews exact conditions, resumes, scores, archives, and re
   await page.getByTestId('continue-run').click();
   state = await page.evaluate(() => window.__LODE_CHOIR__?.getState());
   expect(state?.runMode).toBe('black_descent');
+  const completedSeed = state!.seed;
 
   await page.evaluate(() => {
     const run = window.__LODE_CHOIR__?.getState();
@@ -198,6 +199,9 @@ test('Black Descent previews exact conditions, resumes, scores, archives, and re
   await expect(page.locator('.chronicle-summary')).toContainText('best Black Descent');
   await expect(page.locator('.run-history').first()).toContainText('CONCORDANT · BLACK DESCENT');
   await expect(page.locator('.run-history').first()).toContainText('BASE');
+  await page.getByRole('button', { name: 'PREPARE SAME SIGNAL' }).click();
+  await expect(page.locator('.loadout-footer')).toContainText(completedSeed);
+  await expect(page.getByRole('radio', { name: /Black Descent/i })).toBeChecked();
   await page.getByRole('button', { name: /RETURN/ }).click();
   await page.getByRole('button', { name: 'Begin another descent' }).click();
   await expect(page.getByRole('radio', { name: /^STANDARD DESCENT Standard$/i })).toBeChecked();
