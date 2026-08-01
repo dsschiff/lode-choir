@@ -108,6 +108,11 @@ h1, h2 { font-family: var(--serif); font-weight: 500; }
 .settings-list input:checked + i { border-color: var(--vein-400); }
 .settings-list input:checked + i::after { background: var(--vein-400); transform: translateX(22px); }
 .credits-copy { max-width: 600px; color: var(--bone-300); font: 1.15rem/1.8 var(--serif); }
+.manual-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 1px; border: 1px solid var(--quiet-line); background: var(--quiet-line); }
+.manual-grid article { min-height: 190px; padding: 22px; background: linear-gradient(145deg, rgba(24,32,39,.96), var(--ink-900)); }
+.manual-grid article > span { color: var(--vein-400); font-size: .52rem; letter-spacing: .11em; }
+.manual-grid h2 { margin: 12px 0 10px; font-size: 1.35rem; }
+.manual-grid p { margin: 0; color: var(--bone-300); font: .84rem/1.6 var(--serif); }
 
 /* Game shell */
 .game-header { height: 64px; position: sticky; top: 0; z-index: 20; display: grid; grid-template-columns: minmax(176px, 1fr) auto minmax(110px, 1fr); align-items: stretch; padding: 0 18px; border-bottom: 1px solid var(--quiet-line); background: rgba(7,9,12,.92); backdrop-filter: blur(16px); }
@@ -292,6 +297,8 @@ h1, h2 { font-family: var(--serif); font-weight: 500; }
   .menu-page { padding-inline: 16px; }
   .menu-page-content { margin-top: 28px; }
   .archive-grid { grid-template-columns: 1fr; }
+  .manual-grid { grid-template-columns: 1fr; }
+  .manual-grid article { min-height: 0; padding: 18px; }
   .chronicle-summary { gap: 28px; }
   .settings-list label { padding-inline: 12px; }
   .settings-list label small { max-width: 225px; line-height: 1.4; }

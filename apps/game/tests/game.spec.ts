@@ -12,6 +12,10 @@ test('title menu exposes seed, archive, settings, and credits', async ({ page })
   await expect(page.getByTestId('new-run')).toBeVisible();
   await expect(page.getByText('EXPEDITION SEED')).toBeVisible();
 
+  await page.getByRole('button', { name: 'Manual' }).click();
+  await expect(page.getByRole('heading', { name: 'How to descend' })).toBeVisible();
+  await page.getByRole('button', { name: /RETURN/ }).click();
+
   await page.getByRole('button', { name: 'Settings' }).click();
   await expect(page.getByRole('heading', { name: 'Settings' })).toBeVisible();
   await page.getByText('Reduce motion').click();
@@ -70,9 +74,14 @@ test('development, finale, and completion surfaces are available to deterministi
   await expect(page.locator('.resource-rail')).toBeVisible();
 });
 
-test('title and planning surfaces have no detectable accessibility violations', async ({ page }) => {
+test('title, manual, and planning surfaces have no detectable accessibility violations', async ({ page }) => {
   const titleScan = await new AxeBuilder({ page }).analyze();
   expect(titleScan.violations, JSON.stringify(titleScan.violations, null, 2)).toEqual([]);
+
+  await page.getByRole('button', { name: 'Manual' }).click();
+  const manualScan = await new AxeBuilder({ page }).analyze();
+  expect(manualScan.violations, JSON.stringify(manualScan.violations, null, 2)).toEqual([]);
+  await page.getByRole('button', { name: /RETURN/ }).click();
 
   await page.getByTestId('new-run').click();
   const planningScan = await new AxeBuilder({ page }).analyze();

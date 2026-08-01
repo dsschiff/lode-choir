@@ -24,7 +24,7 @@ const AUTOSAVE_KEY = 'lode_choir_autosave_v1';
 const LEGACY_KEY = 'lode_choir_legacy_v1';
 const SETTINGS_KEY = 'lode_choir_settings_v1';
 
-type Surface = 'title' | 'game' | 'chronicle' | 'settings' | 'credits';
+type Surface = 'title' | 'game' | 'manual' | 'chronicle' | 'settings' | 'credits';
 type Settings = { muted: boolean; highContrast: boolean; reducedMotion: boolean };
 
 const DEFAULT_SETTINGS: Settings = { muted: false, highContrast: false, reducedMotion: false };
@@ -463,6 +463,21 @@ function SettingsPage({ settings, onChange, onBack }: { settings: Settings; onCh
   );
 }
 
+function ManualPage({ onBack }: { onBack: () => void }) {
+  return (
+    <MenuPage eyebrow="ORISON // FIELD MANUAL" title="How to descend" onBack={onBack}>
+      <div className="manual-grid">
+        <article><span>01 // FORECAST</span><h2>Choose a route</h2><p>Risk damages Orison unless the Ward Array and Mara absorb it. Gold text previews the yield; Sable can expose a hidden complication.</p></article>
+        <article><span>02 // CHAMBERS</span><h2>Staff three rooms</h2><p>Tap a crew portrait, then a chamber. Its level, specialist, and neighboring Heart Engine determine what it produces, repairs, or prevents.</p></article>
+        <article><span>03 // FOURTH VOICE</span><h2>Rest or lead</h2><p>The fourth available crew member rests for two strain by default. After all rooms are staffed, they may lead for a unique benefit, one ration, and expedition strain.</p></article>
+        <article><span>04 // DESCENT</span><h2>Carry the cost</h2><p>Every route consumes a ration. High strain creates a lasting scar and removes that person from the following shift. Vows and story choices build loyalty.</p></article>
+        <article><span>05 // CITADEL</span><h2>Wake chambers</h2><p>After shifts two and four, spend alloy to build or improve Orison—or conserve it. New chamber placement changes future adjacency and assignment choices.</p></article>
+        <article><span>06 // HEART-LODE</span><h2>Find three Notes</h2><p>Reach shift seven with three Heart Notes and a living citadel. Then choose what the crew does with the moon-song; each answer leaves a different legacy.</p></article>
+      </div>
+    </MenuPage>
+  );
+}
+
 function TitleScreen({ seed, hasSave, notice, onSeed, onNew, onContinue, onNavigate }: {
   seed: string;
   hasSave: boolean;
@@ -506,6 +521,7 @@ function TitleScreen({ seed, hasSave, notice, onSeed, onNew, onContinue, onNavig
           <button type="button" onClick={copySeed} aria-label="Copy seed">{copied ? '✓' : '⧉'}</button>
         </div>
         <nav aria-label="Main menu">
+          <button type="button" onClick={() => onNavigate('manual')}>Manual</button>
           <button type="button" onClick={() => onNavigate('chronicle')}>Chronicle</button>
           <button type="button" onClick={() => onNavigate('settings')}>Settings</button>
           <button type="button" onClick={() => onNavigate('credits')}>Credits</button>
@@ -637,6 +653,7 @@ export function GameApp() {
 
   const shellClasses = ['app-root', settings.highContrast ? 'high-contrast' : '', settings.reducedMotion ? 'reduced-motion' : ''].filter(Boolean).join(' ');
   if (surface === 'title') return <div className={shellClasses}><TitleScreen seed={seed} hasSave={hasSave} notice={notice} onSeed={setSeed} onNew={() => startRun()} onContinue={continueRun} onNavigate={openMenuPage} /></div>;
+  if (surface === 'manual') return <div className={shellClasses}><ManualPage onBack={goBack} /></div>;
   if (surface === 'chronicle') return <div className={shellClasses}><Chronicle legacy={legacy} onBack={goBack} /></div>;
   if (surface === 'settings') return <div className={shellClasses}><SettingsPage settings={settings} onChange={setSettings} onBack={goBack} /></div>;
   if (surface === 'credits') return <div className={shellClasses}><MenuPage eyebrow="TRANSMISSION // AUTHORS" title="Credits" onBack={goBack}><div className="credits-copy"><p>Designed and built as an original game about care, extraction, and the cost of listening.</p><p>Rules, words, interface, vector marks, and procedural tones created for <em>Lode Choir</em>.</p><ToneMark active /></div></MenuPage></div>;

@@ -1,4 +1,5 @@
 import { spawn } from 'node:child_process';
+import { createConnection } from 'node:net';
 import { fileURLToPath } from 'node:url';
 import { dirname, resolve } from 'node:path';
 
@@ -12,6 +13,16 @@ function run(command, args, options = {}) {
     const child = spawn(command, args, { cwd: appRoot, stdio: 'inherit', ...options });
     child.once('error', rejectRun);
     child.once('exit', (code) => code === 0 ? resolveRun() : rejectRun(new Error(`${args[0] ?? command} exited with code ${code}`)));
+  });
+}
+
+function portIsListening() {
+  return new Promise((resolveCheck) => {
+    const socket = createConnection({ host: '127.0.0.1', port: 3321 });
+    socket.setTimeout(500);
+    socket.once('connect', () => { socket.destroy(); resolveCheck(true); });
+    socket.once('timeout', () => { socket.destroy(); resolveCheck(false); });
+    socket.once('error', () => resolveCheck(false));
   });
 }
 
@@ -29,6 +40,7 @@ async function waitForServer() {
   throw new Error('Static test server did not start within 10 seconds.');
 }
 
+if (await portIsListening()) throw new Error('Port 3321 is already in use; refusing to test against an unknown server.');
 await run(process.execPath, [nextCli, 'build']);
 const server = spawn(process.execPath, ['scripts/serve-out.mjs', '3321'], { cwd: appRoot, stdio: 'inherit' });
 
