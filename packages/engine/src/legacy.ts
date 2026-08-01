@@ -37,22 +37,43 @@ export function createLegacyState(): LegacyState {
   return { version: 4, runsCompleted: 0, echoShards: 0, endings: [], lore: [], relics: [], records: [] };
 }
 
-export function baseScoreRun(run: GameState): number {
+export interface ScoreBreakdown {
+  completion: number;
+  shifts: number;
+  heartNotes: number;
+  integrity: number;
+  fulfilledVows: number;
+  loyalty: number;
+  scars: number;
+  base: number;
+  multiplier: number;
+  total: number;
+}
+
+export function scoreBreakdown(run: GameState): ScoreBreakdown {
   const vows = run.crew.filter((crew) => crew.vowProgress >= 3).length;
   const scars = run.crew.filter((crew) => crew.scar).length;
   const loyalty = run.crew.reduce((total, crew) => total + Math.max(0, crew.loyalty), 0);
-  return Math.max(0, (run.status === 'won' ? 2000 : 0)
-    + run.shift * 50
-    + run.heartNotes * 150
-    + run.integrity * 25
-    + vows * 100
-    + loyalty * 20
-    - scars * 75);
+  const components = {
+    completion: run.status === 'won' ? 2000 : 0,
+    shifts: run.shift * 50,
+    heartNotes: run.heartNotes * 150,
+    integrity: run.integrity * 25,
+    fulfilledVows: vows * 100,
+    loyalty: loyalty * 20,
+    scars: scars === 0 ? 0 : scars * -75,
+  };
+  const base = Math.max(0, Object.values(components).reduce((total, value) => total + value, 0));
+  const multiplier = run.runMode === 'black_descent' ? 1.25 : 1;
+  return { ...components, base, multiplier, total: Math.round(base * multiplier) };
+}
+
+export function baseScoreRun(run: GameState): number {
+  return scoreBreakdown(run).base;
 }
 
 export function scoreRun(run: GameState): number {
-  const multiplier = run.runMode === 'black_descent' ? 1.25 : 1;
-  return Math.round(baseScoreRun(run) * multiplier);
+  return scoreBreakdown(run).total;
 }
 
 export function recordLegacyRun(legacy: LegacyState, run: GameState): LegacyState {

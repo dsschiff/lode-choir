@@ -23,13 +23,16 @@ characters, modules, routes, and story choices, while systems interpret those re
 - The app renders engine selectors; it does not recreate rules to preview outcomes.
 - Local legacy progression is separate from the current run save.
 - Portable backup v1 wraps the already serialized run and legacy envelopes plus the
-  three boolean settings. Restore parses and validates every nested envelope before it
+  three boolean accessibility settings and bounded volume. Restore parses and validates every nested envelope before it
   replaces any local-storage key or live React state.
 - `startingRelic` and `runMode` are explicit run state, while legacy v4 stores canonical
   relic/lore IDs and bounded deterministic run records with base score, multiplier, and
   final score. Records retain a score-formula version so migrated values remain visible
   but do not enter the current best-per-mode categories. Migration normalizes earlier display names,
   aliases, raw story flags, and pre-history legacy saves.
+- Score calculation is a pure engine selector with explicit component, base, multiplier,
+  and rounded-total fields. The completion UI and persistent history consume that same
+  selector rather than rebuilding the formula.
 - Black Descent modifies only engine-owned starting stores, maximum integrity, hidden
   high-risk fault damage, plating cost, and score multiplier. The UI reads its preview,
   repair price, maximum hull, and score category from engine state instead of recreating

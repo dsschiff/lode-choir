@@ -7,6 +7,7 @@ type AudioWindow = Window & typeof globalThis & {
 class ChoirAudio {
   private context: AudioContext | null = null;
   private enabled = true;
+  private volume = 0.7;
   private ambienceRequested = false;
   private ambience: { oscillators: OscillatorNode[]; lfo: OscillatorNode; master: GainNode } | null = null;
 
@@ -15,6 +16,13 @@ class ChoirAudio {
     if (!enabled) {
       this.stopAmbience();
       if (this.context?.state === 'running') void this.context.suspend();
+    }
+  }
+
+  setVolume(volume: number) {
+    this.volume = Math.max(0, Math.min(1, volume));
+    if (this.ambience && this.context) {
+      this.ambience.master.gain.setValueAtTime(Math.max(0.0001, 0.012 * this.volume), this.context.currentTime);
     }
   }
 
@@ -43,7 +51,7 @@ class ChoirAudio {
       const now = this.context.currentTime;
       const master = this.context.createGain();
       master.gain.setValueAtTime(0.0001, now);
-      master.gain.exponentialRampToValueAtTime(0.012, now + 1.6);
+      master.gain.exponentialRampToValueAtTime(Math.max(0.0001, 0.012 * this.volume), now + 1.6);
       master.connect(this.context.destination);
 
       const frequencies = [55, 82.4];
@@ -105,7 +113,7 @@ class ChoirAudio {
         now + 0.22,
       );
       gain.gain.setValueAtTime(0.0001, now);
-      gain.gain.exponentialRampToValueAtTime(0.045, now + 0.025);
+      gain.gain.exponentialRampToValueAtTime(Math.max(0.0001, 0.045 * this.volume), now + 0.025);
       gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.3);
       oscillator.connect(gain).connect(this.context.destination);
       oscillator.start(now);

@@ -719,4 +719,40 @@ export const LORE = [
     unlockTag: 'sable_memory',
     text: 'Memory is not proof of personhood. The choice to surrender it may be.',
   },
+  {
+    id: 'lantern_camp_census',
+    title: 'Lantern Camp Census',
+    unlockTag: 'survivors',
+    text: 'Eight names. Seven pressure cots. One column headed: carried together or not at all.',
+  },
+  {
+    id: 'greenhouse_seed_drawing',
+    title: 'Study of a Threefold Seed',
+    unlockTag: 'garden',
+    text: 'Orin draws root, tooth, and spark on the same staff. Beneath them: Perhaps Vesper is learning instruments by growing them.',
+  },
+  {
+    id: 'archive_leaf_seventeen',
+    title: 'Brass Leaf XVII',
+    unlockTag: 'archive',
+    text: 'Taste of iron: an arrival. Pressure falling: a death. Grief without witness: the oldest unit in the catalogue.',
+  },
+  {
+    id: 'echo_well_transcript',
+    title: 'Transcript from Tomorrow',
+    unlockTag: 'prophecy',
+    text: 'The warning changes every time it is replayed. The scream does not. Sable underlines the difference.',
+  },
+  {
+    id: 'red_quiet_notation',
+    title: 'Notation for an Absent Voice',
+    unlockTag: 'silence',
+    text: 'A rest may be measured. This absence moves. Orin marks its path through Orison and leaves the final chamber blank.',
+  },
+  {
+    id: 'bone_market_oath',
+    title: 'The Pilgrim’s Small Oath',
+    unlockTag: 'pilgrims',
+    text: 'I promise no destination. I promise to count who arrives, and to ask the road what it carried away.',
+  },
 ] as const;

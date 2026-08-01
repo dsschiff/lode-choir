@@ -119,6 +119,9 @@ h1, h2 { font-family: var(--serif); font-weight: 500; }
 .settings-list label > i::after { position: absolute; top: 4px; left: 4px; width: 16px; height: 16px; border-radius: 50%; content: ""; background: var(--bone-300); transition: transform .16s; }
 .settings-list input:checked + i { border-color: var(--vein-400); }
 .settings-list input:checked + i::after { background: var(--vein-400); transform: translateX(22px); }
+.settings-list .volume-setting { display: grid; grid-template-columns: minmax(210px, 1fr) minmax(150px, 260px) 48px; gap: 16px; }
+.settings-list .volume-setting input { position: static; width: 100%; min-height: 44px; opacity: 1; accent-color: var(--vein-400); }
+.settings-list .volume-setting output { color: var(--brass-400); font-size: .62rem; text-align: right; }
 .progress-backup { margin-top: 34px; padding-top: 28px; border-top: 1px solid var(--quiet-line); }
 .progress-backup h2 { margin: 8px 0 10px; }
 .progress-backup > p { max-width: 680px; color: var(--bone-300); font: .83rem/1.55 var(--serif); }
@@ -298,6 +301,8 @@ h1, h2 { font-family: var(--serif); font-weight: 500; }
 .choice-list button:hover { border-color: var(--vein-400); }
 .choice-list strong { font: 1rem var(--serif); }
 .choice-list span { color: var(--brass-400); font-size: .55rem; }
+.choice-effects { display: flex; flex-wrap: wrap; gap: 5px; color: var(--bone-300); font-size: .46rem; }
+.choice-effects b { padding: 3px 5px; border: 1px solid var(--quiet-line); font-weight: 500; letter-spacing: .04em; }
 .choice-list em { color: var(--danger-400); font-size: .46rem; font-style: normal; letter-spacing: .05em; }
 .choice-list button:disabled { border-style: dashed; background: rgba(7,9,12,.55); }
 .slot-picker { display: flex; flex-wrap: wrap; gap: 5px; margin: 12px 0; }
@@ -333,6 +338,14 @@ h1, h2 { font-family: var(--serif); font-weight: 500; }
 .completion-stats { display: flex; gap: 20px; padding: 18px 0; border-block: 1px solid var(--quiet-line); }
 .completion-stats span { color: var(--bone-300); font-size: .52rem; text-transform: uppercase; }
 .completion-stats b { display: block; color: var(--bone-100); font: 1.5rem var(--serif); }
+.score-breakdown { margin-top: 14px; border-bottom: 1px solid var(--quiet-line); }
+.score-breakdown summary { display: flex; justify-content: space-between; gap: 18px; padding: 12px 0; color: var(--bone-300); cursor: pointer; font-size: .58rem; letter-spacing: .1em; text-transform: uppercase; }
+.score-breakdown summary span { color: var(--brass-400); }
+.score-breakdown dl { margin: 0 0 14px; }
+.score-breakdown dl div { display: flex; justify-content: space-between; gap: 20px; padding: 5px 12px; color: var(--bone-300); font-size: .68rem; }
+.score-breakdown dd { margin: 0; color: var(--bone-100); font-variant-numeric: tabular-nums; }
+.score-breakdown dd.is-penalty { color: var(--danger-400); }
+.score-breakdown dl .score-total { margin-top: 5px; padding-block: 9px; border-top: 1px solid var(--quiet-line); color: var(--bone-100); font-weight: 700; text-transform: uppercase; }
 .completion-actions { display: grid; gap: 8px; margin-top: 20px; }
 .empty-message { color: var(--bone-300); font: italic 1rem var(--serif); }
 .game-notice { position: fixed; z-index: 50; top: 72px; left: 50%; transform: translateX(-50%); width: min(540px, calc(100% - 24px)); display: flex; justify-content: space-between; gap: 16px; padding: 10px 12px; border: 1px solid var(--danger-400); background: #271416; color: var(--bone-100); font-size: .63rem; }
@@ -392,6 +405,8 @@ h1, h2 { font-family: var(--serif); font-weight: 500; }
   .chronicle-summary { gap: 28px; }
   .settings-list label { padding-inline: 12px; }
   .settings-list label small { max-width: 225px; line-height: 1.4; }
+  .settings-list .volume-setting { grid-template-columns: 1fr 52px; gap: 4px 10px; }
+  .settings-list .volume-setting > span { grid-column: 1 / -1; }
   .backup-actions { display: grid; grid-template-columns: 1fr 1fr; }
   .backup-actions .restore-backup { grid-column: 1 / -1; margin-left: 0; }
   .game-header { grid-template-columns: 36px 1fr 44px; }

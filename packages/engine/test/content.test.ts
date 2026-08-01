@@ -15,7 +15,7 @@ test('content tables meet the vertical-slice inventory', () => {
   assert.ok(STORY_EVENTS.length >= 10);
   assert.equal(ENDINGS.length, 3);
   assert.equal(RELICS.length, 3);
-  assert.ok(LORE.length >= 6);
+  assert.ok(LORE.length >= 12);
 });
 
 test('all content IDs are unique within their tables', () => {
@@ -55,6 +55,17 @@ test('story events offer tagged, state-changing choices', () => {
       assert.ok(changesState, `${event.id}/${choice.label} needs a mechanical consequence`);
       assert.ok(choice.consequence.length > 0, `${event.id}/${choice.label} needs consequence copy`);
     }
+  }
+});
+
+test('every route can surface authored story and every lore key is reachable', () => {
+  const routeTags = new Set(ROUTES.map((route) => route.storyTag));
+  const eventTags = new Set(STORY_EVENTS.flatMap((event) => event.tags));
+  for (const route of ROUTES) {
+    assert.ok(eventTags.has(route.storyTag), `${route.id} needs an event keyed to ${route.storyTag}`);
+  }
+  for (const lore of LORE) {
+    assert.ok(lore.unlockTag === 'first_run' || routeTags.has(lore.unlockTag), `${lore.id} has unreachable lore tag ${lore.unlockTag}`);
   }
 });
 

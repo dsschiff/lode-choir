@@ -5,7 +5,7 @@ Validated against the local `main` branch on 2026-07-31 with Node 24.14 and npm
 
 ## Rules and balance
 
-- 30 deterministic engine, content, and simulation tests pass, including immutability, legal-command
+- 31 deterministic engine, content, and simulation tests pass, including immutability, legal-command
   enforcement, save migration, exact replay, scars, loyalty, all endings, development
   deferral, mode-aware emergency repair, Black Descent composition and scoring, route
   leadership, and short-handed runs.
@@ -89,18 +89,23 @@ maximal synthetic Black Descent loss (2,375). Run records persist base score,
 multiplier, and final score rather than hiding the category adjustment.
 Pre-v2 score records migrate as visibly marked archived-formula history and are excluded
 from the current best-per-mode summaries because their missing crew components cannot be
-recomputed honestly.
+  recomputed honestly.
+- The engine exposes the seven score components as a tested ledger; the UI shows the
+  base and mode multiplier and copies a deterministic seed-linked expedition report.
+- Content validation now proves all sixteen routes can surface a keyed story event and
+  all twelve Chronicle lore fragments have reachable unlock tags.
 
 ## Interface and persistence
 
-- 30 Playwright checks pass in Pixel 5 and desktop Chromium projects. They cover title
-  navigation, settings, first choice, touch assignment, optional leadership, resolution,
+- 32 Playwright checks pass in Pixel 5 and desktop Chromium projects. They cover title
+  navigation, settings migration and persistent volume, first choice, touch assignment, optional leadership, resolution,
   loadout locking and keyboard selection, all three relic effects, relic resume,
   exact route-cost forecasts, chart hold/swap/refund/reload/return behavior,
   autosave previews/resume, unaffordable story-choice gating, corrupt-save recovery,
   scored Chronicle history, Black Descent keyboard selection, exact preview,
   save/resume, completion, archive categorization and fresh-run reset, later phase
   surfaces, validated backup rejection/restore across run, Chronicle, and settings,
+  exact event-effect labels, score-ledger disclosure, copied seed-linked reports,
   shared-seed URL initialization, Chronicle rematch preparation, and test hooks.
   A stubbed Web Audio contract additionally verifies the ambient voices start with an
   active run, stop in menus, remain stopped while muted, resume after unmuting, and stop
@@ -125,9 +130,9 @@ recomputed honestly.
 
 ## Asset and dependency checks
 
-- The production export currently contains 36 files and 1,305,887 uncompressed bytes.
-  The directly referenced initial shell is 967,706 bytes; JavaScript totals 730,663
-  bytes, imagery 489,093 bytes, and CSS 34,522 bytes. The largest individual file is a
+- The production export currently contains 36 files and 1,312,189 uncompressed bytes.
+  The directly referenced initial shell is 974,008 bytes; JavaScript totals 735,513
+  bytes, imagery 489,093 bytes, and CSS 35,974 bytes. The largest individual file is a
   227,538-byte framework chunk. All remain below committed build-breaking budgets.
 - The export audit found no remote runtime asset references, no missing shell files,
   and no emitted file omitted from the generated service-worker cache.
@@ -135,8 +140,8 @@ recomputed honestly.
   Their combined transfer size is about 489 KB.
 - The app uses generated WebP imagery, CSS/SVG structure, and procedural Web Audio for
   a two-voice low-frequency moon-drone plus event-kind tones. The drone is gesture-gated,
-  pauses outside an active run, stops at completion, and shares the persisted mute
-  lifecycle; it
+  pauses outside an active run, stops at completion, and shares the persisted mute and
+  volume lifecycle; it
   has no runtime asset host or analytics dependency.
 - `npm audit` currently reports three high transitive advisories in the latest stable
   Next release's pinned PostCSS and Sharp packages. The affected packages process only

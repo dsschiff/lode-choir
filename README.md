@@ -29,17 +29,20 @@ Completed runs leave deterministic echo scores and a bounded twelve-run history 
 Chronicle, alongside unlocked endings, relics, and lore. An optional Black Descent
 contract composes with every relic: it starts Orison light, makes unread high-risk
 faults and emergency plating more punishing, archives the mode separately, and awards
-a transparent 1.25× score.
+a transparent 1.25× score. The completion ledger exposes every score component and can
+copy a seed-linked expedition report for playtest comparison.
 After the first player gesture, a lightweight Web Audio moon-drone underlays the run
 and yields to procedural room, route, story, damage, and ending tones; it pauses in
-menus, stops at completion, and obeys the persistent mute setting without audio files.
+menus, stops at completion, and obeys persistent mute and 0–100% volume settings without
+audio files.
 The Settings menu can create and validate a portable text backup containing the active
 autosave, Chronicle progression, and accessibility/audio settings before restoring any
 local data.
 Append `?seed=SHARED-SIGNAL` to the local game URL to prepare the same deterministic
 expedition for another player or later playtest.
 Every Chronicle record can also reopen its exact seed and mode at loadout, carrying its
-relic when that heirloom remains recovered.
+relic when that heirloom remains recovered. Twelve unlockable lore fragments preserve
+the moon and crew discoveries surfaced by route-tagged events.
 
 See `docs/VALIDATION.md` for the current balance, browser, accessibility, visual,
 and dependency-audit evidence.

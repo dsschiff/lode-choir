@@ -12,6 +12,7 @@ import {
   deserializeLegacy,
   legalCommands,
   recordLegacyRun,
+  scoreBreakdown,
   scoreRun,
   selectGameView,
   serialize,
@@ -20,6 +21,7 @@ import {
   type CrewId,
   type EndingId,
   type EngineEvent,
+  type EventChoice,
   type GameState,
   type GameView,
   type LegacyState,
@@ -36,11 +38,11 @@ const LEGACY_KEY = 'lode_choir_legacy_v1';
 const SETTINGS_KEY = 'lode_choir_settings_v1';
 
 type Surface = 'title' | 'loadout' | 'game' | 'manual' | 'chronicle' | 'settings' | 'credits';
-type Settings = { muted: boolean; highContrast: boolean; reducedMotion: boolean };
+type Settings = { muted: boolean; highContrast: boolean; reducedMotion: boolean; volume: number };
 type SavePreview = { seed: string; shift: number; relicName: string | null; runMode: RunMode };
 type ProgressBackup = { game: 'lode-choir-backup'; version: 1; autosave: string | null; legacy: string; settings: Settings };
 
-const DEFAULT_SETTINGS: Settings = { muted: false, highContrast: false, reducedMotion: false };
+const DEFAULT_SETTINGS: Settings = { muted: false, highContrast: false, reducedMotion: false, volume: 0.7 };
 
 const ENDING_DETAILS: Record<EndingId, { description: string; cost: string }> = {
   harvest: {
@@ -299,6 +301,20 @@ function RouteChartStrip({ view, status, onReserve, onClear }: {
   );
 }
 
+function normalizeSettings(value: unknown): Settings {
+  if (!value || typeof value !== 'object') return DEFAULT_SETTINGS;
+  const candidate = value as Partial<Settings>;
+  const volume = typeof candidate.volume === 'number' && Number.isFinite(candidate.volume)
+    ? Math.max(0, Math.min(1, candidate.volume))
+    : DEFAULT_SETTINGS.volume;
+  return {
+    muted: typeof candidate.muted === 'boolean' ? candidate.muted : DEFAULT_SETTINGS.muted,
+    highContrast: typeof candidate.highContrast === 'boolean' ? candidate.highContrast : DEFAULT_SETTINGS.highContrast,
+    reducedMotion: typeof candidate.reducedMotion === 'boolean' ? candidate.reducedMotion : DEFAULT_SETTINGS.reducedMotion,
+    volume,
+  };
+}
+
 function parseProgressBackup(serialized: string): { run: GameState | null; legacy: LegacyState; settings: Settings } {
   if (serialized.length > 1_000_000) throw new Error('Backup exceeds the one-megabyte safety limit.');
   let value: unknown;
@@ -323,7 +339,7 @@ function parseProgressBackup(serialized: string): { run: GameState | null; legac
   return {
     run,
     legacy: deserializeLegacy(backup.legacy),
-    settings: candidateSettings,
+    settings: normalizeSettings(candidateSettings),
   };
 }
 
@@ -410,6 +426,19 @@ function EventPanel({ view, onChoose }: { view: GameView; onChoose: (choiceIndex
   const legalChoices = new Set(legalCommands(view.state as GameState)
     .filter((command) => command.type === 'choose_event')
     .map((command) => command.choiceIndex));
+  const effectLabels = (choice: EventChoice) => {
+    const labels: string[] = [];
+    const resources = { provisions: 'PRO', alloy: 'ALY', lumen: 'LUM' } as const;
+    for (const [resource, amount] of Object.entries(choice.resourceDelta ?? {}) as [keyof typeof resources, number][]) {
+      labels.push(`${resources[resource]} ${amount >= 0 ? '+' : '−'}${Math.abs(amount)}`);
+    }
+    if (choice.integrityDelta) labels.push(`HULL ${choice.integrityDelta >= 0 ? '+' : '−'}${Math.abs(choice.integrityDelta)}`);
+    if (choice.noteDelta) labels.push(`NOTE ${choice.noteDelta >= 0 ? '+' : '−'}${Math.abs(choice.noteDelta)}`);
+    const crewName = choice.crewId ? view.crew.find((crew) => crew.id === choice.crewId)?.name.toUpperCase() : null;
+    if (crewName && choice.loyaltyDelta) labels.push(`${crewName} LOY ${choice.loyaltyDelta >= 0 ? '+' : '−'}${Math.abs(choice.loyaltyDelta)}`);
+    if (crewName && choice.strainDelta) labels.push(`${crewName} STR ${choice.strainDelta >= 0 ? '+' : '−'}${Math.abs(choice.strainDelta)}`);
+    return labels;
+  };
   return (
     <section className="event-panel" aria-labelledby="event-title" data-testid="event-panel">
       <span className="kicker">INTERCEPTED // {speaker?.name ?? 'ORISON'}</span>
@@ -417,11 +446,14 @@ function EventPanel({ view, onChoose }: { view: GameView; onChoose: (choiceIndex
       <h2 id="event-title">{event.title}</h2>
       <p className="event-body">{event.body}</p>
       <div className="choice-list">
-        {event.choices.map((choice, index) => (
-          <button type="button" key={choice.label} onClick={() => onChoose(index)} disabled={!legalChoices.has(index)} data-testid={`event-choice-${index}`}>
-            <strong>{choice.label}</strong><span>{choice.consequence}</span>{!legalChoices.has(index) && <em>REQUIRES RESOURCES YOU DO NOT HAVE</em>}
-          </button>
-        ))}
+        {event.choices.map((choice, index) => {
+          const effects = effectLabels(choice);
+          return <button type="button" key={choice.label} onClick={() => onChoose(index)} disabled={!legalChoices.has(index)} data-testid={`event-choice-${index}`}>
+            <strong>{choice.label}</strong><span>{choice.consequence}</span>
+            <small className="choice-effects" aria-label="Exact effects">{effects.map((effect) => <b key={effect}>{effect}</b>)}</small>
+            {!legalChoices.has(index) && <em>REQUIRES RESOURCES YOU DO NOT HAVE</em>}
+          </button>;
+        })}
       </div>
     </section>
   );
@@ -500,8 +532,48 @@ function FinalePanel({ view, onChoose }: { view: GameView; onChoose: (ending: En
 function CompletionPanel({ view, onNewRun, onChronicle }: { view: GameView; onNewRun: () => void; onChronicle: () => void }) {
   const won = view.state.status === 'won';
   const modeLabel = view.state.runMode === 'black_descent' ? 'BLACK DESCENT · 1.25×' : 'STANDARD DESCENT · 1×';
+  const score = scoreBreakdown(view.state as GameState);
+  const [reportCopied, setReportCopied] = useState(false);
+  const scoreLines = [
+    ['Expedition completed', score.completion],
+    [`${view.state.shift} shifts endured`, score.shifts],
+    [`${view.state.heartNotes} Heart Notes`, score.heartNotes],
+    [`${view.state.integrity} hull integrity`, score.integrity],
+    ['Fulfilled vows', score.fulfilledVows],
+    ['Crew loyalty', score.loyalty],
+    ['Lasting scars', score.scars],
+  ] as const;
   const heading = useRef<HTMLHeadingElement>(null);
   useEffect(() => { heading.current?.focus(); }, []);
+  const copyReport = async () => {
+    const replayUrl = new URL(window.location.pathname, window.location.href);
+    replayUrl.searchParams.set('seed', view.state.seed);
+    const outcome = won ? ENDINGS[view.state.ending ?? 'harmonize'].title : 'Orison went dark';
+    const report = [
+      `LODE CHOIR // ${won ? 'CONCORDANT' : 'SILENCED'}`,
+      `${outcome} · ${modeLabel}`,
+      `Seed: ${view.state.seed}`,
+      `Score: ${score.total} · Shift: ${view.state.shift}/7 · Notes: ${view.state.heartNotes}/3 · Hull: ${view.state.integrity}`,
+      `Replay this signal: ${replayUrl.toString()}`,
+    ].join('\n');
+    let copied = false;
+    try {
+      await navigator.clipboard.writeText(report);
+      copied = true;
+    } catch {
+      const field = document.createElement('textarea');
+      field.value = report;
+      field.setAttribute('readonly', '');
+      field.style.position = 'fixed';
+      field.style.opacity = '0';
+      document.body.append(field);
+      field.select();
+      copied = document.execCommand('copy');
+      field.remove();
+    }
+    setReportCopied(copied);
+    if (copied) window.setTimeout(() => setReportCopied(false), 1600);
+  };
   return (
     <section className={`completion-panel ${won ? 'is-victory' : 'is-loss'}`} data-testid="completion-panel">
       <span className="kicker">RUN // {won ? 'CONCORDANT' : 'SILENCED'} // {modeLabel}</span>
@@ -511,8 +583,16 @@ function CompletionPanel({ view, onNewRun, onChronicle }: { view: GameView; onNe
       <div className="completion-stats">
         <span><b>{scoreRun(view.state as GameState)}</b> echo score</span><span><b>{view.state.shift}</b> shifts</span><span><b>{view.state.heartNotes}</b> Heart Notes</span><span><b>{view.state.integrity}</b> integrity</span>
       </div>
+      <details className="score-breakdown">
+        <summary>Inspect score ledger <span>{score.base} base{score.multiplier > 1 ? ` × ${score.multiplier}` : ''}</span></summary>
+        <dl>
+          {scoreLines.map(([label, value]) => <div key={label}><dt>{label}</dt><dd className={value < 0 ? 'is-penalty' : ''}>{value >= 0 ? '+' : '−'}{Math.abs(value)}</dd></div>)}
+          <div className="score-total"><dt>Final echo score</dt><dd>{score.total}</dd></div>
+        </dl>
+      </details>
       <div className="completion-actions">
         <button className="primary-action" type="button" onClick={onNewRun}>Begin another descent</button>
+        <button className="text-button" type="button" onClick={copyReport}>{reportCopied ? 'Report copied' : 'Copy expedition report'}</button>
         <button className="text-button" type="button" onClick={onChronicle}>Open Chronicle</button>
       </div>
     </section>
@@ -591,7 +671,7 @@ function SettingsPage({ settings, onChange, onCreateBackup, onRestoreBackup, onB
 }) {
   const [backupText, setBackupText] = useState('');
   const [backupStatus, setBackupStatus] = useState<string | null>(null);
-  const settingRows: { key: keyof Settings; title: string; body: string }[] = [
+  const settingRows: { key: 'muted' | 'highContrast' | 'reducedMotion'; title: string; body: string }[] = [
     { key: 'muted', title: 'Mute the choir', body: 'Disable music and procedural interface tones.' },
     { key: 'highContrast', title: 'High contrast', body: 'Brighten text and strengthen structural lines.' },
     { key: 'reducedMotion', title: 'Reduce motion', body: 'Replace chamber, descent, and finale movement with still feedback.' },
@@ -626,6 +706,11 @@ function SettingsPage({ settings, onChange, onCreateBackup, onRestoreBackup, onB
             <i aria-hidden="true" />
           </label>
         ))}
+        <label className="volume-setting">
+          <span><strong>Choir volume</strong><small>Balance the moon-drone and interface tones.</small></span>
+          <input type="range" min="0" max="1" step="0.05" value={settings.volume} aria-label="Choir volume" onChange={(event) => onChange({ ...settings, volume: Number(event.target.value) })} />
+          <output>{Math.round(settings.volume * 100)}%</output>
+        </label>
       </div>
       <section className="progress-backup" aria-labelledby="progress-backup-title">
         <span className="kicker">LOCAL DATA // PORTABLE RECORD</span>
@@ -826,7 +911,7 @@ export function GameApp() {
         setSavePreview(null);
       }
     }
-    const loadedSettings = safeParse(localStorage.getItem(SETTINGS_KEY), DEFAULT_SETTINGS);
+    const loadedSettings = normalizeSettings(safeParse<unknown>(localStorage.getItem(SETTINGS_KEY), DEFAULT_SETTINGS));
     setSettings(loadedSettings);
     choirAudio.setEnabled(!loadedSettings.muted);
     const loadedLegacy = loadLegacy(localStorage.getItem(LEGACY_KEY));
@@ -836,6 +921,7 @@ export function GameApp() {
 
   useEffect(() => {
     choirAudio.setEnabled(!settings.muted);
+    choirAudio.setVolume(settings.volume);
     localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
   }, [settings]);
 

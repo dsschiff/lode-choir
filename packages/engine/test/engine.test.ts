@@ -10,6 +10,7 @@ import {
   legalCommands,
   recordLegacyRun,
   replay,
+  scoreBreakdown,
   scoreRun,
   selectGameView,
   serialize,
@@ -326,8 +327,32 @@ test('Black Descent score multiplication is explicit and no completed loss can o
     crew.vowProgress = 3;
   }
   assert.equal(scoreRun(standardWin), 2500);
+  assert.deepEqual(scoreBreakdown(standardWin), {
+    completion: 2000,
+    shifts: 350,
+    heartNotes: 450,
+    integrity: 0,
+    fulfilledVows: 0,
+    loyalty: 0,
+    scars: -300,
+    base: 2500,
+    multiplier: 1,
+    total: 2500,
+  });
   assert.equal(baseScoreRun(blackLoss), 1900);
   assert.equal(scoreRun(blackLoss), 2375);
+  assert.deepEqual(scoreBreakdown(blackLoss), {
+    completion: 0,
+    shifts: 350,
+    heartNotes: 450,
+    integrity: 300,
+    fulfilledVows: 400,
+    loyalty: 400,
+    scars: 0,
+    base: 1900,
+    multiplier: 1.25,
+    total: 2375,
+  });
   assert.ok(scoreRun(standardWin) > scoreRun(blackLoss));
 
   const blackWin = structuredClone(standardWin);

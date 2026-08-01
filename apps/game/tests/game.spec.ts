@@ -18,12 +18,32 @@ test('title menu exposes seed, archive, settings, and credits', async ({ page })
 
   await page.getByRole('button', { name: 'Settings' }).click();
   await expect(page.getByRole('heading', { name: 'Settings' })).toBeVisible();
+  const volume = page.getByRole('slider', { name: 'Choir volume' });
+  await expect(volume).toHaveValue('0.7');
+  await volume.fill('0.35');
+  await expect(page.locator('.volume-setting output')).toHaveText('35%');
   await page.getByText('Reduce motion').click();
   await expect(page.locator('.app-root')).toHaveClass(/reduced-motion/);
   await page.getByRole('button', { name: /RETURN/ }).click();
 
+  await page.getByRole('button', { name: 'Settings' }).click();
+  await expect(page.getByRole('slider', { name: 'Choir volume' })).toHaveValue('0.35');
+  await page.getByRole('button', { name: /RETURN/ }).click();
+
   await page.getByRole('button', { name: 'Chronicle' }).click();
   await expect(page.getByRole('heading', { name: 'The Chronicle' })).toBeVisible();
+});
+
+test('legacy accessibility settings migrate with the default choir volume', async ({ page }) => {
+  await page.evaluate(() => localStorage.setItem('lode_choir_settings_v1', JSON.stringify({
+    muted: false,
+    highContrast: true,
+    reducedMotion: false,
+  })));
+  await page.reload();
+  await expect(page.locator('.app-root')).toHaveClass(/high-contrast/);
+  await page.getByRole('button', { name: 'Settings' }).click();
+  await expect(page.getByRole('slider', { name: 'Choir volume' })).toHaveValue('0.7');
 });
 
 test('new run reaches the first consequential choice immediately', async ({ page }) => {
@@ -95,8 +115,18 @@ test('deterministic hook can resolve a finale and begin the next inherited desce
   });
   await expect(page.getByTestId('completion-panel')).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Join the Choir' })).toBeVisible();
-  await expect(page.getByText('echo score')).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Join the Choir' })).toBeFocused();
+  await expect(page.locator('.completion-stats')).toContainText('echo score');
+  await page.getByText('Inspect score ledger').click();
+  await expect(page.locator('.score-breakdown')).toContainText('Expedition completed');
+  await expect(page.locator('.score-breakdown')).toContainText('Final echo score');
+  await page.evaluate(() => Object.defineProperty(navigator, 'clipboard', {
+    configurable: true,
+    value: { writeText: (text: string) => { localStorage.setItem('copied-expedition-report', text); return Promise.resolve(); } },
+  }));
+  await page.getByRole('button', { name: 'Copy expedition report' }).click();
+  await expect(page.getByRole('button', { name: 'Report copied' })).toBeVisible();
+  await expect.poll(() => page.evaluate(() => localStorage.getItem('copied-expedition-report'))).toContain('Replay this signal:');
   await expect(page.locator('.feedback-stack .feedback')).toHaveCount(0);
   const completedSeed = await page.evaluate(() => window.__LODE_CHOIR__?.getState()?.seed);
   await page.getByRole('button', { name: 'Open Chronicle' }).click();
@@ -214,6 +244,7 @@ test('validated progress backups preserve the active signal, Chronicle, and sett
   });
   await page.getByRole('button', { name: 'Open settings' }).click();
   await page.getByText('High contrast').click();
+  await page.getByRole('slider', { name: 'Choir volume' }).fill('0.45');
   await expect(page.locator('.app-root')).toHaveClass(/high-contrast/);
   const scan = await new AxeBuilder({ page }).analyze();
   expect(scan.violations, JSON.stringify(scan.violations, null, 2)).toEqual([]);
@@ -231,6 +262,7 @@ test('validated progress backups preserve the active signal, Chronicle, and sett
   await page.getByRole('button', { name: /VALIDATE.*RESTORE/ }).click();
   await expect(page.locator('.backup-status')).toContainText(`and ${expected!.seed} at shift 1`);
   await expect(page.locator('.app-root')).toHaveClass(/high-contrast/);
+  await expect(page.getByRole('slider', { name: 'Choir volume' })).toHaveValue('0.45');
   await page.getByRole('button', { name: /RETURN/ }).click();
   const restored = await page.evaluate(() => window.__LODE_CHOIR__?.getState());
   expect(restored?.seed).toBe(expected!.seed);
@@ -305,6 +337,9 @@ test('story choices expose unaffordable costs before the player commits', async 
     window.__LODE_CHOIR__?.refresh();
   });
   await expect(page.getByRole('heading', { name: 'The Glass Bell' })).toBeVisible();
+  await expect(page.getByTestId('event-choice-0').locator('.choice-effects')).toHaveText('ALY +2TAMSIN ROOK STR +1');
+  await expect(page.getByTestId('event-choice-1').locator('.choice-effects')).toHaveText('PRO −1MARA VEY LOY +1');
+  await expect(page.getByTestId('event-choice-2').locator('.choice-effects')).toHaveText('LUM −2NOTE +1');
   await expect(page.getByTestId('event-choice-0')).toBeEnabled();
   await expect(page.getByTestId('event-choice-1')).toBeDisabled();
   await expect(page.getByTestId('event-choice-2')).toBeDisabled();

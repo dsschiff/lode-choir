@@ -11,7 +11,8 @@ Observe without coaching:
 4. Does citadel construction change a later assignment decision?
 5. Does emergency plating feel like a tense survival trade rather than an automatic tax?
 6. Do they use route charting to make a future plan, rather than simply hoard lumen?
-7. Can they explain why the run ended?
+7. Can they use the exact effect labels to explain the cost of a story choice?
+8. Can they explain why the run ended and reconstruct the final score from its ledger?
 
 ## Strategy passes
 
@@ -52,5 +53,6 @@ Any score below 4 produces a concrete fix before visual content expansion.
 Keep the final seed, creation options, and command trace for representative Standard
 and Black Descent wins and losses, simulation summary, screenshots of
 title/planning/event/finale, and browser-console results.
+Use **Copy expedition report** at completion to retain a concise score and replay URL.
 For a completed Chronicle, also capture the loadout screen and one resumed relic run so
 the persistent loop is evidenced rather than inferred.
