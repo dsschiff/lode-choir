@@ -114,6 +114,17 @@ export interface GameState {
   logSeq: number;
 }
 
+export interface CreateRunOptions {
+  seed: string;
+  relicId?: string;
+}
+
+export interface SerializedGameEnvelope {
+  game: 'lode-choir';
+  version: 1;
+  state: GameState;
+}
+
 export interface LegacyState {
   version: 1;
   runsCompleted: number;
