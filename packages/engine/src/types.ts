@@ -6,6 +6,7 @@ export type RunStatus = 'playing' | 'won' | 'lost';
 export type RunPhase = 'planning' | 'event' | 'development' | 'finale' | 'complete';
 export type EndingId = 'harvest' | 'harmonize' | 'seal';
 export type RelicId = 'heart_splinter' | 'vesper_tuning_fork' | 'oathkeepers_latch';
+export type RunMode = 'standard' | 'black_descent';
 
 export interface CrewDefinition {
   id: CrewId;
@@ -101,8 +102,9 @@ export interface LogEntry {
 }
 
 export interface GameState {
-  version: 4;
+  version: 5;
   seed: string;
+  runMode: RunMode;
   startingRelic: RelicId | null;
   rngState: number;
   shift: number;
@@ -131,29 +133,34 @@ export interface GameState {
 export interface CreateRunOptions {
   seed: string;
   relicId?: RelicId;
+  runMode?: RunMode;
 }
 
 export interface SerializedGameEnvelope {
   game: 'lode-choir';
-  version: 4;
+  version: 5;
   state: GameState;
 }
 
 export interface RunRecord {
   seed: string;
+  runMode: RunMode;
   outcome: 'won' | 'lost';
   ending: EndingId | null;
   shift: number;
   heartNotes: number;
   integrity: number;
   startingRelic: RelicId | null;
+  scoreVersion: 1 | 2;
+  baseScore: number;
+  scoreMultiplier: number;
   score: number;
   scars: number;
   fulfilledVows: number;
 }
 
 export interface LegacyState {
-  version: 3;
+  version: 4;
   runsCompleted: number;
   echoShards: number;
   endings: EndingId[];
@@ -197,6 +204,8 @@ export interface GameView {
   activeStoryEvent: StoryEventDefinition | null;
   canResolveShift: boolean;
   maxIntegrity: number;
+  repairCost: number;
+  scoreMultiplier: number;
   routeReservationCost: number;
   objective: string;
 }

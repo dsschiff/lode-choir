@@ -5,13 +5,15 @@ Validated against the local `main` branch on 2026-07-31 with Node 24.14 and npm
 
 ## Rules and balance
 
-- 27 deterministic engine and content tests pass, including immutability, legal-command
+- 30 deterministic engine, content, and simulation tests pass, including immutability, legal-command
   enforcement, save migration, exact replay, scars, loyalty, all endings, development
-  deferral, emergency repair, route leadership, and short-handed runs.
+  deferral, mode-aware emergency repair, Black Descent composition and scoring, route
+  leadership, and short-handed runs.
 - The simulation regression covers 500 seeds under conservative, balanced, and
   aggressive policies, both with adaptive leadership and with every fourth crew member
   resting, plus all four relic loadouts under every policy and matched chart/no-chart
-  policies: 12,000 full runs per test pass. Every run terminates, stays within resource
+  policies, plus a matched Standard/Black Descent matrix over policy, relic, and
+  charting combinations: 36,000 full runs per test pass. Every run terminates, stays within resource
   bounds, and replays to an exactly
   equal state.
 - A separate 500-seed matched audit (1,000 full runs per policy) produced the following
@@ -58,19 +60,53 @@ reservations repeatedly, and still declined most returning routes. Baseline RNG 
 remain identical because the normal three offers are rolled before deterministic
 replacement.
 
+The 24,000-run matched mode matrix validates the optional Black Descent contract. It
+starts at 11 hull, three provisions, four alloy, and one lumen; unread complications on
+risk-three-or-higher routes add two hazard rather than one; emergency plating costs
+three alloy; and completed scores receive an explicit 1.25 multiplier. Aggregate wins
+fell from 4,697/12,000 (39.1%) in Standard to 3,851/12,000 (32.1%), a 7.1-point drop
+inside the locked 3–15 point target.
+
+| Policy | Standard wins / 4,000 | Black Descent wins / 4,000 | Difference |
+| --- | ---: | ---: | ---: |
+| Conservative | 3,441 | 3,435 | −0.2 points |
+| Balanced | 1,205 | 397 | −20.2 points |
+| Aggressive | 51 | 19 | −0.8 points |
+
+The mode deliberately concentrates pressure on balanced/risk-taking play while leaving
+the conservative policy viable rather than guaranteeing failure. Within Black Descent,
+balanced no-chart wins were 33, 33, 33, and 39/500 across none/Heart/Fork/Latch; charted
+wins were 64, 56, 55, and 84. All chart-aware balanced relic cells remain above the
+locked 10% viability floor, relic spread stays below six points, and chart impact stays
+below nine points. Balanced chart cells used plating 346–374 times per 500 runs. Every
+aggressive relic/chart family still found at least one win. Carried routes were later
+chosen in 26.3%, 17.2%, and 15.2% of hard-mode reservations under conservative,
+balanced, and aggressive policies respectively.
+
+The score boundary was also hardened before enabling the multiplier: the completion
+award is 2,000 points, making the weakest possible completed win (2,500) outrank the
+maximal synthetic Black Descent loss (2,375). Run records persist base score,
+multiplier, and final score rather than hiding the category adjustment.
+Pre-v2 score records migrate as visibly marked archived-formula history and are excluded
+from the current best-per-mode summaries because their missing crew components cannot be
+recomputed honestly.
+
 ## Interface and persistence
 
-- 20 Playwright checks pass in Pixel 5 and desktop Chromium projects. They cover title
+- 22 Playwright checks pass in Pixel 5 and desktop Chromium projects. They cover title
   navigation, settings, first choice, touch assignment, optional leadership, resolution,
   loadout locking and keyboard selection, all three relic effects, relic resume,
   exact route-cost forecasts, chart hold/swap/refund/reload/return behavior,
   autosave previews/resume, unaffordable story-choice gating, corrupt-save recovery,
-  scored Chronicle history, later phase surfaces, and test hooks.
+  scored Chronicle history, Black Descent keyboard selection, exact preview,
+  save/resume, completion, archive categorization and fresh-run reset, later phase
+  surfaces, and test hooks.
 - Axe scans report no detectable violations on the title, manual, loadout, planning,
   expanded charting, or resource-gated event surfaces in either browser project.
 - Production static export passes. The bounded E2E runner builds, serves, tests, closes
   its exact child server, and returns in under 35 seconds on this host.
-- Visual inspection at 1440x960 and 390x844 confirmed title composition, portrait crops,
+- Visual inspection at 1440x960 and 390x844 confirmed title composition, Standard and
+  Black Descent loadouts, portrait crops,
   touch targets, sticky resource rail, citadel grid, engine-derived route forecasts,
   leader preview, mobile action-before-roster order, and long scrolling with no
   horizontal overflow.

@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
   applyCommand,
+  baseScoreRun,
   createLegacyState,
   createRun,
   deserialize,
@@ -257,6 +258,83 @@ test('development can spend alloy on bounded emergency hull repair', () => {
   assert.equal(legalCommands(state).some((command) => command.type === 'repair_citadel'), false);
 });
 
+test('Black Descent composes deterministic shortages, harsher unknown faults, relics, and plating', () => {
+  const standard = createRun({ seed: 'black-contract' });
+  let black = createRun({ seed: 'black-contract', runMode: 'black_descent' });
+  assert.equal(black.runMode, 'black_descent');
+  assert.equal(black.integrity, 11);
+  assert.deepEqual(black.resources, { provisions: 3, alloy: 4, lumen: 1 });
+  assert.equal(selectGameView(black).maxIntegrity, 11);
+  assert.equal(selectGameView(black).repairCost, 3);
+  assert.equal(selectGameView(black).scoreMultiplier, 1.25);
+
+  const standardForecast = new Map(selectGameView(standard).routes.map((route) => [route.routeId, route.forecast]));
+  for (const route of selectGameView(black).routes) {
+    const baseline = standardForecast.get(route.routeId)!;
+    assert.equal(route.forecast.hullDamageMin, baseline.hullDamageMin);
+    assert.equal(route.forecast.hullDamageMax, baseline.hullDamageMax + (route.hiddenComplication && route.definition.hazard >= 3 ? 1 : 0));
+  }
+  black.routeOffers[0]!.revealed = true;
+  const revealed = selectGameView(black).routes[0]!;
+  assert.equal(revealed.forecast.hullDamageMin, revealed.forecast.hullDamageMax);
+
+  black.phase = 'development';
+  black.integrity = 9;
+  black.resources.alloy = 2;
+  assert.equal(legalCommands(black).some((command) => command.type === 'repair_citadel'), false);
+  black.resources.alloy = 3;
+  black = applyCommand(black, { type: 'repair_citadel' }).state;
+  assert.equal(black.integrity, 11);
+  assert.equal(black.resources.alloy, 0);
+
+  const heart = createRun({ seed: 'black-heart', runMode: 'black_descent', relicId: 'heart_splinter' });
+  assert.equal(heart.resources.alloy, 6);
+  assert.equal(heart.crew.find((crew) => crew.id === 'tamsin')!.strain, 1);
+  const fork = createRun({ seed: 'black-fork', runMode: 'black_descent', relicId: 'vesper_tuning_fork' });
+  assert.equal(fork.resources.lumen, 0);
+  assert.equal(fork.heartNotes, 1);
+  const latch = createRun({ seed: 'black-latch', runMode: 'black_descent', relicId: 'oathkeepers_latch' });
+  assert.equal(latch.integrity, 12);
+  assert.equal(latch.resources.alloy, 3);
+  assert.equal(selectGameView(latch).maxIntegrity, 12);
+  assert.deepEqual(deserialize(serialize(heart)), heart);
+  assert.deepEqual(replay({ seed: heart.seed, runMode: 'black_descent', relicId: 'heart_splinter' }, heart.commandTrace), heart);
+  assert.throws(() => createRun({ seed: 'unknown-mode', runMode: 'counterfeit' as never }), /Unknown run mode/);
+});
+
+test('Black Descent score multiplication is explicit and no completed loss can outrank a win', () => {
+  const standardWin = createRun({ seed: 'score-standard' });
+  standardWin.status = 'won';
+  standardWin.phase = 'complete';
+  standardWin.shift = 7;
+  standardWin.heartNotes = 3;
+  standardWin.integrity = 0;
+  for (const crew of standardWin.crew) {
+    crew.scar = `${crew.id}-scar`;
+    crew.loyalty = -2;
+    crew.vowProgress = 0;
+  }
+  const blackLoss = createRun({ seed: 'score-black-loss', runMode: 'black_descent', relicId: 'oathkeepers_latch' });
+  blackLoss.status = 'lost';
+  blackLoss.phase = 'complete';
+  blackLoss.shift = 7;
+  blackLoss.heartNotes = 3;
+  blackLoss.integrity = 12;
+  for (const crew of blackLoss.crew) {
+    crew.scar = null;
+    crew.loyalty = 5;
+    crew.vowProgress = 3;
+  }
+  assert.equal(scoreRun(standardWin), 2500);
+  assert.equal(baseScoreRun(blackLoss), 1900);
+  assert.equal(scoreRun(blackLoss), 2375);
+  assert.ok(scoreRun(standardWin) > scoreRun(blackLoss));
+
+  const blackWin = structuredClone(standardWin);
+  blackWin.runMode = 'black_descent';
+  assert.equal(scoreRun(blackWin), Math.round(baseScoreRun(blackWin) * 1.25));
+});
+
 test('save round trips exactly, corrupted saves fail safely, and replay is exact', () => {
   const state = readyFirstShift('save-replay');
   assert.deepEqual(deserialize(serialize(state)), state);
@@ -299,7 +377,8 @@ test('legacy saves migrate missing trace-era and expedition fields', () => {
   delete old.developmentChoices;
   delete old.routeLeader;
   const migrated = deserialize(JSON.stringify(old));
-  assert.equal(migrated.version, 4);
+  assert.equal(migrated.version, 5);
+  assert.equal(migrated.runMode, 'standard');
   assert.equal(migrated.seed, 'migration');
   assert.deepEqual(migrated.developmentChoices, []);
   assert.deepEqual(migrated.routeOffers, current.routeOffers);
@@ -308,14 +387,15 @@ test('legacy saves migrate missing trace-era and expedition fields', () => {
   delete versionOne.routeLeader;
   delete versionOne.startingRelic;
   const migratedVersionOne = deserialize(JSON.stringify(versionOne));
-  assert.equal(migratedVersionOne.version, 4);
+  assert.equal(migratedVersionOne.version, 5);
+  assert.equal(migratedVersionOne.runMode, 'standard');
   assert.equal(migratedVersionOne.routeLeader, null);
   assert.equal(migratedVersionOne.startingRelic, null);
 
   const versionTwo = { ...current, version: 2, storyFlags: ['relic:quiet-bell'] } as Record<string, unknown>;
   delete versionTwo.startingRelic;
   const migratedVersionTwo = deserialize(JSON.stringify(versionTwo));
-  assert.equal(migratedVersionTwo.version, 4);
+  assert.equal(migratedVersionTwo.version, 5);
   assert.equal(migratedVersionTwo.startingRelic, 'vesper_tuning_fork');
   assert.ok(migratedVersionTwo.storyFlags.includes('relic:vesper_tuning_fork'));
   assert.equal(migratedVersionTwo.reservedRoute, null);
@@ -326,9 +406,15 @@ test('legacy saves migrate missing trace-era and expedition fields', () => {
   delete versionThree.reservedRouteRevealed;
   versionThree.routeOffers = current.routeOffers.map(({ carried: _carried, chartedRevealed: _charted, ...offer }) => offer);
   const migratedVersionThree = deserialize(JSON.stringify(versionThree));
-  assert.equal(migratedVersionThree.version, 4);
+  assert.equal(migratedVersionThree.version, 5);
   assert.equal(migratedVersionThree.reservedRoute, null);
   assert.ok(migratedVersionThree.routeOffers.every((offer) => !offer.carried && !offer.chartedRevealed));
+
+  const versionFour = { ...current, version: 4 } as Record<string, unknown>;
+  delete versionFour.runMode;
+  const migratedVersionFour = deserialize(JSON.stringify(versionFour));
+  assert.equal(migratedVersionFour.version, 5);
+  assert.equal(migratedVersionFour.runMode, 'standard');
 
   const staleReservation = { ...current, reservedRoute: 'missing-route' };
   assert.throws(() => deserialize(JSON.stringify(staleReservation)), /stale route reservation/);
@@ -355,6 +441,10 @@ test('full runs terminate and winning runs update legacy without mutating it', (
   assert.equal(updated.records.length, 1);
   assert.equal(updated.records[0]!.seed, run.seed);
   assert.equal(updated.records[0]!.score, scoreRun(run));
+  assert.equal(updated.records[0]!.baseScore, baseScoreRun(run));
+  assert.equal(updated.records[0]!.scoreVersion, 2);
+  assert.equal(updated.records[0]!.scoreMultiplier, 1);
+  assert.equal(updated.records[0]!.runMode, 'standard');
   assert.equal(updated.records[0]!.outcome, 'won');
   assert.deepEqual(deserializeLegacy(serializeLegacy(updated)), updated);
 
@@ -370,6 +460,14 @@ test('full runs terminate and winning runs update legacy without mutating it', (
   assert.equal(afterLoss.records[0]!.outcome, 'lost');
   assert.ok(afterLoss.records[0]!.score >= 0);
 
+  const blackWin = structuredClone(run);
+  blackWin.seed = 'black-archive';
+  blackWin.runMode = 'black_descent';
+  const afterBlack = recordLegacyRun(createLegacyState(), blackWin);
+  assert.equal(afterBlack.records[0]!.runMode, 'black_descent');
+  assert.equal(afterBlack.records[0]!.scoreMultiplier, 1.25);
+  assert.equal(afterBlack.records[0]!.score, Math.round(afterBlack.records[0]!.baseScore * 1.25));
+
   const migratedLegacy = deserializeLegacy(JSON.stringify({
     version: 1,
     runsCompleted: 2,
@@ -378,13 +476,27 @@ test('full runs terminate and winning runs update legacy without mutating it', (
     lore: ['tag:lost_crew', 'event:eighth_memory', 'unknown'],
     relics: ['Cantor Blade', 'brass-seed', 'Concordant Lens', 'quiet-bell', 'Quiet Bell', 'pilgrim-thread'],
   }));
-  assert.equal(migratedLegacy.version, 3);
+  assert.equal(migratedLegacy.version, 4);
   assert.deepEqual([...migratedLegacy.relics].sort(), ['heart_splinter', 'oathkeepers_latch', 'vesper_tuning_fork']);
   assert.deepEqual(migratedLegacy.endings, ['harvest']);
   assert.ok(migratedLegacy.lore.includes('orison_manifest'));
   assert.ok(migratedLegacy.lore.includes('rook_roll_call'));
   assert.ok(migratedLegacy.lore.includes('sable_eight_last_log'));
   assert.deepEqual(migratedLegacy.records, []);
+
+  const migratedRecord = deserializeLegacy(JSON.stringify({
+    version: 3,
+    runsCompleted: 1,
+    echoShards: 2,
+    endings: [],
+    lore: [],
+    relics: [],
+    records: [{ seed: 'old-score', outcome: 'lost', ending: null, shift: 4, heartNotes: 2, integrity: 5, startingRelic: null, score: 725, scars: 1, fulfilledVows: 0 }],
+  }));
+  assert.equal(migratedRecord.records[0]!.runMode, 'standard');
+  assert.equal(migratedRecord.records[0]!.scoreVersion, 1);
+  assert.equal(migratedRecord.records[0]!.baseScore, 725);
+  assert.equal(migratedRecord.records[0]!.scoreMultiplier, 1);
 
   let history = createLegacyState();
   for (let index = 0; index < 15; index += 1) {

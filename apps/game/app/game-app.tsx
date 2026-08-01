@@ -25,6 +25,7 @@ import {
   type LegacyState,
   type ModuleId,
   type RelicId,
+  type RunMode,
 } from '@lode-choir/engine';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { choirAudio } from './audio';
@@ -35,7 +36,7 @@ const SETTINGS_KEY = 'lode_choir_settings_v1';
 
 type Surface = 'title' | 'loadout' | 'game' | 'manual' | 'chronicle' | 'settings' | 'credits';
 type Settings = { muted: boolean; highContrast: boolean; reducedMotion: boolean };
-type SavePreview = { seed: string; shift: number; relicName: string | null };
+type SavePreview = { seed: string; shift: number; relicName: string | null; runMode: RunMode };
 
 const DEFAULT_SETTINGS: Settings = { muted: false, highContrast: false, reducedMotion: false };
 
@@ -85,7 +86,7 @@ declare global {
     __LODE_CHOIR__?: {
       getState: () => GameState | null;
       command: (command: Command) => void;
-      newRun: (seed: string, relicId?: RelicId) => void;
+      newRun: (seed: string, relicId?: RelicId, runMode?: RunMode) => void;
       refresh: () => void;
     };
   }
@@ -441,7 +442,7 @@ function DevelopmentPanel({ view, slot, onSlot, onBuild, onUpgrade, onRepair, on
       </div>
       <div className="repair-row">
         <span><strong>Plate the living hull</strong><small>{repairAmount > 0 ? `Restore ${repairAmount} integrity and end development.` : 'Orison is already at full integrity.'}</small></span>
-        <button type="button" onClick={onRepair} disabled={!canRepair} data-testid="repair-citadel">REPAIR · 2 ALLOY</button>
+        <button type="button" onClick={onRepair} disabled={!canRepair} data-testid="repair-citadel">REPAIR · {view.repairCost} ALLOY</button>
       </div>
       <button className="text-button" type="button" onClick={onSkip}>Conserve alloy and continue</button>
     </section>
@@ -468,11 +469,12 @@ function FinalePanel({ view, onChoose }: { view: GameView; onChoose: (ending: En
 
 function CompletionPanel({ view, onNewRun, onChronicle }: { view: GameView; onNewRun: () => void; onChronicle: () => void }) {
   const won = view.state.status === 'won';
+  const modeLabel = view.state.runMode === 'black_descent' ? 'BLACK DESCENT · 1.25×' : 'STANDARD DESCENT · 1×';
   const heading = useRef<HTMLHeadingElement>(null);
   useEffect(() => { heading.current?.focus(); }, []);
   return (
     <section className={`completion-panel ${won ? 'is-victory' : 'is-loss'}`} data-testid="completion-panel">
-      <span className="kicker">RUN // {won ? 'CONCORDANT' : 'SILENCED'}</span>
+      <span className="kicker">RUN // {won ? 'CONCORDANT' : 'SILENCED'} // {modeLabel}</span>
       <ToneMark active={won} />
       <h2 ref={heading} tabIndex={-1}>{won ? ENDINGS[view.state.ending ?? 'harmonize'].title : 'Orison goes dark.'}</h2>
       <p>{view.state.endingText ?? (won ? 'The expedition leaves a mark in the moon—and the moon leaves one in them.' : 'The deep keeps what the surface could not protect.')}</p>
@@ -488,18 +490,23 @@ function CompletionPanel({ view, onNewRun, onChronicle }: { view: GameView; onNe
 }
 
 function Chronicle({ legacy, onBack }: { legacy: LegacyState; onBack: () => void }) {
-  const bestScore = Math.max(0, ...legacy.records.map((record) => record.score));
+  const standardScores = legacy.records.filter((record) => record.runMode === 'standard' && record.scoreVersion === 2).map((record) => record.score);
+  const blackScores = legacy.records.filter((record) => record.runMode === 'black_descent' && record.scoreVersion === 2).map((record) => record.score);
   return (
     <MenuPage eyebrow="ARCHIVE // PERSISTENT MEMORY" title="The Chronicle" onBack={onBack}>
-      <div className="chronicle-summary"><span><b>{legacy.runsCompleted}</b> descents</span><span><b>{bestScore}</b> best echo score</span></div>
+      <div className="chronicle-summary">
+        <span><b>{legacy.runsCompleted}</b> descents</span>
+        <span><b>{standardScores.length ? Math.max(...standardScores) : '—'}</b> best standard</span>
+        <span><b>{blackScores.length ? Math.max(...blackScores) : '—'}</b> best Black Descent</span>
+      </div>
       <h2>Recent descents</h2>
       {legacy.records.length ? <ol className="run-history">{legacy.records.map((record, index) => {
         const relic = record.startingRelic ? RELICS.find((candidate) => candidate.id === record.startingRelic) : null;
         const outcome = record.outcome === 'won' && record.ending ? ENDINGS[record.ending].title : 'Orison went dark';
         return <li key={`${record.seed}-${index}`}>
-          <span className={record.outcome === 'won' ? 'is-win' : 'is-loss'}>{record.outcome === 'won' ? 'CONCORDANT' : 'SILENCED'}</span>
+          <span className={record.outcome === 'won' ? 'is-win' : 'is-loss'}>{record.outcome === 'won' ? 'CONCORDANT' : 'SILENCED'} · {record.runMode === 'black_descent' ? 'BLACK DESCENT' : 'STANDARD'}</span>
           <strong>{outcome}</strong><b>{record.score}</b>
-          <small>{record.seed} · SHIFT {record.shift}/7 · {record.heartNotes} NOTES · {record.scars} SCARS{relic ? ` · ${relic.name}` : ''}</small>
+          <small>{record.seed} · SHIFT {record.shift}/7 · {record.heartNotes} NOTES · {record.scars} SCARS{relic ? ` · ${relic.name}` : ''}{record.scoreVersion === 1 ? ' · ARCHIVED FORMULA' : record.runMode === 'black_descent' ? ` · BASE ${record.baseScore} × ${record.scoreMultiplier}` : ''}</small>
         </li>;
       })}</ol> : <p className="empty-message">No expedition has yet returned to the archive.</p>}
       <h2>Resolved chords</h2>
@@ -588,27 +595,61 @@ function ManualPage({ onBack }: { onBack: () => void }) {
         <article><span>04 // DESCENT</span><h2>Carry the cost</h2><p>Every route consumes a ration. High strain creates a lasting scar and removes that person from the following shift. Vows and story choices build loyalty.</p></article>
         <article><span>05 // CITADEL</span><h2>Wake or mend</h2><p>After shifts two and four, spend alloy to build or improve Orison, plate two points of damaged hull, or conserve it. Every option ends development.</p></article>
         <article><span>06 // HEART-LODE</span><h2>Find three Notes</h2><p>Reach shift seven with three Heart Notes and a living citadel. Then choose what the crew does with the moon-song; each answer leaves a different legacy.</p></article>
-        <article><span>07 // CHRONICLE</span><h2>Leave a record</h2><p>Every ending unlocks an heirloom for later expeditions. The Chronicle keeps twelve deterministic scores with seed, outcome, scars, vows, and carried relic.</p></article>
+        <article><span>07 // CHRONICLE</span><h2>Leave a record</h2><p>Every ending unlocks an heirloom for later expeditions. The Chronicle keeps twelve deterministic scores with seed, outcome, scars, vows, relic, and descent mode.</p></article>
+        <article><span>08 // BLACK DESCENT</span><h2>Travel light</h2><p>Choose this optional contract at loadout for 1.25× score: 11 hull, three provisions, four alloy, one lumen, dearer plating, and twice the hidden fault on high-risk routes.</p></article>
       </div>
     </MenuPage>
   );
 }
 
-function LoadoutPage({ seed, unlocked, selected, onSelect, onBegin, onBack }: {
+function LoadoutPage({ seed, unlocked, selected, runMode, onSelect, onMode, onBegin, onBack }: {
   seed: string;
   unlocked: readonly RelicId[];
   selected: RelicId | null;
+  runMode: RunMode;
   onSelect: (relicId: RelicId | null) => void;
+  onMode: (runMode: RunMode) => void;
   onBegin: () => void;
   onBack: () => void;
 }) {
+  const preview = createRun({ seed, runMode, ...(selected ? { relicId: selected } : {}) });
+  const previewParts = [
+    `${preview.integrity} HULL`,
+    `${preview.resources.provisions} PRO`,
+    `${preview.resources.alloy} ALY`,
+    `${preview.resources.lumen} LUM`,
+  ];
+  if (preview.heartNotes > 0) previewParts.push(`${preview.heartNotes} NOTE`);
+  const tamsinStrain = preview.crew.find((crew) => crew.id === 'tamsin')?.strain ?? 0;
+  if (tamsinStrain > 0) previewParts.push(`TAMSIN +${tamsinStrain} STR`);
   return (
     <MenuPage eyebrow="CHRONICLE // EXPEDITION LOADOUT" title="Choose what returns" onBack={onBack}>
-      <p className="loadout-intro">One heirloom may cross the threshold. Every gift arrives with a cost; carrying nothing remains a valid choice.</p>
+      <div className="loadout-setup">
+        <p className="loadout-intro">One heirloom may cross the threshold. Every gift arrives with a cost; carrying nothing remains a valid choice.</p>
+        <fieldset className="descent-mode" data-testid="descent-mode">
+          <legend>DESCENT CONDITIONS</legend>
+          <div className="descent-mode-options">
+            <label className={runMode === 'standard' ? 'is-selected' : ''}>
+              <input type="radio" name="descent-mode" value="standard" checked={runMode === 'standard'} aria-describedby="descent-mode-description" onChange={() => onMode('standard')} />
+              <span>STANDARD DESCENT</span><strong>Standard</strong>
+            </label>
+            <label className={runMode === 'black_descent' ? 'is-selected is-black' : 'is-black'}>
+              <input type="radio" name="descent-mode" value="black_descent" checked={runMode === 'black_descent'} aria-describedby="descent-mode-description" onChange={() => onMode('black_descent')} />
+              <span>{runMode === 'black_descent' ? 'SELECTED // BLACK' : 'BLACK DESCENT // 1.25×'}</span><strong>Black Descent</strong>
+            </label>
+          </div>
+          <p id="descent-mode-description" aria-live="polite">
+            {runMode === 'black_descent'
+              ? 'Orison descends light: 11 hull, 3 provisions, 4 alloy, 1 lumen. Unread high-risk faults strike twice as hard. Plating costs 3 alloy.'
+              : 'The intended expedition balance: 12 hull, 4 provisions, 5 alloy, 2 lumen; standard faults, plating, and score.'}
+          </p>
+          <output className="loadout-preview" aria-label="Starting condition preview">{previewParts.join(' · ')}</output>
+        </fieldset>
+      </div>
       <div className="loadout-grid" role="radiogroup" aria-label="Starting relic">
         <label className={`relic-card none-card ${selected === null ? 'is-selected' : ''}`}>
           <input type="radio" name="relic" checked={selected === null} onChange={() => onSelect(null)} />
-          <span>UNBURDENED</span><strong>No relic</strong><p>Begin with Orison’s standard stores, hull, and crew condition.</p><small>No inherited advantage or cost.</small>
+          <span>UNBURDENED</span><strong>No relic</strong><p>Begin without an inherited modifier; the chosen descent conditions set Orison’s stores.</p><small>No inherited advantage or cost.</small>
         </label>
         {RELICS.map((relic) => {
           const unlockedRelic = unlocked.includes(relic.id);
@@ -622,7 +663,7 @@ function LoadoutPage({ seed, unlocked, selected, onSelect, onBegin, onBack }: {
           );
         })}
       </div>
-      <div className="loadout-footer"><span>SEED // {seed}</span><button className="primary-action" type="button" onClick={onBegin} data-testid="begin-descent"><span>Commit this inheritance</span><b>BEGIN DESCENT</b></button></div>
+      <div className="loadout-footer"><span>SEED // {seed}</span><button className="primary-action" type="button" onClick={onBegin} data-testid="begin-descent"><span>{runMode === 'black_descent' ? 'Commit relic and Black Descent conditions' : 'Commit this inheritance'}</span><b>{runMode === 'black_descent' ? 'BEGIN BLACK DESCENT' : 'BEGIN DESCENT'}</b></button></div>
     </MenuPage>
   );
 }
@@ -660,7 +701,7 @@ function TitleScreen({ seed, hasSave, savePreview, notice, onSeed, onNew, onCont
         <p>The moon is singing beneath us.<br />Choose who must answer.</p>
         {notice && <div className="notice" role="status">{notice}</div>}
         <div className="title-actions">
-          {hasSave && <button className="primary-action" type="button" onClick={onContinue} data-testid="continue-run"><span>{savePreview ? `SHIFT ${savePreview.shift}/7 · ${savePreview.seed}${savePreview.relicName ? ` · ${savePreview.relicName}` : ''}` : 'Return to Orison'}</span><b>CONTINUE</b></button>}
+          {hasSave && <button className="primary-action" type="button" onClick={onContinue} data-testid="continue-run"><span>{savePreview ? `SHIFT ${savePreview.shift}/7 · ${savePreview.seed}${savePreview.runMode === 'black_descent' ? ' · BLACK DESCENT' : ''}${savePreview.relicName ? ` · ${savePreview.relicName}` : ''}` : 'Return to Orison'}</span><b>CONTINUE</b></button>}
           <button className={hasSave ? 'secondary-action' : 'primary-action'} type="button" onClick={onNew} data-testid="new-run">
             <span>{hasSave ? 'Abandon the current signal' : 'Wake the living citadel'}</span><b>NEW RUN</b>
           </button>
@@ -690,6 +731,7 @@ export function GameApp() {
   const [selectedCrew, setSelectedCrew] = useState<CrewId | null>(null);
   const [selectedBuildSlot, setSelectedBuildSlot] = useState<number | null>(null);
   const [selectedRelic, setSelectedRelic] = useState<RelicId | null>(null);
+  const [selectedRunMode, setSelectedRunMode] = useState<RunMode>('standard');
   const [settings, setSettings] = useState<Settings>(DEFAULT_SETTINGS);
   const [legacy, setLegacy] = useState<LegacyState>(() => createLegacyState());
   const [hasSave, setHasSave] = useState(false);
@@ -707,7 +749,7 @@ export function GameApp() {
     if (autosave) {
       try {
         const saved = deserialize(autosave);
-        setSavePreview({ seed: saved.seed, shift: saved.shift, relicName: saved.startingRelic ? RELICS.find((relic) => relic.id === saved.startingRelic)?.name ?? null : null });
+        setSavePreview({ seed: saved.seed, shift: saved.shift, runMode: saved.runMode, relicName: saved.startingRelic ? RELICS.find((relic) => relic.id === saved.startingRelic)?.name ?? null : null });
       } catch {
         setSavePreview(null);
       }
@@ -735,7 +777,7 @@ export function GameApp() {
     if (view.state.phase !== 'complete') {
       localStorage.setItem(AUTOSAVE_KEY, serialize(view.state as GameState));
       setHasSave(true);
-      setSavePreview({ seed: view.state.seed, shift: view.state.shift, relicName: view.state.startingRelic ? RELICS.find((relic) => relic.id === view.state.startingRelic)?.name ?? null : null });
+      setSavePreview({ seed: view.state.seed, shift: view.state.shift, runMode: view.state.runMode, relicName: view.state.startingRelic ? RELICS.find((relic) => relic.id === view.state.startingRelic)?.name ?? null : null });
       return;
     }
 
@@ -750,8 +792,8 @@ export function GameApp() {
     localStorage.setItem(LEGACY_KEY, serializeLegacy(next));
   }, [view]); // The completion guard deliberately keeps this tied to state transitions.
 
-  const startRun = useCallback((runSeed = seed, relicId: RelicId | null = selectedRelic) => {
-    const state = createRun({ seed: runSeed, ...(relicId ? { relicId } : {}) });
+  const startRun = useCallback((runSeed = seed, relicId: RelicId | null = selectedRelic, runMode: RunMode = selectedRunMode) => {
+    const state = createRun({ seed: runSeed, runMode, ...(relicId ? { relicId } : {}) });
     setSeed(runSeed);
     setView(selectGameView(state));
     setSelectedCrew(null);
@@ -763,7 +805,7 @@ export function GameApp() {
     setSurface('game');
     resetDocumentScroll();
     void choirAudio.wake();
-  }, [seed, selectedRelic]);
+  }, [seed, selectedRelic, selectedRunMode]);
 
   useEffect(() => {
     if (feedback.length === 0) return;
@@ -780,7 +822,7 @@ export function GameApp() {
       setSurface('game');
       setNotice(null);
       setChartStatus(null);
-      setSavePreview({ seed: state.seed, shift: state.shift, relicName: state.startingRelic ? RELICS.find((relic) => relic.id === state.startingRelic)?.name ?? null : null });
+      setSavePreview({ seed: state.seed, shift: state.shift, runMode: state.runMode, relicName: state.startingRelic ? RELICS.find((relic) => relic.id === state.startingRelic)?.name ?? null : null });
       resetDocumentScroll();
       void choirAudio.wake();
     } catch {
@@ -826,6 +868,7 @@ export function GameApp() {
   const goBack = () => setSurface(returnSurface === 'game' && !view ? 'title' : returnSurface);
   const prepareLoadout = (runSeed = seed) => {
     setSeed(runSeed);
+    setSelectedRunMode('standard');
     setReturnSurface(surface);
     setSurface('loadout');
     resetDocumentScroll();
@@ -833,7 +876,7 @@ export function GameApp() {
 
   const shellClasses = ['app-root', settings.highContrast ? 'high-contrast' : '', settings.reducedMotion ? 'reduced-motion' : ''].filter(Boolean).join(' ');
   if (surface === 'title') return <div className={shellClasses}><TitleScreen seed={seed} hasSave={hasSave} savePreview={savePreview} notice={notice} onSeed={setSeed} onNew={() => prepareLoadout()} onContinue={continueRun} onNavigate={openMenuPage} /></div>;
-  if (surface === 'loadout') return <div className={shellClasses}><LoadoutPage seed={seed} unlocked={legacy.relics} selected={selectedRelic} onSelect={setSelectedRelic} onBegin={() => startRun(seed, selectedRelic)} onBack={goBack} /></div>;
+  if (surface === 'loadout') return <div className={shellClasses}><LoadoutPage seed={seed} unlocked={legacy.relics} selected={selectedRelic} runMode={selectedRunMode} onSelect={setSelectedRelic} onMode={setSelectedRunMode} onBegin={() => startRun(seed, selectedRelic, selectedRunMode)} onBack={goBack} /></div>;
   if (surface === 'manual') return <div className={shellClasses}><ManualPage onBack={goBack} /></div>;
   if (surface === 'chronicle') return <div className={shellClasses}><Chronicle legacy={legacy} onBack={goBack} /></div>;
   if (surface === 'settings') return <div className={shellClasses}><SettingsPage settings={settings} onChange={setSettings} onBack={goBack} /></div>;
@@ -849,13 +892,14 @@ export function GameApp() {
     <div className={`${shellClasses} phase-${view.state.phase}`}>
       <header className="game-header">
         <button type="button" className="brand-button" onClick={() => { setReturnSurface('game'); setSurface('title'); }} aria-label="Return to title menu">
-          <span className="brand-glyph">LC</span><span><b>LODE CHOIR</b><small>{view.state.seed}</small></span>
+          <span className="brand-glyph">LC</span><span><b>LODE CHOIR</b><small>{view.state.seed}</small><em className={view.state.runMode === 'black_descent' ? 'run-mode-badge is-black' : 'run-mode-badge'}>{view.state.runMode === 'black_descent' ? 'BLACK DESCENT · 1.25×' : 'STANDARD DESCENT · 1×'}</em></span>
         </button>
         <ResourceRail view={view} />
         <div className="header-actions">
           <button type="button" onClick={() => openMenuPage('settings')} aria-label="Open settings">⚙</button>
           <button type="button" onClick={() => setSurface('title')}>MENU</button>
         </div>
+        <div className={view.state.runMode === 'black_descent' ? 'run-mode-mobile is-black' : 'run-mode-mobile'}>{view.state.runMode === 'black_descent' ? 'BLACK DESCENT · 1.25× SCORE' : 'STANDARD DESCENT · 1× SCORE'}</div>
       </header>
       {notice && <div className="game-notice" role="status">{notice}<button onClick={() => setNotice(null)} aria-label="Dismiss">×</button></div>}
       {feedback.length > 0 && <div className="feedback-stack" aria-live="polite">{feedback.map((event) => <span className={`feedback ${event.emphasis ?? ''}`} key={event.id}>{event.text}</span>)}</div>}

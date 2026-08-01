@@ -107,6 +107,53 @@ test('deterministic hook can resolve a finale and begin the next inherited desce
   await expect(page.getByRole('radio', { name: /Vesper Tuning Fork/i })).toBeEnabled();
 });
 
+test('Black Descent previews exact conditions, resumes, scores, archives, and resets deliberately', async ({ page }) => {
+  await page.getByTestId('new-run').click();
+  const standard = page.getByRole('radio', { name: /^STANDARD DESCENT Standard$/i });
+  const black = page.getByRole('radio', { name: /Black Descent/i });
+  await expect(standard).toBeChecked();
+  await standard.focus();
+  await page.keyboard.press('ArrowRight');
+  await expect(black).toBeChecked();
+  await expect(page.locator('.loadout-preview')).toHaveText('11 HULL · 3 PRO · 4 ALY · 1 LUM');
+  await expect(page.getByTestId('begin-descent')).toContainText('BEGIN BLACK DESCENT');
+  const loadoutScan = await new AxeBuilder({ page }).analyze();
+  expect(loadoutScan.violations, JSON.stringify(loadoutScan.violations, null, 2)).toEqual([]);
+  await page.getByTestId('begin-descent').click();
+
+  let state = await page.evaluate(() => window.__LODE_CHOIR__?.getState());
+  expect(state?.runMode).toBe('black_descent');
+  expect(state?.integrity).toBe(11);
+  expect(state?.resources).toEqual({ provisions: 3, alloy: 4, lumen: 1 });
+  const modeIndicator = page.viewportSize()!.width <= 920 ? page.locator('.run-mode-mobile') : page.locator('.run-mode-badge');
+  await expect(modeIndicator).toBeVisible();
+  await expect(modeIndicator).toContainText('BLACK DESCENT');
+
+  await page.getByRole('button', { name: 'Return to title menu' }).click();
+  await expect(page.getByTestId('continue-run')).toContainText('BLACK DESCENT');
+  await page.reload();
+  await page.getByTestId('continue-run').click();
+  state = await page.evaluate(() => window.__LODE_CHOIR__?.getState());
+  expect(state?.runMode).toBe('black_descent');
+
+  await page.evaluate(() => {
+    const run = window.__LODE_CHOIR__?.getState();
+    if (!run) throw new Error('Test hook unavailable.');
+    run.phase = 'finale';
+    run.shift = 7;
+    run.heartNotes = 3;
+    window.__LODE_CHOIR__?.command({ type: 'choose_ending', endingId: 'seal' });
+  });
+  await expect(page.getByTestId('completion-panel')).toContainText('BLACK DESCENT · 1.25×');
+  await page.getByRole('button', { name: 'Open Chronicle' }).click();
+  await expect(page.locator('.chronicle-summary')).toContainText('best Black Descent');
+  await expect(page.locator('.run-history').first()).toContainText('CONCORDANT · BLACK DESCENT');
+  await expect(page.locator('.run-history').first()).toContainText('BASE');
+  await page.getByRole('button', { name: /RETURN/ }).click();
+  await page.getByRole('button', { name: 'Begin another descent' }).click();
+  await expect(page.getByRole('radio', { name: /^STANDARD DESCENT Standard$/i })).toBeChecked();
+});
+
 test('story choices expose unaffordable costs before the player commits', async ({ page }) => {
   await beginRun(page);
   await page.evaluate(() => {
@@ -250,12 +297,15 @@ test('unlocked Chronicle relics apply canonical starting effects', async ({ page
       endings: ['harvest', 'harmonize', 'seal'],
       lore: ['orison_manifest'],
       relics: ['heart_splinter', 'vesper_tuning_fork', 'oathkeepers_latch'],
+      records: [{ seed: 'OLD-CHOIR', outcome: 'won', ending: 'harvest', shift: 7, heartNotes: 3, integrity: 8, startingRelic: null, score: 2100, scars: 0, fulfilledVows: 1 }],
     },
   })));
   await page.reload();
   await page.getByRole('button', { name: 'Chronicle' }).click();
   await expect(page.getByText('Heart Splinter', { exact: true })).toBeVisible();
   await expect(page.getByText('Orison Launch Manifest')).toBeVisible();
+  await expect(page.locator('.run-history')).toContainText('ARCHIVED FORMULA');
+  await expect(page.locator('.chronicle-summary span').filter({ hasText: 'best standard' })).toContainText('—');
   await page.getByRole('button', { name: /RETURN/ }).click();
 
   const beginWith = async (name: string) => {

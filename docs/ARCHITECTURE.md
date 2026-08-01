@@ -7,9 +7,9 @@ Lode Choir separates deterministic rules from presentation.
 The engine is a pure command machine:
 
 ```text
-seed + optional relic -> createRun -> GameState v4
+seed + optional relic + run mode -> createRun -> GameState v5
 GameState + Command -> applyCommand -> GameState + EngineEvent[]
-seed + Command[] -> replay -> identical GameState
+creation options + Command[] -> replay -> identical GameState
 ```
 
 Only the returned state is authoritative. Engine events describe feedback the UI may
@@ -22,9 +22,15 @@ characters, modules, routes, and story choices, while systems interpret those re
 - The app owns selection affordances, animation, audio, local storage, and settings.
 - The app renders engine selectors; it does not recreate rules to preview outcomes.
 - Local legacy progression is separate from the current run save.
-- `startingRelic` is explicit run state, while legacy v3 stores canonical relic/lore IDs
-  and a bounded deterministic run record. Migration normalizes earlier display names,
+- `startingRelic` and `runMode` are explicit run state, while legacy v4 stores canonical
+  relic/lore IDs and bounded deterministic run records with base score, multiplier, and
+  final score. Records retain a score-formula version so migrated values remain visible
+  but do not enter the current best-per-mode categories. Migration normalizes earlier display names,
   aliases, raw story flags, and pre-history legacy saves.
+- Black Descent modifies only engine-owned starting stores, maximum integrity, hidden
+  high-risk fault damage, plating cost, and score multiplier. The UI reads its preview,
+  repair price, maximum hull, and score category from engine state instead of recreating
+  those rules.
 - Route reservations escrow one lumen in run state. The engine rolls the normal next
   forecast before deterministically replacing one slot, preserving PRNG state and any
   charted Sable knowledge without reviving the free-reveal exploit.

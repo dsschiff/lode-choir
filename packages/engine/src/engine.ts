@@ -30,7 +30,8 @@ import type {
   TransitionResult,
 } from './types.ts';
 
-const MAX_INTEGRITY = 12;
+const STANDARD_MAX_INTEGRITY = 12;
+const BLACK_DESCENT_MAX_INTEGRITY = 11;
 const MAX_STRAIN = 6;
 const ROUTE_RESERVATION_COST = 1;
 const DEVELOPMENT_SHIFTS = new Set([2, 4]);
@@ -145,22 +146,33 @@ function applyRelic(state: GameState, relicId: RelicId | undefined): void {
 }
 
 function maximumIntegrity(state: GameState): number {
-  return state.startingRelic === 'oathkeepers_latch' ? MAX_INTEGRITY + 1 : MAX_INTEGRITY;
+  const base = state.runMode === 'black_descent' ? BLACK_DESCENT_MAX_INTEGRITY : STANDARD_MAX_INTEGRITY;
+  return state.startingRelic === 'oathkeepers_latch' ? base + 1 : base;
+}
+
+function emergencyPlatingCost(state: GameState): number {
+  return state.runMode === 'black_descent' ? 3 : 2;
 }
 
 export function createRun(options: CreateRunOptions | string): GameState {
   const normalized = typeof options === 'string' ? { seed: options } : options;
   if (normalized.seed.trim().length === 0) throw new Error('A non-empty seed is required.');
+  if (normalized.runMode !== undefined && !['standard', 'black_descent'].includes(normalized.runMode)) {
+    throw new Error(`Unknown run mode: ${String(normalized.runMode)}`);
+  }
   const state: GameState = {
-    version: 4,
+    version: 5,
     seed: normalized.seed,
+    runMode: normalized.runMode ?? 'standard',
     startingRelic: normalized.relicId ?? null,
     rngState: 0,
     shift: 1,
     phase: 'planning',
     status: 'playing',
-    resources: { provisions: 4, alloy: 5, lumen: 2 },
-    integrity: MAX_INTEGRITY,
+    resources: normalized.runMode === 'black_descent'
+      ? { provisions: 3, alloy: 4, lumen: 1 }
+      : { provisions: 4, alloy: 5, lumen: 2 },
+    integrity: normalized.runMode === 'black_descent' ? BLACK_DESCENT_MAX_INTEGRITY : STANDARD_MAX_INTEGRITY,
     heartNotes: 0,
     crew: CREW_IDS.map((id) => ({
       id,
@@ -193,6 +205,9 @@ export function createRun(options: CreateRunOptions | string): GameState {
   if (state.startingRelic) {
     const relic = RELICS.find((candidate) => candidate.id === state.startingRelic)!;
     appendLog(state, 'story', `${relic.name} crosses the threshold. ${relic.startingEffect}`);
+  }
+  if (state.runMode === 'black_descent') {
+    appendLog(state, 'warning', 'Black Descent: Orison travels light, unread faults strike harder, and plating costs three alloy.');
   }
   return state;
 }
@@ -282,7 +297,7 @@ export function legalCommands(state: GameState): Command[] {
   }
   if (state.phase === 'development') {
     const commands = developmentCommands(state);
-    if (state.resources.alloy >= 2 && state.integrity < maximumIntegrity(state)) commands.push({ type: 'repair_citadel' });
+    if (state.resources.alloy >= emergencyPlatingCost(state) && state.integrity < maximumIntegrity(state)) commands.push({ type: 'repair_citadel' });
     return [...commands, { type: 'skip_development' }];
   }
   if (state.phase === 'finale') return ENDING_CONTENT.map(({ id: endingId }) => ({ type: 'choose_ending' as const, endingId }));
@@ -462,7 +477,9 @@ function projectedDamage(state: GameState, offer: RouteOffer, leader: CrewId | n
   const mara = state.crew.find((candidate) => candidate.id === 'mara')!;
   const maraProtection = maraInWard ? (mara.signatureUnlocked ? 2 : 1) : 0;
   const leaderProtection = leader === 'mara' ? 1 : 0;
-  const hiddenHazard = offer.hiddenComplication && !revealed ? 1 : 0;
+  const hiddenHazard = offer.hiddenComplication && !revealed
+    ? state.runMode === 'black_descent' && route.hazard >= 3 ? 2 : 1
+    : 0;
   return Math.max(0, route.hazard + hiddenHazard - projectedWard(state) - maraProtection - leaderProtection);
 }
 
@@ -837,10 +854,11 @@ export function applyCommand(input: GameState, command: Command): TransitionResu
     emit(state, events, 'progress', `${moduleDefinition(module.id).name} is upgraded.`, 'positive');
     beginNextShift(state);
   } else if (command.type === 'repair_citadel') {
-    state.resources.alloy -= 2;
+    const cost = emergencyPlatingCost(state);
+    state.resources.alloy -= cost;
     const restored = Math.min(2, maximumIntegrity(state) - state.integrity);
     state.integrity += restored;
-    appendLog(state, 'system', `The crew plates Orison's living hull and restores ${restored} integrity.`);
+    appendLog(state, 'system', `The crew spends ${cost} alloy to plate Orison's living hull and restores ${restored} integrity.`);
     emit(state, events, 'progress', `Emergency plating restores ${restored} integrity.`, 'positive');
     beginNextShift(state);
   } else if (command.type === 'skip_development') {
@@ -875,6 +893,8 @@ export function selectGameView(state: GameState): GameView {
     activeStoryEvent: state.activeEvent ? storyEventDefinition(state.activeEvent) : null,
     canResolveShift: state.phase === 'planning' && Boolean(state.selectedRoute) && assignedCount(state) === requiredAssignments(state),
     maxIntegrity: maximumIntegrity(state),
+    repairCost: emergencyPlatingCost(state),
+    scoreMultiplier: state.runMode === 'black_descent' ? 1.25 : 1,
     routeReservationCost: ROUTE_RESERVATION_COST,
     objective: state.heartNotes >= 3
       ? 'Survive until the seventh shift and answer the Heart-Lode.'
@@ -885,7 +905,9 @@ export function selectGameView(state: GameState): GameView {
 function assertGameState(value: unknown): asserts value is GameState {
   if (!value || typeof value !== 'object') throw new Error('Save does not contain an object.');
   const state = value as Partial<GameState>;
-  if (state.version !== 4 || typeof state.seed !== 'string' || !Array.isArray(state.crew) || !Array.isArray(state.modules)) {
+  if (state.version !== 5 || typeof state.seed !== 'string'
+    || !['standard', 'black_descent'].includes(String(state.runMode))
+    || !Array.isArray(state.crew) || !Array.isArray(state.modules)) {
     throw new Error('Save is not a supported Lode Choir game state.');
   }
   if (!Array.isArray(state.commandTrace) || !Array.isArray(state.routeOffers) || !state.resources) {
@@ -900,7 +922,7 @@ function assertGameState(value: unknown): asserts value is GameState {
 }
 
 export function serialize(state: GameState): string {
-  const envelope: SerializedGameEnvelope = { game: 'lode-choir', version: 4, state };
+  const envelope: SerializedGameEnvelope = { game: 'lode-choir', version: 5, state };
   return JSON.stringify(envelope);
 }
 
@@ -935,12 +957,13 @@ export function deserialize(serialized: string): GameState {
     });
     candidate = migrated;
   }
-  if (candidate && typeof candidate === 'object' && [1, 2, 3].includes(Number((candidate as { version?: unknown }).version))) {
+  if (candidate && typeof candidate === 'object' && [1, 2, 3, 4].includes(Number((candidate as { version?: unknown }).version))) {
     const old = candidate as Record<string, unknown>;
     const flags = Array.isArray(old.storyFlags) ? old.storyFlags.filter((flag): flag is string => typeof flag === 'string') : [];
     const relicFlag = flags.find((flag) => flag.startsWith('relic:'))?.slice(6);
     const relicId = canonicalRelicId(old.startingRelic) ?? canonicalRelicId(relicFlag);
-    old.version = 4;
+    old.version = 5;
+    old.runMode = 'standard';
     old.routeLeader ??= null;
     old.reservedRoute ??= null;
     old.reservedRouteRevealed ??= false;

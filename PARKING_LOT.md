@@ -14,3 +14,7 @@ Reversible decisions recorded during autonomous development. These do not block 
 - **Expedition scale:** the vertical slice uses three chamber operators plus one
   optional route leader. Larger away teams, equipment loadouts, and tactical route maps
   remain post-playtest expansions rather than prerequisites for the first run.
+- **Black Descent tuning:** retain the 11-hull contract and double only unread faults on
+  routes with risk three or higher. The first 10-hull/all-fault prototype pushed matched
+  balanced chart-aware wins below the locked viability floor; the revised rule keeps
+  information pressure legible without making the middle policy nearly futile.

@@ -44,11 +44,22 @@ async function waitForServer() {
 
 async function capture(browser, name, viewport, mobile = false) {
   const page = await browser.newPage({ viewport, isMobile: mobile, hasTouch: mobile });
+  const screenshot = async (surface) => {
+    await page.evaluate(() => window.scrollTo(0, 0));
+    await page.screenshot({ path: resolve(outputRoot, `${surface}-${name}.jpg`), fullPage: true, type: 'jpeg', quality: 84 });
+  };
   await page.goto('http://127.0.0.1:3321');
   await page.evaluate(() => localStorage.clear());
   await page.reload();
   await page.waitForLoadState('networkidle');
-  await page.screenshot({ path: resolve(outputRoot, `title-${name}.jpg`), fullPage: true, type: 'jpeg', quality: 84 });
+  await screenshot('title');
+
+  await page.getByTestId('new-run').click();
+  await screenshot('loadout');
+  await page.locator('.descent-mode-options label.is-black').click();
+  await screenshot('loadout-black');
+  await page.locator('.descent-mode-options label').first().click();
+  await page.getByRole('button', { name: /RETURN/ }).click();
 
   await page.evaluate(() => window.__LODE_CHOIR__?.newRun('QA-ORISON'));
   await page.getByTestId('route-0').click();
@@ -59,8 +70,45 @@ async function capture(browser, name, viewport, mobile = false) {
   }
   await page.getByTestId('crew-sable').click();
   await page.getByRole('button', { name: 'APPOINT' }).click();
-  await page.evaluate(() => window.scrollTo(0, 0));
-  await page.screenshot({ path: resolve(outputRoot, `planning-${name}.jpg`), fullPage: true, type: 'jpeg', quality: 84 });
+  await screenshot('planning');
+
+  await page.evaluate(() => {
+    const state = window.__LODE_CHOIR__?.getState();
+    if (!state) return;
+    state.phase = 'event';
+    state.activeEvent = 'glass_bell';
+    state.resources = { provisions: 0, alloy: 0, lumen: 0 };
+    window.__LODE_CHOIR__?.refresh();
+  });
+  await screenshot('event');
+
+  await page.evaluate(() => {
+    const state = window.__LODE_CHOIR__?.getState();
+    if (!state) return;
+    state.phase = 'development';
+    state.activeEvent = null;
+    state.shift = 2;
+    state.integrity = 8;
+    state.resources.alloy = 10;
+    state.developmentChoices = ['foundry', 'infirmary', 'resonance_chamber'];
+    window.__LODE_CHOIR__?.refresh();
+  });
+  await screenshot('development');
+
+  await page.evaluate(() => {
+    const state = window.__LODE_CHOIR__?.getState();
+    if (!state) return;
+    state.phase = 'finale';
+    state.shift = 7;
+    state.heartNotes = 3;
+    window.__LODE_CHOIR__?.refresh();
+  });
+  await screenshot('finale');
+  await page.evaluate(() => window.__LODE_CHOIR__?.command({ type: 'choose_ending', endingId: 'harmonize' }));
+  await page.getByTestId('completion-panel').waitFor();
+  await screenshot('completion');
+  await page.getByRole('button', { name: 'Open Chronicle' }).click();
+  await screenshot('chronicle');
   await page.close();
 }
 

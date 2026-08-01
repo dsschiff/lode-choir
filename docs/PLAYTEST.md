@@ -26,6 +26,9 @@ Observe without coaching:
 - **Charting comparison:** replay a seed with no charting and with at least two held
   routes. Record whether the carried option is later chosen and whether its one-lumen
   opportunity cost changes an event or Resonance decision.
+- **Black Descent comparison:** replay the same seed and relic in Standard and Black
+  Descent. Record whether the lighter stores make chart knowledge, Sable, and plating
+  more consequential without reducing the run to a single safe policy.
 
 At least two strategies should win across a seed sample. The strongest strategy may be
 clear, but it must pay a visible cost and cannot make route choice irrelevant.
@@ -46,7 +49,8 @@ Any score below 4 produces a concrete fix before visual content expansion.
 
 ## Evidence bundle
 
-Keep the final seed and command trace for representative win and loss runs, simulation
-summary, screenshots of title/planning/event/finale, and browser-console results.
+Keep the final seed, creation options, and command trace for representative Standard
+and Black Descent wins and losses, simulation summary, screenshots of
+title/planning/event/finale, and browser-console results.
 For a completed Chronicle, also capture the loadout screen and one resumed relic run so
 the persistent loop is evidenced rather than inferred.
