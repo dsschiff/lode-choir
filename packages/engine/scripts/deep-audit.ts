@@ -14,6 +14,11 @@ import { playRun, type PolicyName } from '../test/helpers.ts';
 const requestedSeeds = process.argv.find((argument) => argument.startsWith('--seeds='));
 const seedCount = requestedSeeds ? Number(requestedSeeds.slice('--seeds='.length)) : 2_000;
 if (!Number.isInteger(seedCount) || seedCount < 1 || seedCount > 10_000) throw new Error('Seed count must be an integer from 1 to 10,000.');
+const requestedPrefix = process.argv.find((argument) => argument.startsWith('--prefix='));
+const seedPrefix = requestedPrefix?.slice('--prefix='.length) || 'deep-audit';
+const noWrite = process.argv.includes('--no-write');
+if (!/^[a-z0-9-]{1,40}$/i.test(seedPrefix)) throw new Error('Seed prefix must use 1–40 letters, numbers, or hyphens.');
+if (seedPrefix !== 'deep-audit' && !noWrite) throw new Error('A custom seed prefix requires --no-write so it cannot replace canonical evidence.');
 
 const policies: readonly PolicyName[] = ['conservative', 'balanced', 'aggressive'];
 const modes: readonly RunMode[] = ['standard', 'black_descent'];
@@ -43,7 +48,7 @@ let exactReplays = 0;
 let weakestWin = Number.POSITIVE_INFINITY;
 let strongestLoss = 0;
 for (let seedIndex = 0; seedIndex < seedCount; seedIndex += 1) {
-  const seed = `deep-audit-${seedIndex}`;
+  const seed = `${seedPrefix}-${seedIndex}`;
   for (const mode of modes) for (const policy of policies) for (const chart of charts) for (const relicId of relics) {
     const options = { seed, runMode: mode, ...(relicId ? { relicId } : {}) };
     const run = playRun(createRun(options), policy, true, chart);
@@ -114,5 +119,5 @@ const report = {
 };
 
 const outputPath = new URL('../../../docs/deep-audit.json', import.meta.url);
-await writeFile(outputPath, `${JSON.stringify(report, null, 2)}\n`, 'utf8');
-console.info(JSON.stringify({ output: outputPath.pathname, ...report, results: `${Object.keys(results).length} cells` }, null, 2));
+if (!noWrite) await writeFile(outputPath, `${JSON.stringify(report, null, 2)}\n`, 'utf8');
+console.info(JSON.stringify({ output: noWrite ? null : outputPath.pathname, seedPrefix, ...report, results: `${Object.keys(results).length} cells` }, null, 2));

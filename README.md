@@ -15,6 +15,7 @@ npm run build
 npm run test:e2e
 npm run verify
 npm run audit:deep -- --seeds=10000
+npm run audit:deep -- --seeds=1000 --prefix=confirmation --no-write
 npm run screenshots --workspace @lode-choir/game
 ```
 
