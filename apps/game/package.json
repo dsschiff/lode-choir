@@ -5,6 +5,7 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build && node scripts/finalize-export.mjs",
+    "audit:export": "node scripts/audit-export.mjs",
     "typecheck": "tsc --noEmit",
     "serve:out": "node scripts/serve-out.mjs 3321",
     "screenshots": "node scripts/capture-screenshots.mjs",

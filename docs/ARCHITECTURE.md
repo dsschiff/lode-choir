@@ -60,3 +60,6 @@ The small deferred registrar derives its scope from the manifest. Navigation rem
 network-first so a live host can advance to a fresh export, while the complete
 fingerprinted shell is available as the offline fallback. Activation deletes only older
 Lode Choir cache versions.
+`audit-export.mjs` then rejects remote or missing shell references, incomplete service
+worker coverage, a non-standalone manifest, or regressions beyond locked total,
+JavaScript, image, CSS, initial-shell, and largest-file byte budgets.

@@ -40,6 +40,8 @@ relic when that heirloom remains recovered.
 
 See `docs/VALIDATION.md` for the current balance, browser, accessibility, visual,
 and dependency-audit evidence.
+`npm run verify` also enforces static-export budgets and full offline-cache coverage;
+the current uncompressed initial shell is under 1 MB.
 
 Current review captures: [desktop title](docs/screenshots/title-desktop.jpg),
 [phone title](docs/screenshots/title-phone.jpg),

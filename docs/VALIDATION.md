@@ -122,6 +122,12 @@ recomputed honestly.
 
 ## Asset and dependency checks
 
+- The production export currently contains 36 files and 1,304,341 uncompressed bytes.
+  The directly referenced initial shell is 966,160 bytes; JavaScript totals 729,117
+  bytes, imagery 489,093 bytes, and CSS 34,522 bytes. The largest individual file is a
+  227,538-byte framework chunk. All remain below committed build-breaking budgets.
+- The export audit found no remote runtime asset references, no missing shell files,
+  and no emitted file omitted from the generated service-worker cache.
 - The title art and all four 720px crew portraits were inspected after WebP conversion.
   Their combined transfer size is about 489 KB.
 - The app uses generated WebP imagery, CSS/SVG structure, and procedural Web Audio; it
