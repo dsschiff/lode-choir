@@ -14,6 +14,7 @@ npm run typecheck
 npm run build
 npm run test:e2e
 npm run verify
+npm run screenshots --workspace @lode-choir/game
 ```
 
 The engine is deterministic and renderer-independent. The web app is phone-first and
@@ -23,3 +24,8 @@ citadel development.
 
 See `docs/VALIDATION.md` for the current balance, browser, accessibility, visual,
 and dependency-audit evidence.
+
+Current review captures: [desktop title](docs/screenshots/title-desktop.jpg),
+[phone title](docs/screenshots/title-phone.jpg),
+[desktop planning](docs/screenshots/planning-desktop.jpg), and
+[phone planning](docs/screenshots/planning-phone.jpg).
