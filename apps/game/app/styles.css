@@ -261,6 +261,8 @@ h1, h2 { font-family: var(--serif); font-weight: 500; }
 .choice-list button:hover { border-color: var(--vein-400); }
 .choice-list strong { font: 1rem var(--serif); }
 .choice-list span { color: var(--brass-400); font-size: .55rem; }
+.choice-list em { color: var(--danger-400); font-size: .46rem; font-style: normal; letter-spacing: .05em; }
+.choice-list button:disabled { border-style: dashed; background: rgba(7,9,12,.55); }
 .slot-picker { display: flex; flex-wrap: wrap; gap: 5px; margin: 12px 0; }
 .slot-picker button { width: 44px; height: 44px; border: 1px solid var(--quiet-line); background: var(--ink-900); cursor: pointer; }
 .slot-picker button.is-selected { border: 2px solid var(--vein-400); color: var(--vein-400); }

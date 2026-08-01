@@ -69,6 +69,7 @@ test('autosave can resume and corrupted saves fail safely', async ({ page }) => 
   await expect.poll(() => page.evaluate(() => localStorage.getItem('lode_choir_autosave_v1'))).not.toBeNull();
   await page.getByRole('button', { name: 'Return to title menu' }).click();
   await expect(page.getByTestId('continue-run')).toBeVisible();
+  await expect(page.getByTestId('continue-run')).toContainText('SHIFT 1/7');
   await page.reload();
   await page.getByTestId('continue-run').click();
   await expect(page.getByTestId('citadel-grid')).toBeVisible();
@@ -97,6 +98,27 @@ test('deterministic hook can resolve a finale and begin the next inherited desce
   await page.getByRole('button', { name: 'Begin another descent' }).click();
   await expect(page.getByRole('heading', { name: 'Choose what returns' })).toBeVisible();
   await expect(page.getByRole('radio', { name: /Vesper Tuning Fork/i })).toBeEnabled();
+});
+
+test('story choices expose unaffordable costs before the player commits', async ({ page }) => {
+  await beginRun(page);
+  await page.evaluate(() => {
+    const state = window.__LODE_CHOIR__?.getState();
+    if (!state) throw new Error('Test hook unavailable.');
+    state.phase = 'event';
+    state.activeEvent = 'glass_bell';
+    state.resources = { provisions: 0, alloy: 0, lumen: 0 };
+    window.__LODE_CHOIR__?.refresh();
+  });
+  await expect(page.getByRole('heading', { name: 'The Glass Bell' })).toBeVisible();
+  await expect(page.getByTestId('event-choice-0')).toBeEnabled();
+  await expect(page.getByTestId('event-choice-1')).toBeDisabled();
+  await expect(page.getByTestId('event-choice-2')).toBeDisabled();
+  await expect(page.getByText('REQUIRES RESOURCES YOU DO NOT HAVE')).toHaveCount(2);
+  const scan = await new AxeBuilder({ page }).analyze();
+  expect(scan.violations, JSON.stringify(scan.violations, null, 2)).toEqual([]);
+  await page.getByTestId('event-choice-0').click();
+  await expect(page.getByRole('heading', { name: 'Choose a descent' })).toBeVisible();
 });
 
 test('damaged Orison can spend alloy on emergency plating at development', async ({ page }) => {

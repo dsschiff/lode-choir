@@ -34,6 +34,7 @@ const SETTINGS_KEY = 'lode_choir_settings_v1';
 
 type Surface = 'title' | 'loadout' | 'game' | 'manual' | 'chronicle' | 'settings' | 'credits';
 type Settings = { muted: boolean; highContrast: boolean; reducedMotion: boolean };
+type SavePreview = { seed: string; shift: number; relicName: string | null };
 
 const DEFAULT_SETTINGS: Settings = { muted: false, highContrast: false, reducedMotion: false };
 
@@ -84,6 +85,7 @@ declare global {
       getState: () => GameState | null;
       command: (command: Command) => void;
       newRun: (seed: string, relicId?: RelicId) => void;
+      refresh: () => void;
     };
   }
 }
@@ -373,6 +375,9 @@ function EventPanel({ view, onChoose }: { view: GameView; onChoose: (choiceIndex
   const event = view.activeStoryEvent;
   if (!event) return <p className="empty-message">The choir is searching for a clear signal…</p>;
   const speaker = view.crew.find((crew) => crew.id === event.speaker);
+  const legalChoices = new Set(legalCommands(view.state as GameState)
+    .filter((command) => command.type === 'choose_event')
+    .map((command) => command.choiceIndex));
   return (
     <section className="event-panel" aria-labelledby="event-title" data-testid="event-panel">
       <span className="kicker">INTERCEPTED // {speaker?.name ?? 'ORISON'}</span>
@@ -381,8 +386,8 @@ function EventPanel({ view, onChoose }: { view: GameView; onChoose: (choiceIndex
       <p className="event-body">{event.body}</p>
       <div className="choice-list">
         {event.choices.map((choice, index) => (
-          <button type="button" key={choice.label} onClick={() => onChoose(index)} data-testid={`event-choice-${index}`}>
-            <strong>{choice.label}</strong><span>{choice.consequence}</span>
+          <button type="button" key={choice.label} onClick={() => onChoose(index)} disabled={!legalChoices.has(index)} data-testid={`event-choice-${index}`}>
+            <strong>{choice.label}</strong><span>{choice.consequence}</span>{!legalChoices.has(index) && <em>REQUIRES RESOURCES YOU DO NOT HAVE</em>}
           </button>
         ))}
       </div>
@@ -610,9 +615,10 @@ function LoadoutPage({ seed, unlocked, selected, onSelect, onBegin, onBack }: {
   );
 }
 
-function TitleScreen({ seed, hasSave, notice, onSeed, onNew, onContinue, onNavigate }: {
+function TitleScreen({ seed, hasSave, savePreview, notice, onSeed, onNew, onContinue, onNavigate }: {
   seed: string;
   hasSave: boolean;
+  savePreview: SavePreview | null;
   notice: string | null;
   onSeed: (seed: string) => void;
   onNew: () => void;
@@ -642,7 +648,7 @@ function TitleScreen({ seed, hasSave, notice, onSeed, onNew, onContinue, onNavig
         <p>The moon is singing beneath us.<br />Choose who must answer.</p>
         {notice && <div className="notice" role="status">{notice}</div>}
         <div className="title-actions">
-          {hasSave && <button className="primary-action" type="button" onClick={onContinue} data-testid="continue-run"><span>Return to Orison</span><b>CONTINUE</b></button>}
+          {hasSave && <button className="primary-action" type="button" onClick={onContinue} data-testid="continue-run"><span>{savePreview ? `SHIFT ${savePreview.shift}/7 · ${savePreview.seed}${savePreview.relicName ? ` · ${savePreview.relicName}` : ''}` : 'Return to Orison'}</span><b>CONTINUE</b></button>}
           <button className={hasSave ? 'secondary-action' : 'primary-action'} type="button" onClick={onNew} data-testid="new-run">
             <span>{hasSave ? 'Abandon the current signal' : 'Wake the living citadel'}</span><b>NEW RUN</b>
           </button>
@@ -675,6 +681,7 @@ export function GameApp() {
   const [settings, setSettings] = useState<Settings>(DEFAULT_SETTINGS);
   const [legacy, setLegacy] = useState<LegacyState>(() => createLegacyState());
   const [hasSave, setHasSave] = useState(false);
+  const [savePreview, setSavePreview] = useState<SavePreview | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [feedback, setFeedback] = useState<EngineEvent[]>([]);
   const [chartStatus, setChartStatus] = useState<string | null>(null);
@@ -683,7 +690,16 @@ export function GameApp() {
 
   useEffect(() => {
     setSeed(makeSeed());
-    setHasSave(Boolean(localStorage.getItem(AUTOSAVE_KEY)));
+    const autosave = localStorage.getItem(AUTOSAVE_KEY);
+    setHasSave(Boolean(autosave));
+    if (autosave) {
+      try {
+        const saved = deserialize(autosave);
+        setSavePreview({ seed: saved.seed, shift: saved.shift, relicName: saved.startingRelic ? RELICS.find((relic) => relic.id === saved.startingRelic)?.name ?? null : null });
+      } catch {
+        setSavePreview(null);
+      }
+    }
     const loadedSettings = safeParse(localStorage.getItem(SETTINGS_KEY), DEFAULT_SETTINGS);
     setSettings(loadedSettings);
     choirAudio.setEnabled(!loadedSettings.muted);
@@ -707,11 +723,13 @@ export function GameApp() {
     if (view.state.phase !== 'complete') {
       localStorage.setItem(AUTOSAVE_KEY, serialize(view.state as GameState));
       setHasSave(true);
+      setSavePreview({ seed: view.state.seed, shift: view.state.shift, relicName: view.state.startingRelic ? RELICS.find((relic) => relic.id === view.state.startingRelic)?.name ?? null : null });
       return;
     }
 
     localStorage.removeItem(AUTOSAVE_KEY);
     setHasSave(false);
+    setSavePreview(null);
     const completionKey = `${view.state.seed}:${view.state.ending ?? 'lost'}`;
     if (recordedCompletion.current === completionKey) return;
     recordedCompletion.current = completionKey;
@@ -750,11 +768,13 @@ export function GameApp() {
       setSurface('game');
       setNotice(null);
       setChartStatus(null);
+      setSavePreview({ seed: state.seed, shift: state.shift, relicName: state.startingRelic ? RELICS.find((relic) => relic.id === state.startingRelic)?.name ?? null : null });
       resetDocumentScroll();
       void choirAudio.wake();
     } catch {
       localStorage.removeItem(AUTOSAVE_KEY);
       setHasSave(false);
+      setSavePreview(null);
       setNotice('The saved signal was damaged and has been safely cleared. Start a new descent.');
     }
   };
@@ -781,7 +801,7 @@ export function GameApp() {
   }, []);
 
   useEffect(() => {
-    window.__LODE_CHOIR__ = { getState: () => stateRef.current, command: dispatch, newRun: startRun };
+    window.__LODE_CHOIR__ = { getState: () => stateRef.current, command: dispatch, newRun: startRun, refresh: () => stateRef.current && setView(selectGameView(stateRef.current)) };
     return () => { delete window.__LODE_CHOIR__; };
   }, [dispatch, startRun]);
 
@@ -800,7 +820,7 @@ export function GameApp() {
   };
 
   const shellClasses = ['app-root', settings.highContrast ? 'high-contrast' : '', settings.reducedMotion ? 'reduced-motion' : ''].filter(Boolean).join(' ');
-  if (surface === 'title') return <div className={shellClasses}><TitleScreen seed={seed} hasSave={hasSave} notice={notice} onSeed={setSeed} onNew={() => prepareLoadout()} onContinue={continueRun} onNavigate={openMenuPage} /></div>;
+  if (surface === 'title') return <div className={shellClasses}><TitleScreen seed={seed} hasSave={hasSave} savePreview={savePreview} notice={notice} onSeed={setSeed} onNew={() => prepareLoadout()} onContinue={continueRun} onNavigate={openMenuPage} /></div>;
   if (surface === 'loadout') return <div className={shellClasses}><LoadoutPage seed={seed} unlocked={legacy.relics} selected={selectedRelic} onSelect={setSelectedRelic} onBegin={() => startRun(seed, selectedRelic)} onBack={goBack} /></div>;
   if (surface === 'manual') return <div className={shellClasses}><ManualPage onBack={goBack} /></div>;
   if (surface === 'chronicle') return <div className={shellClasses}><Chronicle legacy={legacy} onBack={goBack} /></div>;

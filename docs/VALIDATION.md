@@ -60,13 +60,14 @@ replacement.
 
 ## Interface and persistence
 
-- 18 Playwright checks pass in Pixel 5 and desktop Chromium projects. They cover title
+- 20 Playwright checks pass in Pixel 5 and desktop Chromium projects. They cover title
   navigation, settings, first choice, touch assignment, optional leadership, resolution,
   loadout locking and keyboard selection, all three relic effects, relic resume,
   exact route-cost forecasts, chart hold/swap/refund/reload/return behavior,
-  autosave/resume, corrupt-save recovery, later phase surfaces, and test hooks.
+  autosave previews/resume, unaffordable story-choice gating, corrupt-save recovery,
+  later phase surfaces, and test hooks.
 - Axe scans report no detectable violations on the title, manual, loadout, planning,
-  or expanded charting surfaces in either browser project.
+  expanded charting, or resource-gated event surfaces in either browser project.
 - Production static export passes. The bounded E2E runner builds, serves, tests, closes
   its exact child server, and returns in under 35 seconds on this host.
 - Visual inspection at 1440x960 and 390x844 confirmed title composition, portrait crops,
