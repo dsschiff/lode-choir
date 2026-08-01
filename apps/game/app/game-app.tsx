@@ -5,6 +5,7 @@ import {
   applyCommand,
   createRun,
   deserialize,
+  legalCommands,
   selectGameView,
   serialize,
   type Command,
@@ -143,8 +144,15 @@ function CrewCard({ crew, selected, assigned, shift, onSelect, onUnassign }: {
         aria-pressed={selected}
         data-testid={`crew-${crew.id}`}
       >
-        <span className="crew-monogram" style={{ '--crew-color': crew.color } as React.CSSProperties}>
-          {crew.name.split(' ').map((part) => part[0]).join('').slice(0, 2)}
+        <span className="crew-portrait" style={{ '--crew-color': crew.color } as React.CSSProperties}>
+          <img
+            src={`/art/crew-${crew.id}.webp`}
+            width="720"
+            height="720"
+            loading="lazy"
+            decoding="async"
+            alt=""
+          />
         </span>
         <span className="crew-identity">
           <strong>{crew.name}</strong>
@@ -152,7 +160,14 @@ function CrewCard({ crew, selected, assigned, shift, onSelect, onUnassign }: {
         </span>
         <span className="crew-readout"><b>{crew.strain}</b>/6 STR</span>
       </button>
-      <div className="crew-meter" aria-label={`${crew.name} strain ${crew.strain} of 6`}>
+      <div
+        className="crew-meter"
+        role="progressbar"
+        aria-label={`${crew.name} strain`}
+        aria-valuemin={0}
+        aria-valuemax={6}
+        aria-valuenow={crew.strain}
+      >
         <i style={{ width: `${Math.min(100, (crew.strain / 6) * 100)}%` }} />
       </div>
       <details>
@@ -290,15 +305,19 @@ function EventPanel({ view, onChoose }: { view: GameView; onChoose: (choiceIndex
   );
 }
 
-function DevelopmentPanel({ view, slot, onSlot, onBuild, onUpgrade }: {
+function DevelopmentPanel({ view, slot, onSlot, onBuild, onUpgrade, onSkip }: {
   view: GameView;
   slot: number | null;
   onSlot: (slot: number) => void;
   onBuild: (moduleId: ModuleId, slot: number) => void;
   onUpgrade: (slot: number) => void;
+  onSkip: () => void;
 }) {
   const choiceDefinitions = MODULES.filter((module) => view.state.developmentChoices.includes(module.id));
   const emptySlots = Array.from({ length: 9 }, (_, index) => index).filter((index) => !view.modules.some((module) => module.slot === index));
+  const legal = legalCommands(view.state);
+  const canBuild = (moduleId: ModuleId, targetSlot: number | null) => targetSlot !== null && legal.some((command) => command.type === 'build_module' && command.moduleId === moduleId && command.slot === targetSlot);
+  const canUpgrade = (targetSlot: number) => legal.some((command) => command.type === 'upgrade_module' && command.slot === targetSlot);
   return (
     <section className="development-panel" aria-labelledby="development-title" data-testid="development-panel">
       <span className="kicker">CITADEL GROWTH</span>
@@ -316,7 +335,7 @@ function DevelopmentPanel({ view, slot, onSlot, onBuild, onUpgrade }: {
           <article className="module-choice" key={module.id}>
             <span className="module-sigil">{MODULE_MARKS[module.id]}</span>
             <div><strong>{module.name}</strong><p>{module.description}</p><small>{module.buildCost} ALLOY</small></div>
-            <button type="button" onClick={() => slot !== null && onBuild(module.id, slot)} disabled={slot === null || view.state.resources.alloy < module.buildCost}>
+            <button type="button" onClick={() => slot !== null && onBuild(module.id, slot)} disabled={!canBuild(module.id, slot)}>
               BUILD
             </button>
           </article>
@@ -324,8 +343,9 @@ function DevelopmentPanel({ view, slot, onSlot, onBuild, onUpgrade }: {
       </div>
       <div className="upgrade-row">
         <span>Or reinforce an existing chamber</span>
-        <div>{view.modules.map((module) => <button key={module.slot} type="button" onClick={() => onUpgrade(module.slot)}>{module.name} · LV{module.level}</button>)}</div>
+        <div>{view.modules.map((module) => <button key={module.slot} type="button" disabled={!canUpgrade(module.slot)} onClick={() => onUpgrade(module.slot)}>{module.name} · LV{module.level}</button>)}</div>
       </div>
+      <button className="text-button" type="button" onClick={onSkip}>Conserve alloy and continue</button>
     </section>
   );
 }
@@ -432,7 +452,17 @@ function TitleScreen({ seed, hasSave, notice, onSeed, onNew, onContinue, onNavig
   };
   return (
     <main className="title-screen" data-testid="title-screen">
-      <div className="moon" aria-hidden="true"><div className="moon-veins"><i /><i /><i /></div><span>ORISON</span></div>
+      <div className="title-art">
+        <img
+          src="/art/orison-title.webp"
+          width="1536"
+          height="1024"
+          fetchPriority="high"
+          alt="The six-legged living citadel Orison crossing a moon cavern lit by cyan mineral veins."
+        />
+        <div className="moon-veins" aria-hidden="true"><i /><i /><i /></div>
+        <span aria-hidden="true">ORISON</span>
+      </div>
       <section className="title-copy">
         <span className="kicker">A ROGUELITE OF STONE &amp; SONG</span>
         <h1>Lode<br /><em>Choir</em></h1>
@@ -602,11 +632,12 @@ export function GameApp() {
       {notice && <div className="game-notice" role="status">{notice}<button onClick={() => setNotice(null)} aria-label="Dismiss">×</button></div>}
       {feedback.length > 0 && <div className="feedback-stack" aria-live="polite">{feedback.map((event) => <span className={`feedback ${event.emphasis ?? ''}`} key={event.id}>{event.text}</span>)}</div>}
       <main className="game-shell">
+        <h1 className="sr-only">Lode Choir expedition</h1>
         <Citadel view={view} selectedCrew={selectedCrew} selectedBuildSlot={selectedBuildSlot} onRoom={onRoom} onEmpty={setSelectedBuildSlot} />
         <aside className="command-deck">
           {view.state.phase === 'planning' && <RoutePanel view={view} onSelect={(instanceId) => dispatch({ type: 'select_route', instanceId })} onResolve={() => dispatch({ type: 'resolve_shift' })} />}
           {view.state.phase === 'event' && <EventPanel view={view} onChoose={(choiceIndex) => dispatch({ type: 'choose_event', choiceIndex })} />}
-          {view.state.phase === 'development' && <DevelopmentPanel view={view} slot={selectedBuildSlot} onSlot={setSelectedBuildSlot} onBuild={(moduleId, slot) => dispatch({ type: 'build_module', moduleId, slot })} onUpgrade={(slot) => dispatch({ type: 'upgrade_module', slot })} />}
+          {view.state.phase === 'development' && <DevelopmentPanel view={view} slot={selectedBuildSlot} onSlot={setSelectedBuildSlot} onBuild={(moduleId, slot) => dispatch({ type: 'build_module', moduleId, slot })} onUpgrade={(slot) => dispatch({ type: 'upgrade_module', slot })} onSkip={() => dispatch({ type: 'skip_development' })} />}
           {view.state.phase === 'finale' && <FinalePanel view={view} onChoose={(endingId) => dispatch({ type: 'choose_ending', endingId })} />}
           {view.state.phase === 'complete' && <CompletionPanel view={view} onNewRun={() => startRun(makeSeed())} onChronicle={() => openMenuPage('chronicle')} />}
         </aside>

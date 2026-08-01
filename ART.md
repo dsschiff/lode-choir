@@ -46,3 +46,26 @@ lighting, and portrait framing to maintain continuity.
 - Review: accepted. The Orison reads as a sacred heavy mining machine; the crew windows,
   cyan geology, restrained palette, and upper-right title space match the prompt. No
   generated text, watermark, weapons, foreground figure, or glossy spacecraft styling.
+
+## Accepted crew portraits
+
+- Method: four separate built-in image generations using the accepted title art as the
+  shared style reference, followed by local Sharp resize/WebP optimization to 720px.
+- Final assets: `crew-mara.webp` (59 KB), `crew-tamsin.webp` (81 KB),
+  `crew-orin.webp` (88 KB), and `crew-sable.webp` (63 KB) under
+  `apps/game/public/art/`.
+- Shared prompt frame: square, chest-up, painterly science-fantasy portraits with etched
+  geological texture; near-black basalt, bone-gray cloth, luminous cyan, worn brass,
+  and sparse amber light; no text, logos, watermarks, weapons, glossy armor, or generic
+  spacesuits.
+- Mara Vey: Black woman in her early fifties, close-cropped silver hair, fine chin scar,
+  weathered oathkeeper coat, and a battered ledger; composed, severe, and protective.
+- Tamsin Rook: stocky South Asian woman in her late thirties, cropped dust-streaked hair,
+  scarred hands, rugged delver harness, red hazard cord, and a defiant crooked grin.
+- Orin Vale: East Asian man in his mid-thirties, loosely tied hair, careful hands,
+  weathered engineer-chorister coat, and cyan resonance forks; meticulous and anxious.
+- Sable-9: androgynous synthetic person with worn porcelain and obsidian face plates,
+  repaired seams, a cyan memory filament, textile mantle, and a faceted memory shard.
+- Review: accepted as a coherent set. Each identity, silhouette, prop, and emotional
+  register remains legible at card size; no unwanted text, watermarks, weapons, or style
+  drift were found. The optimized files were visually inspected after conversion.

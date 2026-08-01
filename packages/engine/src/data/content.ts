@@ -9,7 +9,7 @@ export const CREW: readonly CrewDefinition[] = [
     talent: 'Ward assignments prevent one additional integrity loss.',
     drawback: 'Mara gains strain when the crew abandons a refuge.',
     vow: 'Bring every voice home, even those the moon has changed.',
-    signature: 'Holdfast: once per run, turn a lethal breach into one integrity.',
+    signature: 'Holdfast: Ward assignments add a second layer of protection.',
     color: '#c89b55',
   },
   {
@@ -17,10 +17,10 @@ export const CREW: readonly CrewDefinition[] = [
     name: 'Tamsin Rook',
     role: 'Delver',
     epithet: 'the Faultline Daughter',
-    talent: 'Deep Drill assignments yield one additional alloy.',
+    talent: 'Deep Drill assignments and dangerous routes yield additional alloy.',
     drawback: 'Hazardous routes give Tamsin one additional strain.',
     vow: 'Find the seam that swallowed her first crew and name the dead.',
-    signature: 'Redline: double a route reward, then suffer two strain.',
+    signature: 'Redline: Deep Drill assignments yield one further alloy.',
     color: '#e56f66',
   },
   {
@@ -31,7 +31,7 @@ export const CREW: readonly CrewDefinition[] = [
     talent: 'Heart Engine assignments restore one integrity.',
     drawback: 'Orin gains strain whenever the citadel falls below half integrity.',
     vow: 'Teach the Orison a song it did not inherit from its makers.',
-    signature: 'Counterhymn: cancel a hazard and spend one lumen instead.',
+    signature: 'Counterhymn: every room Orin staffs operates one level stronger.',
     color: '#58e1dc',
   },
   {
@@ -42,7 +42,7 @@ export const CREW: readonly CrewDefinition[] = [
     talent: 'Resonance assignments reveal every route complication.',
     drawback: 'Revelations about the Heart-Lode give Sable one strain.',
     vow: 'Recover the memory that was removed between Sable-8 and Sable-9.',
-    signature: 'Second Sight: replace all offered routes without advancing time.',
+    signature: 'Second Sight: a revealed Rift route yields one additional Heart Note.',
     color: '#b8ad96',
   },
 ];
@@ -52,7 +52,7 @@ export const MODULES: readonly ModuleDefinition[] = [
     id: 'heart_engine',
     name: 'Heart Engine',
     description: 'Feeds on lumen and the crew\'s pulse-rhythm to keep the Orison alive.',
-    assignmentHint: 'Produces provisions; Orin can also repair the citadel here.',
+    assignmentHint: 'Produces provisions; Orin also repairs one integrity here.',
     buildCost: 0,
   },
   {
@@ -73,21 +73,21 @@ export const MODULES: readonly ModuleDefinition[] = [
     id: 'foundry',
     name: 'Cinder Foundry',
     description: 'Smelts moon-ore into replacement bones for the citadel.',
-    assignmentHint: 'Converts strong alloy production into repairs and upgrades.',
+    assignmentHint: 'Consumes one alloy to repair; Deep Drill adjacency improves the repair.',
     buildCost: 4,
   },
   {
     id: 'infirmary',
     name: 'Mercy Berth',
     description: 'A warm pressure cradle where mineral dust is drawn from the blood.',
-    assignmentHint: 'Relieves strain; adjacency to the Heart Engine improves recovery.',
+    assignmentHint: 'Relieves strain; Heart Engine adjacency improves recovery.',
     buildCost: 3,
   },
   {
     id: 'resonance_chamber',
     name: 'Resonance Chamber',
     description: 'Turns buried harmonics into maps, warnings, and dangerous truth.',
-    assignmentHint: 'Produces lumen and reveals complications; Sable reads it clearly.',
+    assignmentHint: 'Produces lumen; Sable reveals complications. At level 2 it spends three lumen once to decode a Heart Note.',
     buildCost: 5,
   },
 ];

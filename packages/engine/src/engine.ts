@@ -140,7 +140,7 @@ export function createRun(options: CreateRunOptions | string): GameState {
     shift: 1,
     phase: 'planning',
     status: 'playing',
-    resources: { provisions: 8, alloy: 5, lumen: 2 },
+    resources: { provisions: 4, alloy: 5, lumen: 2 },
     integrity: MAX_INTEGRITY,
     heartNotes: 0,
     crew: CREW_IDS.map((id) => ({
@@ -206,10 +206,15 @@ export function legalCommands(state: GameState): Command[] {
     const commands: Command[] = state.routeOffers.map((offer) => ({ type: 'select_route', instanceId: offer.instanceId }));
     for (const crew of state.crew) {
       if (!crewAvailable(state, crew.id)) continue;
-      if (state.modules.some((module) => module.assignedCrew === crew.id)) {
+      const alreadyAssigned = state.modules.some((module) => module.assignedCrew === crew.id);
+      if (alreadyAssigned) {
         commands.push({ type: 'unassign_crew', crewId: crew.id });
       }
-      for (const module of state.modules) commands.push({ type: 'assign_crew', crewId: crew.id, slot: module.slot });
+      for (const module of state.modules) {
+        if (alreadyAssigned || assignedCount(state) < requiredAssignments(state) || module.assignedCrew !== null) {
+          commands.push({ type: 'assign_crew', crewId: crew.id, slot: module.slot });
+        }
+      }
     }
     if (state.selectedRoute && assignedCount(state) === requiredAssignments(state)) commands.push({ type: 'resolve_shift' });
     return commands;
@@ -220,7 +225,7 @@ export function legalCommands(state: GameState): Command[] {
       .filter(({ choice }) => choiceAffordable(state, choice))
       .map(({ choiceIndex }) => ({ type: 'choose_event' as const, choiceIndex }));
   }
-  if (state.phase === 'development') return developmentCommands(state);
+  if (state.phase === 'development') return [...developmentCommands(state), { type: 'skip_development' }];
   if (state.phase === 'finale') return ENDING_CONTENT.map(({ id: endingId }) => ({ type: 'choose_ending' as const, endingId }));
   return [];
 }
@@ -287,6 +292,7 @@ function progressVow(state: GameState, crewId: CrewId, events: EngineEvent[]): v
   crew.vowProgress += 1;
   if (crew.vowProgress === 2) increaseLoyalty(state, crewId, 1, events);
   if (crew.vowProgress === 3) {
+    increaseLoyalty(state, crewId, 1, events);
     const definition = effectiveCrew().find((candidate) => candidate.id === crewId);
     emit(state, events, 'progress', `${definition?.name ?? crewId} fulfills a personal vow.`, 'mystic');
   }
@@ -308,9 +314,10 @@ function resolveRooms(state: GameState, events: EngineEvent[]): RoomResolution {
     const orinBonus = crewId === 'orin' && crew.signatureUnlocked ? 1 : 0;
     const strength = module.level + heartAdjacency + orinBonus;
     if (module.id === 'heart_engine') {
-      addResource(state, 'lumen', strength);
+      addResource(state, 'provisions', strength);
+      if (crewId === 'orin') repair += 1;
       if (crewId !== 'sable') adjustStrain(state, crewId, -1, events);
-      emit(state, events, 'room', `The Heart Engine draws ${strength} lumen.`, 'positive');
+      emit(state, events, 'room', `The Heart Engine cultivates ${strength} provisions${crewId === 'orin' ? ' and mends one integrity' : ''}.`, 'positive');
     } else if (module.id === 'deep_drill') {
       const penalty = crewId === 'orin' ? 1 : 0;
       const bonus = crewId === 'tamsin' ? (crew.signatureUnlocked ? 2 : 1) : 0;
@@ -324,18 +331,27 @@ function resolveRooms(state: GameState, events: EngineEvent[]): RoomResolution {
       emit(state, events, 'room', `The Ward Array raises ${strength} layers of protection.`);
     } else if (module.id === 'foundry') {
       const drillBonus = hasAdjacentModule(state, module, 'deep_drill') ? 1 : 0;
-      const output = strength + drillBonus;
-      addResource(state, 'alloy', output);
-      emit(state, events, 'room', `The Foundry refines ${output} alloy.`, 'positive');
+      const restored = strength + drillBonus;
+      if (state.resources.alloy > 0) {
+        addResource(state, 'alloy', -1);
+        repair += restored;
+        emit(state, events, 'room', `The Foundry spends one alloy to restore ${restored} integrity.`, 'positive');
+      } else {
+        emit(state, events, 'room', 'The Foundry waits for alloy.', 'negative');
+      }
     } else if (module.id === 'infirmary') {
-      for (const target of state.crew) adjustStrain(state, target.id, -module.level, events);
-      emit(state, events, 'room', 'The Infirmary lowers the crew’s strain.', 'positive');
+      for (const target of state.crew) adjustStrain(state, target.id, -strength, events);
+      emit(state, events, 'room', `The Infirmary lowers every crew member’s strain by ${strength}.`, 'positive');
     } else if (module.id === 'resonance_chamber') {
       addResource(state, 'lumen', strength);
-      if (module.level >= 2) state.heartNotes += 1;
+      if (module.level >= 2 && !state.storyFlags.includes('resonance:heart-note') && state.resources.lumen >= 3) {
+        addResource(state, 'lumen', -3);
+        state.heartNotes = Math.min(3, state.heartNotes + 1);
+        state.storyFlags.push('resonance:heart-note');
+        emit(state, events, 'progress', 'The Resonance Chamber spends three lumen and decodes a Heart Note.', 'mystic');
+      }
       emit(state, events, 'room', `The Resonance Chamber clarifies ${strength} lumen.`, 'mystic');
     }
-    increaseLoyalty(state, crewId, 1, events);
   }
   if (repair > 0) state.integrity = Math.min(maximumIntegrity(state), state.integrity + repair);
   return { ward, repair };
@@ -348,12 +364,14 @@ function resolveRoute(state: GameState, room: RoomResolution, events: EngineEven
   let noteProgress = route.noteProgress;
   const sable = state.crew.find((candidate) => candidate.id === 'sable')!;
   if (sable.signatureUnlocked && offer.revealed && route.kind === 'rift') noteProgress += 1;
-  state.heartNotes += noteProgress;
+  state.heartNotes = Math.min(3, state.heartNotes + noteProgress);
 
   const maraInWard = state.modules.some((module) => module.id === 'ward_array' && module.assignedCrew === 'mara');
   const mara = state.crew.find((candidate) => candidate.id === 'mara')!;
-  const mitigation = room.ward + (maraInWard && mara.signatureUnlocked ? 1 : 0);
-  const damage = Math.max(0, route.hazard - mitigation);
+  const maraProtection = maraInWard ? (mara.signatureUnlocked ? 2 : 1) : 0;
+  const mitigation = room.ward + maraProtection;
+  const hiddenHazard = offer.hiddenComplication && !offer.revealed ? 1 : 0;
+  const damage = Math.max(0, route.hazard + hiddenHazard - mitigation);
   state.integrity = Math.max(0, state.integrity - damage);
   if (state.resources.provisions > 0) state.resources.provisions -= 1;
   else state.integrity = Math.max(0, state.integrity - 1);
@@ -372,6 +390,10 @@ function resolveRoute(state: GameState, room: RoomResolution, events: EngineEven
   if (state.modules.some((module) => module.assignedCrew === 'tamsin')) {
     addResource(state, 'alloy', route.hazard >= 3 ? 2 : 1);
   }
+  if (route.kind !== 'refuge' && state.routeOffers.some((candidate) => routeDefinition(candidate.routeId).kind === 'refuge')) {
+    adjustStrain(state, 'mara', 1, events);
+  }
+  if (state.integrity < maximumIntegrity(state) / 2) adjustStrain(state, 'orin', 1, events);
 
   if (damage === 0) progressVow(state, 'mara', events);
   if (route.hazard >= 3 && state.modules.some((module) => module.assignedCrew === 'tamsin')) progressVow(state, 'tamsin', events);
@@ -484,7 +506,7 @@ function applyChoice(state: GameState, choice: EventChoice, events: EngineEvent[
     for (const [id, amount] of Object.entries(choice.resourceDelta) as [ResourceId, number][]) addResource(state, id, amount);
   }
   if (choice.integrityDelta) state.integrity = Math.max(0, Math.min(maximumIntegrity(state), state.integrity + choice.integrityDelta));
-  if (choice.noteDelta) state.heartNotes += choice.noteDelta;
+  if (choice.noteDelta) state.heartNotes = Math.min(3, state.heartNotes + choice.noteDelta);
   if (choice.crewId && choice.loyaltyDelta) increaseLoyalty(state, choice.crewId, choice.loyaltyDelta, events);
   if (choice.crewId && choice.strainDelta) adjustStrain(state, choice.crewId, choice.strainDelta, events);
   appendLog(state, 'story', `${choice.label}: ${choice.consequence}`);
@@ -492,7 +514,8 @@ function applyChoice(state: GameState, choice: EventChoice, events: EngineEvent[
 }
 
 function upgradeCost(module: ModuleState): number {
-  return moduleDefinition(module.id).buildCost + module.level;
+  const base = Math.max(4, moduleDefinition(module.id).buildCost);
+  return base + module.level * 2;
 }
 
 function endingText(state: GameState, endingId: EndingId): string {
@@ -539,7 +562,7 @@ export function applyCommand(input: GameState, command: Command): TransitionResu
     for (const module of state.modules) if (module.assignedCrew === command.crewId) module.assignedCrew = null;
     const target = state.modules.find((module) => module.slot === command.slot)!;
     target.assignedCrew = command.crewId;
-    if (command.crewId === 'sable') {
+    if (command.crewId === 'sable' && target.id === 'resonance_chamber') {
       for (const offer of state.routeOffers) offer.revealed = true;
     }
   } else if (command.type === 'unassign_crew') {
@@ -554,6 +577,11 @@ export function applyCommand(input: GameState, command: Command): TransitionResu
       state.status = 'lost';
       state.phase = 'complete';
       state.endingText = 'A choice made in the moon’s shadow leaves Orison without a heartbeat.';
+      emit(state, events, 'ending', state.endingText, 'negative');
+    } else if (allCrewIncapacitated(state)) {
+      state.status = 'lost';
+      state.phase = 'complete';
+      state.endingText = 'The last conscious voice fails before Orison can answer.';
       emit(state, events, 'ending', state.endingText, 'negative');
     } else {
       finishPostShift(state);
@@ -575,6 +603,10 @@ export function applyCommand(input: GameState, command: Command): TransitionResu
     if (module.id === 'resonance_chamber') progressVow(state, 'orin', events);
     appendLog(state, 'system', `${moduleDefinition(module.id).name} reaches level ${module.level}.`);
     emit(state, events, 'progress', `${moduleDefinition(module.id).name} is upgraded.`, 'positive');
+    beginNextShift(state);
+  } else if (command.type === 'skip_development') {
+    appendLog(state, 'system', 'The crew banks its alloy and leaves the sleeping chambers sealed.');
+    emit(state, events, 'progress', 'Development deferred. Alloy conserved.');
     beginNextShift(state);
   } else if (command.type === 'choose_ending') {
     state.ending = command.endingId;

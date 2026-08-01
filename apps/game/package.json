@@ -7,15 +7,16 @@
     "build": "next build",
     "typecheck": "tsc --noEmit",
     "serve:out": "node scripts/serve-out.mjs 3321",
-    "test:e2e": "playwright test"
+    "test:e2e": "next build && playwright test"
   },
   "dependencies": {
     "@lode-choir/engine": "file:../../packages/engine",
-    "next": "16.2.9",
+    "next": "16.2.12",
     "react": "19.2.7",
     "react-dom": "19.2.7"
   },
   "devDependencies": {
+    "@axe-core/playwright": "^4.12.1",
     "@playwright/test": "1.61.1",
     "@types/node": "24.10.2",
     "@types/react": "19.2.7",

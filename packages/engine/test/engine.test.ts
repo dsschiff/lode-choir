@@ -52,8 +52,19 @@ test('assignments move crew, displace occupants, and Sable reveals complications
   state = applyCommand(state, { type: 'assign_crew', crewId: 'mara', slot: 1 }).state;
   assert.equal(state.modules.find((module) => module.slot === 0)!.assignedCrew, null);
   assert.equal(state.modules.find((module) => module.slot === 1)!.assignedCrew, 'mara');
-  state = applyCommand(state, { type: 'assign_crew', crewId: 'sable', slot: 0 }).state;
+  state.modules.push({ id: 'resonance_chamber', slot: 3, level: 1, assignedCrew: null });
+  state = applyCommand(state, { type: 'assign_crew', crewId: 'sable', slot: 3 }).state;
   assert.ok(state.routeOffers.every((offer) => offer.revealed));
+});
+
+test('a fourth crew member can replace an assignment but cannot overstaff the citadel', () => {
+  let state = readyFirstShift('three-voices');
+  assert.equal(selectGameView(state).canResolveShift, true);
+  assert.equal(legalCommands(state).some((command) => command.type === 'assign_crew' && command.crewId === 'orin' && command.slot === 3), false);
+  state = applyCommand(state, { type: 'assign_crew', crewId: 'orin', slot: 0 }).state;
+  assert.equal(state.modules.filter((module) => module.assignedCrew).length, 3);
+  assert.equal(state.modules.find((module) => module.slot === 0)!.assignedCrew, 'orin');
+  assert.equal(selectGameView(state).canResolveShift, true);
 });
 
 test('a resolved shift produces resources, route progress, story, and a clean next planning phase', () => {
@@ -84,11 +95,32 @@ test('development breaks offer legal builds or upgrades and consume alloy', () =
   assert.equal(state.phase, 'development');
   const commands = legalCommands(state);
   assert.ok(commands.some((command) => command.type === 'build_module' || command.type === 'upgrade_module'));
+  assert.ok(commands.some((command) => command.type === 'skip_development'));
   const alloy = state.resources.alloy;
-  state = applyCommand(state, commands[0]!).state;
+  const development = commands.find((command) => command.type === 'build_module' || command.type === 'upgrade_module')!;
+  state = applyCommand(state, development).state;
   assert.equal(state.phase, 'planning');
   assert.equal(state.shift, 3);
   assert.ok(state.resources.alloy < alloy);
+});
+
+test('development may be deferred without spending alloy', () => {
+  let state = readyFirstShift('defer-development');
+  for (let shift = 1; shift <= 2; shift += 1) {
+    state = applyCommand(state, { type: 'resolve_shift' }).state;
+    if (state.phase === 'event') state = applyCommand(state, legalCommands(state)[0]!).state;
+    if (shift === 1) {
+      state = applyCommand(state, { type: 'select_route', instanceId: state.routeOffers[0]!.instanceId }).state;
+      state = applyCommand(state, { type: 'assign_crew', crewId: 'mara', slot: 2 }).state;
+      state = applyCommand(state, { type: 'assign_crew', crewId: 'tamsin', slot: 1 }).state;
+      state = applyCommand(state, { type: 'assign_crew', crewId: 'orin', slot: 0 }).state;
+    }
+  }
+  assert.equal(state.phase, 'development');
+  const alloy = state.resources.alloy;
+  state = applyCommand(state, { type: 'skip_development' }).state;
+  assert.equal(state.resources.alloy, alloy);
+  assert.equal(state.shift, 3);
 });
 
 test('save round trips exactly, corrupted saves fail safely, and replay is exact', () => {
@@ -162,12 +194,13 @@ test('integrity collapse is an explicit terminal loss', () => {
   assert.deepEqual(legalCommands(result), []);
 });
 
-test('strain creates a scar and skips the next shift while loyalty unlocks signatures', () => {
+test('strain creates a scar and vow-driven loyalty unlocks signatures', () => {
   let state = createRun({ seed: 'scar-and-signature' });
-  const riskiest = [...selectGameView(state).routes].sort((left, right) => right.definition.hazard - left.definition.hazard)[0]!;
-  state = applyCommand(state, { type: 'select_route', instanceId: riskiest.instanceId }).state;
+  const safest = [...selectGameView(state).routes].sort((left, right) => left.definition.hazard - right.definition.hazard)[0]!;
+  state = applyCommand(state, { type: 'select_route', instanceId: safest.instanceId }).state;
   state.crew.find((crew) => crew.id === 'tamsin')!.strain = 5;
   state.crew.find((crew) => crew.id === 'mara')!.loyalty = 2;
+  state.crew.find((crew) => crew.id === 'mara')!.vowProgress = 1;
   state = applyCommand(state, { type: 'assign_crew', crewId: 'mara', slot: 2 }).state;
   state = applyCommand(state, { type: 'assign_crew', crewId: 'tamsin', slot: 1 }).state;
   state = applyCommand(state, { type: 'assign_crew', crewId: 'sable', slot: 0 }).state;

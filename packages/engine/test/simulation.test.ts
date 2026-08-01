@@ -18,12 +18,15 @@ test('500 seeds terminate under three policies with reproducible valid states', 
       assert.equal(run.phase, 'complete');
       assert.ok(run.shift <= 7);
       assert.ok(run.integrity >= 0 && run.integrity <= 12);
+      assert.ok(run.heartNotes >= 0 && run.heartNotes <= 3);
       assert.ok(Object.values(run.resources).every((value) => value >= 0));
       assert.ok(run.crew.every((crew) => crew.strain >= 0 && crew.strain <= 6));
       assert.deepEqual(replay(seed, run.commandTrace), run);
     }
   }
 
-  const winningPolicies = policies.filter((policy) => totals.get(policy)!.won > 0);
-  assert.ok(winningPolicies.length >= 2, `Expected at least two winning policies, got ${JSON.stringify(Object.fromEntries(totals))}`);
+  for (const policy of policies) {
+    assert.ok(totals.get(policy)!.won > 0, `Expected ${policy} to find at least one win: ${JSON.stringify(Object.fromEntries(totals))}`);
+    assert.ok(totals.get(policy)!.lost > 0, `Expected ${policy} to remain fallible: ${JSON.stringify(Object.fromEntries(totals))}`);
+  }
 });

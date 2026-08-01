@@ -16,7 +16,7 @@ export default defineConfig({
     { name: 'desktop', use: { ...devices['Desktop Chrome'], viewport: { width: 1280, height: 820 } } },
   ],
   webServer: {
-    command: 'npm run build && npm run serve:out',
+    command: 'node scripts/serve-out.mjs 3321',
     url: 'http://127.0.0.1:3321',
     reuseExistingServer: !process.env.CI,
     timeout: 120_000,

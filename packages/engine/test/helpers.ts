@@ -93,6 +93,8 @@ function develop(state: GameState, policy: PolicyName): GameState {
     return undefined;
   };
   const ranked = [...commands].sort((left, right) => {
+    if (left.type === 'skip_development') return 1;
+    if (right.type === 'skip_development') return -1;
     const leftId = commandModuleId(left);
     const rightId = commandModuleId(right);
     const typeBias = (command: Command) => command.type === 'build_module' ? -2 : 0;

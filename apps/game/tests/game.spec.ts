@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test';
+import AxeBuilder from '@axe-core/playwright';
 
 test.beforeEach(async ({ page }) => {
   await page.goto('/');
@@ -64,4 +65,13 @@ test('development, finale, and completion surfaces are available to deterministi
   const hookReady = await page.evaluate(() => Boolean(window.__LODE_CHOIR__?.getState()));
   expect(hookReady).toBe(true);
   await expect(page.locator('.resource-rail')).toBeVisible();
+});
+
+test('title and planning surfaces have no detectable accessibility violations', async ({ page }) => {
+  const titleScan = await new AxeBuilder({ page }).analyze();
+  expect(titleScan.violations, JSON.stringify(titleScan.violations, null, 2)).toEqual([]);
+
+  await page.getByTestId('new-run').click();
+  const planningScan = await new AxeBuilder({ page }).analyze();
+  expect(planningScan.violations, JSON.stringify(planningScan.violations, null, 2)).toEqual([]);
 });
