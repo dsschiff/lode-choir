@@ -200,11 +200,21 @@ export function legalCommands(state: GameState): Command[] {
     return commands;
   }
   if (state.phase === 'event' && state.activeEvent) {
-    return storyEventDefinition(state.activeEvent).choices.map((_choice, choiceIndex) => ({ type: 'choose_event', choiceIndex }));
+    return storyEventDefinition(state.activeEvent).choices
+      .map((choice, choiceIndex) => ({ choice, choiceIndex }))
+      .filter(({ choice }) => choiceAffordable(state, choice))
+      .map(({ choiceIndex }) => ({ type: 'choose_event' as const, choiceIndex }));
   }
   if (state.phase === 'development') return developmentCommands(state);
   if (state.phase === 'finale') return ENDINGS.map((endingId) => ({ type: 'choose_ending', endingId }));
   return [];
+}
+
+function choiceAffordable(state: GameState, choice: EventChoice): boolean {
+  if (!choice.resourceDelta) return true;
+  return (Object.entries(choice.resourceDelta) as [ResourceId, number][]).every(
+    ([id, delta]) => delta >= 0 || state.resources[id] >= -delta,
+  );
 }
 
 function commandEquals(left: Command, right: Command): boolean {
@@ -597,8 +607,8 @@ export function deserialize(serialized: string): GameState {
   return cloneState(candidate);
 }
 
-export function replay(seed: string, commands: readonly Command[]): GameState {
-  let state = createRun({ seed });
+export function replay(seed: string | CreateRunOptions, commands: readonly Command[]): GameState {
+  let state = createRun(seed);
   for (const command of commands) state = applyCommand(state, command).state;
   return state;
 }

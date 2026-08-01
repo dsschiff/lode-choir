@@ -97,6 +97,25 @@ test('save round trips exactly, corrupted saves fail safely, and replay is exact
   assert.throws(() => deserialize('{broken'), /valid JSON/);
   assert.throws(() => deserialize('{}'), /supported/);
   assert.deepEqual(replay(state.seed, state.commandTrace), state);
+  const relicRun = createRun({ seed: 'relic-replay', relicId: 'brass-seed' });
+  assert.deepEqual(replay({ seed: relicRun.seed, relicId: 'brass-seed' }, relicRun.commandTrace), relicRun);
+});
+
+test('event choices cannot spend resources the run does not have', () => {
+  let state = readyFirstShift('choice-cost');
+  state = applyCommand(state, { type: 'resolve_shift' }).state;
+  const event = selectGameView(state).activeStoryEvent!;
+  const costlyIndex = event.choices.findIndex((choice) =>
+    Object.values(choice.resourceDelta ?? {}).some((delta) => (delta ?? 0) < 0));
+  if (costlyIndex < 0) return;
+  state.resources.alloy = 0;
+  state.resources.lumen = 0;
+  state.resources.provisions = 0;
+  assert.equal(
+    legalCommands(state).some((command) => command.type === 'choose_event' && command.choiceIndex === costlyIndex),
+    false,
+  );
+  assert.throws(() => applyCommand(state, { type: 'choose_event', choiceIndex: costlyIndex }), /Illegal command/);
 });
 
 test('version-zero raw saves migrate missing trace-era fields', () => {
@@ -111,7 +130,7 @@ test('version-zero raw saves migrate missing trace-era fields', () => {
 });
 
 test('full runs terminate and winning runs update legacy without mutating it', () => {
-  const run = playRun(createRun({ seed: 'win-0' }), 'balanced');
+  const run = playRun(createRun({ seed: 'win-4' }), 'balanced');
   assert.equal(run.phase, 'complete');
   assert.equal(run.status, 'won');
   const legacy = createLegacyState();

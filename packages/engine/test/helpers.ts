@@ -58,9 +58,15 @@ function assignCrew(state: GameState, policy: PolicyName): GameState {
 
 function chooseEvent(state: GameState, policy: PolicyName): GameState {
   const event = selectGameView(state).activeStoryEvent!;
+  const legalChoices = new Set(
+    legalCommands(state)
+      .filter((command) => command.type === 'choose_event')
+      .map((command) => command.choiceIndex),
+  );
   let bestIndex = 0;
   let bestScore = Number.NEGATIVE_INFINITY;
   for (let index = 0; index < event.choices.length; index += 1) {
+    if (!legalChoices.has(index)) continue;
     const choice = event.choices[index]!;
     const resources = choice.resourceDelta ? rewardValue({ baseRewards: choice.resourceDelta } as RouteDefinition) : 0;
     const score = policy === 'aggressive'
