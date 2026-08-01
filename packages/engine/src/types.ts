@@ -62,6 +62,8 @@ export interface RouteOffer {
   routeId: string;
   hiddenComplication: string | null;
   revealed: boolean;
+  carried: boolean;
+  chartedRevealed: boolean;
 }
 
 export interface RouteForecast {
@@ -99,7 +101,7 @@ export interface LogEntry {
 }
 
 export interface GameState {
-  version: 3;
+  version: 4;
   seed: string;
   startingRelic: RelicId | null;
   rngState: number;
@@ -113,6 +115,8 @@ export interface GameState {
   modules: ModuleState[];
   routeOffers: RouteOffer[];
   selectedRoute: string | null;
+  reservedRoute: string | null;
+  reservedRouteRevealed: boolean;
   routeLeader: CrewId | null;
   activeEvent: string | null;
   developmentChoices: ModuleId[];
@@ -131,7 +135,7 @@ export interface CreateRunOptions {
 
 export interface SerializedGameEnvelope {
   game: 'lode-choir';
-  version: 3;
+  version: 4;
   state: GameState;
 }
 
@@ -146,6 +150,8 @@ export interface LegacyState {
 
 export type Command =
   | { type: 'select_route'; instanceId: string }
+  | { type: 'reserve_route'; instanceId: string }
+  | { type: 'clear_route_reservation' }
   | { type: 'assign_crew'; crewId: CrewId; slot: number }
   | { type: 'assign_route_leader'; crewId: CrewId }
   | { type: 'unassign_crew'; crewId: CrewId }
@@ -177,6 +183,7 @@ export interface GameView {
   activeStoryEvent: StoryEventDefinition | null;
   canResolveShift: boolean;
   maxIntegrity: number;
+  routeReservationCost: number;
   objective: string;
 }
 

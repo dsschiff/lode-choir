@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { createRun, replay, type CrewId, type RelicId, type RunStatus } from '../src/index.ts';
+import { applyCommand, createRun, replay, type CrewId, type RelicId, type RunStatus } from '../src/index.ts';
 import { playRun, type PolicyName } from './helpers.ts';
 
 test('500 seeds terminate under three policies with reproducible valid states', () => {
@@ -40,6 +40,7 @@ test('500 seeds terminate under three policies with reproducible valid states', 
       `Adaptive leadership changed ${policy} by more than ten points: leaders=${totals.get(policy)!.won}, rest=${baselineWins.get(policy)}`,
     );
   }
+  console.info('leadership-audit', JSON.stringify({ totals: Object.fromEntries(totals), baselineWins: Object.fromEntries(baselineWins) }));
   assert.deepEqual([...leaderCrew].sort(), ['mara', 'orin', 'sable', 'tamsin']);
 });
 
@@ -81,5 +82,35 @@ test('500 seeds keep all four relic loadouts bounded under every policy', () => 
     for (const [relicId, result] of results) {
       assert.ok(result.wins - noRelicWins <= 125, `${relicId} exceeded the no-relic run by twenty-five points for ${policy}: ${JSON.stringify(summary)}`);
     }
+  }
+});
+
+test('500 seeds keep route charting optional, deterministic, and strategically used', () => {
+  const policies: readonly PolicyName[] = ['conservative', 'balanced', 'aggressive'];
+  for (const policy of policies) {
+    let baselineWins = 0;
+    let chartedWins = 0;
+    let reservations = 0;
+    let carriedSelections = 0;
+    for (let seedIndex = 0; seedIndex < 500; seedIndex += 1) {
+      const seed = `chart-simulation-${seedIndex}`;
+      const baseline = playRun(createRun({ seed }), policy, true, false);
+      const charted = playRun(createRun({ seed }), policy, true, true);
+      if (baseline.status === 'won') baselineWins += 1;
+      if (charted.status === 'won') chartedWins += 1;
+      let replayState = createRun({ seed });
+      for (const command of charted.commandTrace) {
+        if (command.type === 'reserve_route') reservations += 1;
+        if (command.type === 'select_route' && replayState.routeOffers.find((offer) => offer.instanceId === command.instanceId)?.carried) {
+          carriedSelections += 1;
+        }
+        replayState = applyCommand(replayState, command).state;
+      }
+      assert.deepEqual(replayState, charted);
+    }
+    console.info(`chart-audit:${policy}`, JSON.stringify({ baselineWins, chartedWins, reservations, carriedSelections }));
+    assert.ok(reservations >= 250, `Expected charting to recur for ${policy}.`);
+    assert.ok(carriedSelections >= reservations * 0.15, `Expected ${policy} to choose at least fifteen percent of carried routes.`);
+    assert.ok(Math.abs(chartedWins - baselineWins) <= 75, `Charting changed ${policy} by more than fifteen points.`);
   }
 });

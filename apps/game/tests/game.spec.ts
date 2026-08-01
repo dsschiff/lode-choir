@@ -120,6 +120,71 @@ test('damaged Orison can spend alloy on emergency plating at development', async
   expect(state?.shift).toBe(3);
 });
 
+test('charted routes hold, swap, refund, survive reload, and return next shift', async ({ page }) => {
+  await beginRun(page);
+  await page.getByTestId('route-0').click();
+  await expect(page.getByTestId('route-chart')).toBeVisible();
+  const chartScan = await new AxeBuilder({ page }).analyze();
+  expect(chartScan.violations, JSON.stringify(chartScan.violations, null, 2)).toEqual([]);
+  const initialLumen = (await page.evaluate(() => window.__LODE_CHOIR__?.getState()?.resources.lumen))!;
+
+  const first = page.locator('.route-chart-action').first();
+  await first.click();
+  await expect(first).toHaveAttribute('aria-pressed', 'true');
+  await expect(first).toBeFocused();
+  expect(await page.evaluate(() => window.__LODE_CHOIR__?.getState()?.resources.lumen)).toBe(initialLumen - 1);
+
+  await page.reload();
+  await page.getByTestId('continue-run').click();
+  await expect(page.locator('.route-chart-action.is-held')).toHaveCount(1);
+  await page.locator('.route-chart-action:not(.is-held)').first().click();
+  expect(await page.evaluate(() => window.__LODE_CHOIR__?.getState()?.resources.lumen)).toBe(initialLumen - 1);
+
+  const heldIndex = await page.evaluate(() => {
+    const state = window.__LODE_CHOIR__?.getState();
+    return state?.routeOffers.findIndex((offer) => offer.instanceId === state.reservedRoute) ?? -1;
+  });
+  await page.getByTestId(`route-${heldIndex}`).click();
+  expect(await page.evaluate(() => window.__LODE_CHOIR__?.getState()?.reservedRoute)).toBeNull();
+  expect(await page.evaluate(() => window.__LODE_CHOIR__?.getState()?.resources.lumen)).toBe(initialLumen);
+
+  await page.locator('.route-chart-action').first().click();
+  await page.locator('.route-chart-action.is-held').click();
+  expect(await page.evaluate(() => window.__LODE_CHOIR__?.getState()?.resources.lumen)).toBe(initialLumen);
+  await page.locator('.route-chart-action').first().click();
+  const carriedRouteId = await page.evaluate(() => {
+    const state = window.__LODE_CHOIR__?.getState();
+    return state?.routeOffers.find((offer) => offer.instanceId === state.reservedRoute)?.routeId;
+  });
+  await page.evaluate(() => {
+    const resources = window.__LODE_CHOIR__?.getState()?.resources;
+    if (resources) {
+      resources.provisions = 20;
+      resources.alloy = 20;
+      resources.lumen = 20;
+    }
+  });
+
+  const rooms = page.locator('[data-testid^="room-"]:not(.empty-room)');
+  for (const [crew, roomIndex] of [['mara', 0], ['tamsin', 1], ['orin', 2]] as const) {
+    await page.getByTestId(`crew-${crew}`).click();
+    await rooms.nth(roomIndex).click();
+  }
+  await page.getByTestId('resolve-shift').click();
+  await page.getByTestId('event-choice-0').click();
+  await expect(page.getByText('CHARTED LAST SHIFT')).toBeVisible();
+  const carriedCount = await page.evaluate((routeId) => window.__LODE_CHOIR__?.getState()?.routeOffers.filter((offer) => offer.routeId === routeId && offer.carried).length, carriedRouteId);
+  expect(carriedCount).toBe(1);
+
+  await page.evaluate(() => {
+    const state = window.__LODE_CHOIR__?.getState();
+    if (!state) return;
+    state.resources.lumen = 0;
+    window.__LODE_CHOIR__?.command({ type: 'select_route', instanceId: state.routeOffers[0]!.instanceId });
+  });
+  await expect(page.locator('.route-chart-action:not(.is-held):disabled')).toHaveCount(2);
+});
+
 async function beginRun(page: Page) {
   await page.getByTestId('new-run').click();
   await expect(page.getByRole('heading', { name: 'Choose what returns' })).toBeVisible();

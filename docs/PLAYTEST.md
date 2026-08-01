@@ -10,7 +10,8 @@ Observe without coaching:
 3. Can they predict the main benefit and danger of the selected route?
 4. Does citadel construction change a later assignment decision?
 5. Does emergency plating feel like a tense survival trade rather than an automatic tax?
-6. Can they explain why the run ended?
+6. Do they use route charting to make a future plan, rather than simply hoard lumen?
+7. Can they explain why the run ended?
 
 ## Strategy passes
 
@@ -22,6 +23,9 @@ Observe without coaching:
 - **Inheritance comparison:** replay the same seed unburdened and with each unlocked
   relic. Record whether the relic changes a real decision, whether its cost is felt,
   and whether carrying nothing still feels legitimate.
+- **Charting comparison:** replay a seed with no charting and with at least two held
+  routes. Record whether the carried option is later chosen and whether its one-lumen
+  opportunity cost changes an event or Resonance decision.
 
 At least two strategies should win across a seed sample. The strongest strategy may be
 clear, but it must pay a visible cost and cannot make route choice irrelevant.

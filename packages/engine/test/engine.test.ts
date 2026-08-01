@@ -127,6 +127,61 @@ test('expedition leadership requires the extra ration', () => {
   assert.equal(legalCommands(state).some((command) => command.type === 'assign_route_leader'), false);
 });
 
+test('charted routes escrow lumen, swap freely, and return without RNG drift', () => {
+  let economy = createRun({ seed: 'chart-economy' });
+  economy = applyCommand(economy, { type: 'select_route', instanceId: economy.routeOffers[0]!.instanceId }).state;
+  const first = economy.routeOffers[1]!.instanceId;
+  const second = economy.routeOffers[2]!.instanceId;
+  economy = applyCommand(economy, { type: 'reserve_route', instanceId: first }).state;
+  assert.equal(economy.resources.lumen, 1);
+  assert.equal(economy.reservedRoute, first);
+  economy = applyCommand(economy, { type: 'reserve_route', instanceId: second }).state;
+  assert.equal(economy.resources.lumen, 1);
+  assert.equal(economy.reservedRoute, second);
+  economy = applyCommand(economy, { type: 'clear_route_reservation' }).state;
+  assert.equal(economy.resources.lumen, 2);
+  economy = applyCommand(economy, { type: 'reserve_route', instanceId: first }).state;
+  economy = applyCommand(economy, { type: 'select_route', instanceId: first }).state;
+  assert.equal(economy.resources.lumen, 2);
+  assert.equal(economy.reservedRoute, null);
+  economy.resources.lumen = 0;
+  assert.equal(legalCommands(economy).some((command) => command.type === 'reserve_route'), false);
+  economy.shift = 7;
+  economy.resources.lumen = 2;
+  assert.equal(legalCommands(economy).some((command) => command.type === 'reserve_route'), false);
+
+  let baseline = readyFirstShift('chart-carry');
+  const chartedRoute = baseline.routeOffers.find((offer) => offer.instanceId !== baseline.selectedRoute)!;
+  assert.equal(chartedRoute.revealed, false);
+  let charted = applyCommand(baseline, { type: 'reserve_route', instanceId: chartedRoute.instanceId }).state;
+  charted = applyCommand(charted, { type: 'resolve_shift' }).state;
+  baseline = applyCommand(baseline, { type: 'resolve_shift' }).state;
+  assert.equal(charted.reservedRoute, chartedRoute.instanceId);
+  assert.deepEqual(deserialize(serialize(charted)), charted);
+  assert.equal(charted.rngState, baseline.rngState);
+  charted = applyCommand(charted, legalCommands(charted)[0]!).state;
+  baseline = applyCommand(baseline, legalCommands(baseline)[0]!).state;
+  assert.equal(charted.rngState, baseline.rngState);
+  assert.equal(charted.reservedRoute, null);
+  const returned = charted.routeOffers.filter((offer) => offer.routeId === chartedRoute.routeId);
+  assert.equal(returned.length, 1);
+  assert.equal(returned[0]!.carried, true);
+  assert.equal(returned[0]!.hiddenComplication, chartedRoute.hiddenComplication);
+  assert.equal(returned[0]!.revealed, false);
+  assert.deepEqual(replay(charted.seed, charted.commandTrace), charted);
+
+  let scouted = readyFirstShift('charted-knowledge');
+  const scoutedRoute = scouted.routeOffers.find((offer) => offer.instanceId !== scouted.selectedRoute)!;
+  scoutedRoute.revealed = true;
+  scouted = applyCommand(scouted, { type: 'reserve_route', instanceId: scoutedRoute.instanceId }).state;
+  assert.equal(scouted.reservedRouteRevealed, true);
+  scouted = applyCommand(scouted, { type: 'resolve_shift' }).state;
+  scouted = applyCommand(scouted, legalCommands(scouted)[0]!).state;
+  const remembered = scouted.routeOffers.find((offer) => offer.routeId === scoutedRoute.routeId)!;
+  assert.equal(remembered.chartedRevealed, true);
+  assert.equal(remembered.revealed, true);
+});
+
 test('a resolved shift produces resources, route progress, story, and a clean next planning phase', () => {
   const ready = readyFirstShift('resolution');
   assert.equal(selectGameView(ready).canResolveShift, true);
@@ -243,7 +298,7 @@ test('legacy saves migrate missing trace-era and expedition fields', () => {
   delete old.developmentChoices;
   delete old.routeLeader;
   const migrated = deserialize(JSON.stringify(old));
-  assert.equal(migrated.version, 3);
+  assert.equal(migrated.version, 4);
   assert.equal(migrated.seed, 'migration');
   assert.deepEqual(migrated.developmentChoices, []);
   assert.deepEqual(migrated.routeOffers, current.routeOffers);
@@ -252,16 +307,30 @@ test('legacy saves migrate missing trace-era and expedition fields', () => {
   delete versionOne.routeLeader;
   delete versionOne.startingRelic;
   const migratedVersionOne = deserialize(JSON.stringify(versionOne));
-  assert.equal(migratedVersionOne.version, 3);
+  assert.equal(migratedVersionOne.version, 4);
   assert.equal(migratedVersionOne.routeLeader, null);
   assert.equal(migratedVersionOne.startingRelic, null);
 
   const versionTwo = { ...current, version: 2, storyFlags: ['relic:quiet-bell'] } as Record<string, unknown>;
   delete versionTwo.startingRelic;
   const migratedVersionTwo = deserialize(JSON.stringify(versionTwo));
-  assert.equal(migratedVersionTwo.version, 3);
+  assert.equal(migratedVersionTwo.version, 4);
   assert.equal(migratedVersionTwo.startingRelic, 'vesper_tuning_fork');
   assert.ok(migratedVersionTwo.storyFlags.includes('relic:vesper_tuning_fork'));
+  assert.equal(migratedVersionTwo.reservedRoute, null);
+  assert.ok(migratedVersionTwo.routeOffers.every((offer) => !offer.carried && !offer.chartedRevealed));
+
+  const versionThree = { ...current, version: 3 } as Record<string, unknown>;
+  delete versionThree.reservedRoute;
+  delete versionThree.reservedRouteRevealed;
+  versionThree.routeOffers = current.routeOffers.map(({ carried: _carried, chartedRevealed: _charted, ...offer }) => offer);
+  const migratedVersionThree = deserialize(JSON.stringify(versionThree));
+  assert.equal(migratedVersionThree.version, 4);
+  assert.equal(migratedVersionThree.reservedRoute, null);
+  assert.ok(migratedVersionThree.routeOffers.every((offer) => !offer.carried && !offer.chartedRevealed));
+
+  const staleReservation = { ...current, reservedRoute: 'missing-route' };
+  assert.throws(() => deserialize(JSON.stringify(staleReservation)), /stale route reservation/);
 
   const unknownRelic = { ...current, version: 2, storyFlags: ['relic:counterfeit', 'story:kept'] } as Record<string, unknown>;
   delete unknownRelic.startingRelic;

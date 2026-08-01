@@ -248,10 +248,58 @@ function Citadel({ view, selectedCrew, selectedBuildSlot, onRoom, onEmpty }: {
   );
 }
 
-function RoutePanel({ view, selectedCrew, onSelect, onLeader, onUnassignLeader, onResolve }: {
+function RouteChartStrip({ view, status, onReserve, onClear }: {
+  view: GameView;
+  status: string | null;
+  onReserve: (instanceId: string) => void;
+  onClear: () => void;
+}) {
+  if (!view.state.selectedRoute || view.state.shift >= 7) return null;
+  const legal = legalCommands(view.state as GameState);
+  const canClear = legal.some((command) => command.type === 'clear_route_reservation');
+  const held = view.state.reservedRoute;
+  const candidates = view.routes.filter((route) => route.instanceId !== view.state.selectedRoute);
+  const helper = held
+    ? `One route is held. Switch free, or release it to restore ${view.routeReservationCost} lumen.`
+    : view.state.resources.lumen < view.routeReservationCost
+      ? `${view.routeReservationCost} lumen required to chart a route.`
+      : `Spend ${view.routeReservationCost} lumen to carry one unchosen route into the next forecast.`;
+  return (
+    <section className="route-chart" data-testid="route-chart" aria-labelledby="route-chart-title" aria-describedby="route-chart-help">
+      <div><strong id="route-chart-title">CHART A RETURN // {view.routeReservationCost} LUMEN</strong><small id="route-chart-help">{helper}</small></div>
+      <div className="route-chart-actions">
+        {candidates.map((route) => {
+          const isHeld = held === route.instanceId;
+          const canReserve = legal.some((command) => command.type === 'reserve_route' && command.instanceId === route.instanceId);
+          return (
+            <button
+              type="button"
+              className={`route-chart-action ${isHeld ? 'is-held' : ''}`}
+              key={route.instanceId}
+              data-testid={`chart-route-${route.instanceId}`}
+              data-route-instance={route.instanceId}
+              aria-pressed={isHeld}
+              aria-label={isHeld ? `${route.definition.title} held for next shift — release` : `Hold ${route.definition.title} for next shift`}
+              disabled={isHeld ? !canClear : !canReserve}
+              onClick={() => isHeld ? onClear() : onReserve(route.instanceId)}
+            >
+              <span>{isHeld ? 'HELD FOR NEXT SHIFT — RELEASE' : 'HOLD'}</span><strong>{route.definition.title}</strong>
+            </button>
+          );
+        })}
+      </div>
+      <span className="route-chart-status" role="status" aria-live="polite">{status}</span>
+    </section>
+  );
+}
+
+function RoutePanel({ view, selectedCrew, chartStatus, onSelect, onReserve, onClearReservation, onLeader, onUnassignLeader, onResolve }: {
   view: GameView;
   selectedCrew: CrewId | null;
+  chartStatus: string | null;
   onSelect: (instanceId: string) => void;
+  onReserve: (instanceId: string) => void;
+  onClearReservation: () => void;
   onLeader: (crewId: CrewId) => void;
   onUnassignLeader: (crewId: CrewId) => void;
   onResolve: () => void;
@@ -284,7 +332,7 @@ function RoutePanel({ view, selectedCrew, onSelect, onLeader, onUnassignLeader, 
             >
               <span className="route-index">0{index + 1}</span>
               <span className="route-copy">
-                <span className="route-kind">{route.definition.kind}</span>
+                <span className="route-meta"><span className="route-kind">{route.definition.kind}</span>{route.carried && <span className="route-carried-badge">CHARTED LAST SHIFT</span>}</span>
                 <strong>{route.definition.title}</strong>
                 <small>{route.definition.description}</small>
                 {route.revealed && route.hiddenComplication && <em>Foreseen: {route.hiddenComplication}</em>}
@@ -301,6 +349,7 @@ function RoutePanel({ view, selectedCrew, onSelect, onLeader, onUnassignLeader, 
           );
         })}
       </div>
+      <RouteChartStrip view={view} status={chartStatus} onReserve={onReserve} onClear={onClearReservation} />
       <div className={`leader-post ${leader ? 'is-staffed' : ''}`} data-testid="leader-post">
         <span className="leader-mark">IV</span>
         <span className="leader-copy">
@@ -516,7 +565,7 @@ function ManualPage({ onBack }: { onBack: () => void }) {
   return (
     <MenuPage eyebrow="ORISON // FIELD MANUAL" title="How to descend" onBack={onBack}>
       <div className="manual-grid">
-        <article><span>01 // FORECAST</span><h2>Choose a route</h2><p>Risk damages Orison unless the Ward Array and Mara absorb it. Gold text previews the yield; Sable can expose a hidden complication.</p></article>
+        <article><span>01 // FORECAST</span><h2>Choose or chart</h2><p>Risk damages Orison unless the Ward Array and Mara absorb it. Spend one lumen to carry an unchosen route into the next forecast; switching is free and releasing refunds it.</p></article>
         <article><span>02 // CHAMBERS</span><h2>Staff three rooms</h2><p>Tap a crew portrait, then a chamber. Its level, specialist, and neighboring Heart Engine determine what it produces, repairs, or prevents.</p></article>
         <article><span>03 // FOURTH VOICE</span><h2>Rest or lead</h2><p>The fourth available crew member rests for two strain by default. After all rooms are staffed, they may lead for a unique benefit, one ration, and expedition strain.</p></article>
         <article><span>04 // DESCENT</span><h2>Carry the cost</h2><p>Every route consumes a ration. High strain creates a lasting scar and removes that person from the following shift. Vows and story choices build loyalty.</p></article>
@@ -628,6 +677,7 @@ export function GameApp() {
   const [hasSave, setHasSave] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
   const [feedback, setFeedback] = useState<EngineEvent[]>([]);
+  const [chartStatus, setChartStatus] = useState<string | null>(null);
   const stateRef = useRef<GameState | null>(null);
   const recordedCompletion = useRef<string | null>(null);
 
@@ -677,6 +727,7 @@ export function GameApp() {
     setSelectedCrew(null);
     setSelectedBuildSlot(null);
     setFeedback([]);
+    setChartStatus(null);
     setNotice(null);
     recordedCompletion.current = null;
     setSurface('game');
@@ -698,6 +749,7 @@ export function GameApp() {
       setView(selectGameView(state));
       setSurface('game');
       setNotice(null);
+      setChartStatus(null);
       resetDocumentScroll();
       void choirAudio.wake();
     } catch {
@@ -713,7 +765,12 @@ export function GameApp() {
     try {
       const result = applyCommand(current, command);
       setView(selectGameView(result.state));
-      setFeedback(result.events.filter((event) => event.kind !== 'ending').slice(-3));
+      const releasedBySelection = command.type === 'select_route' && current.reservedRoute === command.instanceId;
+      const chartCommand = command.type === 'reserve_route' || command.type === 'clear_route_reservation' || releasedBySelection;
+      if (command.type === 'reserve_route') setChartStatus(current.reservedRoute ? 'Chart updated.' : 'Route charted for the next forecast.');
+      else if (command.type === 'clear_route_reservation' || releasedBySelection) setChartStatus('Chart released. One lumen restored.');
+      else setChartStatus(null);
+      setFeedback(chartCommand ? [] : result.events.filter((event) => event.kind !== 'ending').slice(-3));
       result.events.slice(-2).forEach((event) => choirAudio.play(event));
       if (command.type === 'assign_crew' || command.type === 'assign_route_leader' || command.type === 'unassign_crew') setSelectedCrew(null);
       if (command.type === 'build_module') setSelectedBuildSlot(null);
@@ -774,7 +831,7 @@ export function GameApp() {
         <h1 className="sr-only">Lode Choir expedition</h1>
         <Citadel view={view} selectedCrew={selectedCrew} selectedBuildSlot={selectedBuildSlot} onRoom={onRoom} onEmpty={setSelectedBuildSlot} />
         <aside className="command-deck">
-          {view.state.phase === 'planning' && <RoutePanel view={view} selectedCrew={selectedCrew} onSelect={(instanceId) => dispatch({ type: 'select_route', instanceId })} onLeader={(crewId) => dispatch({ type: 'assign_route_leader', crewId })} onUnassignLeader={(crewId) => dispatch({ type: 'unassign_crew', crewId })} onResolve={() => dispatch({ type: 'resolve_shift' })} />}
+          {view.state.phase === 'planning' && <RoutePanel view={view} selectedCrew={selectedCrew} chartStatus={chartStatus} onSelect={(instanceId) => dispatch({ type: 'select_route', instanceId })} onReserve={(instanceId) => dispatch({ type: 'reserve_route', instanceId })} onClearReservation={() => dispatch({ type: 'clear_route_reservation' })} onLeader={(crewId) => dispatch({ type: 'assign_route_leader', crewId })} onUnassignLeader={(crewId) => dispatch({ type: 'unassign_crew', crewId })} onResolve={() => dispatch({ type: 'resolve_shift' })} />}
           {view.state.phase === 'event' && <EventPanel view={view} onChoose={(choiceIndex) => dispatch({ type: 'choose_event', choiceIndex })} />}
           {view.state.phase === 'development' && <DevelopmentPanel view={view} slot={selectedBuildSlot} onSlot={setSelectedBuildSlot} onBuild={(moduleId, slot) => dispatch({ type: 'build_module', moduleId, slot })} onUpgrade={(slot) => dispatch({ type: 'upgrade_module', slot })} onRepair={() => dispatch({ type: 'repair_citadel' })} onSkip={() => dispatch({ type: 'skip_development' })} />}
           {view.state.phase === 'finale' && <FinalePanel view={view} onChoose={(endingId) => dispatch({ type: 'choose_ending', endingId })} />}

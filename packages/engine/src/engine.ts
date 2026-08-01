@@ -32,6 +32,7 @@ import type {
 
 const MAX_INTEGRITY = 12;
 const MAX_STRAIN = 6;
+const ROUTE_RESERVATION_COST = 1;
 const DEVELOPMENT_SHIFTS = new Set([2, 4]);
 const STARTER_MODULES: readonly ModuleId[] = ['heart_engine', 'deep_drill', 'ward_array'];
 const CREW_IDS: readonly CrewId[] = ['mara', 'tamsin', 'orin', 'sable'];
@@ -118,6 +119,8 @@ function rollOffers(state: GameState, rng: Rng): RouteOffer[] {
       ? rng.pick(['A false echo obscures the true depth.', 'The stone is under singing pressure.', 'Something below is moving in time with Orison.'])
       : null,
     revealed: false,
+    carried: false,
+    chartedRevealed: false,
   }));
   state.rngState = rng.state;
   return offers;
@@ -149,7 +152,7 @@ export function createRun(options: CreateRunOptions | string): GameState {
   const normalized = typeof options === 'string' ? { seed: options } : options;
   if (normalized.seed.trim().length === 0) throw new Error('A non-empty seed is required.');
   const state: GameState = {
-    version: 3,
+    version: 4,
     seed: normalized.seed,
     startingRelic: normalized.relicId ?? null,
     rngState: 0,
@@ -171,6 +174,8 @@ export function createRun(options: CreateRunOptions | string): GameState {
     modules: STARTER_MODULES.map((id, slot) => ({ id, slot, level: 1, assignedCrew: null })),
     routeOffers: [],
     selectedRoute: null,
+    reservedRoute: null,
+    reservedRouteRevealed: false,
     routeLeader: null,
     activeEvent: null,
     developmentChoices: [],
@@ -210,7 +215,7 @@ function crewAssigned(state: GameState, crewId: CrewId): boolean {
 }
 
 function refreshRevelations(state: GameState): void {
-  for (const offer of state.routeOffers) offer.revealed = false;
+  for (const offer of state.routeOffers) offer.revealed = offer.chartedRevealed;
   const sableInResonance = state.modules.some((module) => module.id === 'resonance_chamber' && module.assignedCrew === 'sable');
   if (sableInResonance) for (const offer of state.routeOffers) offer.revealed = true;
   if (state.routeLeader === 'sable' && state.selectedRoute) {
@@ -239,6 +244,13 @@ export function legalCommands(state: GameState): Command[] {
   if (state.status !== 'playing') return [];
   if (state.phase === 'planning') {
     const commands: Command[] = state.routeOffers.map((offer) => ({ type: 'select_route', instanceId: offer.instanceId }));
+    if (state.selectedRoute && state.shift < 7) {
+      for (const offer of state.routeOffers) {
+        if (offer.instanceId === state.selectedRoute || offer.instanceId === state.reservedRoute) continue;
+        if (state.reservedRoute || state.resources.lumen >= ROUTE_RESERVATION_COST) commands.push({ type: 'reserve_route', instanceId: offer.instanceId });
+      }
+      if (state.reservedRoute) commands.push({ type: 'clear_route_reservation' });
+    }
     const availableCrew = state.crew.filter((candidate) => crewAvailable(state, candidate.id));
     const canAppointLeader = Boolean(state.selectedRoute)
       && availableCrew.length === 4
@@ -625,6 +637,10 @@ function finishPostShift(state: GameState): void {
 }
 
 function beginNextShift(state: GameState): void {
+  const reserved = state.reservedRoute
+    ? state.routeOffers.find((offer) => offer.instanceId === state.reservedRoute)
+    : null;
+  const reservedRevealed = state.reservedRouteRevealed;
   state.shift += 1;
   state.phase = 'planning';
   state.developmentChoices = [];
@@ -634,6 +650,29 @@ function beginNextShift(state: GameState): void {
   for (const module of state.modules) module.assignedCrew = null;
   const rng = rngFromState(state.rngState);
   state.routeOffers = rollOffers(state, rng);
+  if (reserved) {
+    let carried = state.routeOffers.find((offer) => offer.routeId === reserved.routeId);
+    if (!carried) {
+      const replacementIndex = state.routeOffers.length - 1;
+      carried = {
+        instanceId: `${state.shift}-${replacementIndex}-${reserved.routeId}`,
+        routeId: reserved.routeId,
+        hiddenComplication: reserved.hiddenComplication,
+        revealed: reservedRevealed,
+        carried: true,
+        chartedRevealed: reservedRevealed,
+      };
+      state.routeOffers[replacementIndex] = carried;
+    } else {
+      carried.hiddenComplication = reserved.hiddenComplication;
+      carried.revealed = reservedRevealed;
+      carried.carried = true;
+      carried.chartedRevealed = reservedRevealed;
+    }
+    appendLog(state, 'route', `${routeDefinition(reserved.routeId).title} returns on the expedition chart.`);
+  }
+  state.reservedRoute = null;
+  state.reservedRouteRevealed = false;
   appendLog(state, 'system', `Shift ${state.shift} begins. The moon’s song changes key.`);
 }
 
@@ -727,9 +766,26 @@ export function applyCommand(input: GameState, command: Command): TransitionResu
 
   if (command.type === 'select_route') {
     state.routeLeader = null;
+    if (state.reservedRoute === command.instanceId) {
+      state.resources.lumen += ROUTE_RESERVATION_COST;
+      state.reservedRoute = null;
+      state.reservedRouteRevealed = false;
+      emit(state, events, 'progress', 'Chart released. One lumen restored.', 'positive');
+    }
     state.selectedRoute = command.instanceId;
     const route = routeDefinition(state.routeOffers.find((offer) => offer.instanceId === command.instanceId)!.routeId);
     appendLog(state, 'route', `Course set for ${route.title}.`);
+  } else if (command.type === 'reserve_route') {
+    const replacing = state.reservedRoute !== null;
+    if (!replacing) state.resources.lumen -= ROUTE_RESERVATION_COST;
+    state.reservedRoute = command.instanceId;
+    state.reservedRouteRevealed = state.routeOffers.find((offer) => offer.instanceId === command.instanceId)!.revealed;
+    emit(state, events, 'progress', replacing ? 'Chart updated.' : 'Route charted for the next forecast.', 'mystic');
+  } else if (command.type === 'clear_route_reservation') {
+    state.resources.lumen += ROUTE_RESERVATION_COST;
+    state.reservedRoute = null;
+    state.reservedRouteRevealed = false;
+    emit(state, events, 'progress', 'Chart released. One lumen restored.', 'positive');
   } else if (command.type === 'assign_crew') {
     state.routeLeader = null;
     for (const module of state.modules) if (module.assignedCrew === command.crewId) module.assignedCrew = null;
@@ -819,6 +875,7 @@ export function selectGameView(state: GameState): GameView {
     activeStoryEvent: state.activeEvent ? storyEventDefinition(state.activeEvent) : null,
     canResolveShift: state.phase === 'planning' && Boolean(state.selectedRoute) && assignedCount(state) === requiredAssignments(state),
     maxIntegrity: maximumIntegrity(state),
+    routeReservationCost: ROUTE_RESERVATION_COST,
     objective: state.heartNotes >= 3
       ? 'Survive until the seventh shift and answer the Heart-Lode.'
       : `Find ${3 - state.heartNotes} more Heart Note${3 - state.heartNotes === 1 ? '' : 's'} before shift seven.`,
@@ -828,7 +885,7 @@ export function selectGameView(state: GameState): GameView {
 function assertGameState(value: unknown): asserts value is GameState {
   if (!value || typeof value !== 'object') throw new Error('Save does not contain an object.');
   const state = value as Partial<GameState>;
-  if (state.version !== 3 || typeof state.seed !== 'string' || !Array.isArray(state.crew) || !Array.isArray(state.modules)) {
+  if (state.version !== 4 || typeof state.seed !== 'string' || !Array.isArray(state.crew) || !Array.isArray(state.modules)) {
     throw new Error('Save is not a supported Lode Choir game state.');
   }
   if (!Array.isArray(state.commandTrace) || !Array.isArray(state.routeOffers) || !state.resources) {
@@ -837,10 +894,13 @@ function assertGameState(value: unknown): asserts value is GameState {
   if (state.startingRelic !== null && !RELICS.some((relic) => relic.id === state.startingRelic)) {
     throw new Error('Save contains an unknown starting relic.');
   }
+  if (state.reservedRoute !== null && !state.routeOffers.some((offer) => offer.instanceId === state.reservedRoute)) {
+    throw new Error('Save contains a stale route reservation.');
+  }
 }
 
 export function serialize(state: GameState): string {
-  const envelope: SerializedGameEnvelope = { game: 'lode-choir', version: 3, state };
+  const envelope: SerializedGameEnvelope = { game: 'lode-choir', version: 4, state };
   return JSON.stringify(envelope);
 }
 
@@ -875,13 +935,15 @@ export function deserialize(serialized: string): GameState {
     });
     candidate = migrated;
   }
-  if (candidate && typeof candidate === 'object' && [1, 2].includes(Number((candidate as { version?: unknown }).version))) {
+  if (candidate && typeof candidate === 'object' && [1, 2, 3].includes(Number((candidate as { version?: unknown }).version))) {
     const old = candidate as Record<string, unknown>;
     const flags = Array.isArray(old.storyFlags) ? old.storyFlags.filter((flag): flag is string => typeof flag === 'string') : [];
     const relicFlag = flags.find((flag) => flag.startsWith('relic:'))?.slice(6);
     const relicId = canonicalRelicId(old.startingRelic) ?? canonicalRelicId(relicFlag);
-    old.version = 3;
+    old.version = 4;
     old.routeLeader ??= null;
+    old.reservedRoute ??= null;
+    old.reservedRouteRevealed ??= false;
     old.startingRelic = relicId;
     old.storyFlags = flags.flatMap((flag) => {
       if (!flag.startsWith('relic:')) return [flag];
@@ -891,7 +953,16 @@ export function deserialize(serialized: string): GameState {
   }
   if (candidate && typeof candidate === 'object') {
     const record = candidate as Partial<GameState>;
-    if (Array.isArray(record.routeOffers) && Array.isArray(record.modules)) refreshRevelations(candidate as GameState);
+    if (Array.isArray(record.routeOffers) && Array.isArray(record.modules)) {
+      record.routeOffers = record.routeOffers.map((offer) => ({
+        ...offer,
+        carried: typeof offer.carried === 'boolean' ? offer.carried : false,
+        chartedRevealed: typeof offer.chartedRevealed === 'boolean' ? offer.chartedRevealed : false,
+      }));
+      record.reservedRoute ??= null;
+      record.reservedRouteRevealed ??= false;
+      refreshRevelations(candidate as GameState);
+    }
   }
   assertGameState(candidate);
   return cloneState(candidate);

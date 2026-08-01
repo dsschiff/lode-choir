@@ -7,7 +7,7 @@ Lode Choir separates deterministic rules from presentation.
 The engine is a pure command machine:
 
 ```text
-seed + optional relic -> createRun -> GameState v3
+seed + optional relic -> createRun -> GameState v4
 GameState + Command -> applyCommand -> GameState + EngineEvent[]
 seed + Command[] -> replay -> identical GameState
 ```
@@ -24,6 +24,9 @@ characters, modules, routes, and story choices, while systems interpret those re
 - Local legacy progression is separate from the current run save.
 - `startingRelic` is explicit run state, while legacy v2 stores only canonical relic and
   lore IDs. Migration normalizes earlier display names, aliases, and raw story flags.
+- Route reservations escrow one lumen in run state. The engine rolls the normal next
+  forecast before deterministically replacing one slot, preserving PRNG state and any
+  charted Sable knowledge without reviving the free-reveal exploit.
 
 ## Determinism
 

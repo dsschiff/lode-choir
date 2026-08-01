@@ -18,8 +18,8 @@ function rewardValue(route: RouteDefinition): number {
   return Object.values(route.baseRewards).reduce((sum, value) => sum + (value ?? 0), 0);
 }
 
-function selectRoute(state: GameState, policy: PolicyName): GameState {
-  const ranked = state.routeOffers.map((offer) => ({
+function rankRoutes(state: GameState, policy: PolicyName, excludedInstanceId?: string) {
+  return state.routeOffers.filter((offer) => offer.instanceId !== excludedInstanceId).map((offer) => ({
     ...offer,
     definition: ROUTES.find((route) => route.id === offer.routeId)!,
   })).sort((left, right) => {
@@ -39,7 +39,18 @@ function selectRoute(state: GameState, policy: PolicyName): GameState {
     return (rightRoute.noteProgress * 10 + rewardValue(rightRoute) * 2 - rightRoute.hazard)
       - (leftRoute.noteProgress * 10 + rewardValue(leftRoute) * 2 - leftRoute.hazard);
   });
+}
+
+function selectRoute(state: GameState, policy: PolicyName): GameState {
+  const ranked = rankRoutes(state, policy);
   return transition(state, { type: 'select_route', instanceId: ranked[0]!.instanceId });
+}
+
+function chartRoute(state: GameState, policy: PolicyName): GameState {
+  const target = rankRoutes(state, policy, state.selectedRoute ?? undefined)[0];
+  if (!target) return state;
+  const command = legalCommands(state).find((candidate) => candidate.type === 'reserve_route' && candidate.instanceId === target.instanceId);
+  return command ? transition(state, command) : state;
 }
 
 function assignCrew(state: GameState, policy: PolicyName, useLeaders: boolean): GameState {
@@ -122,7 +133,7 @@ function develop(state: GameState, policy: PolicyName): GameState {
   return transition(state, ranked[0]!);
 }
 
-export function playRun(initial: GameState, policy: PolicyName, useLeaders = true): GameState {
+export function playRun(initial: GameState, policy: PolicyName, useLeaders = true, useCharts = false): GameState {
   let state = initial;
   let steps = 0;
   while (state.status === 'playing') {
@@ -130,6 +141,7 @@ export function playRun(initial: GameState, policy: PolicyName, useLeaders = tru
     if (steps > 100) throw new Error(`Policy ${policy} deadlocked on seed ${state.seed} in ${state.phase}.`);
     if (state.phase === 'planning') {
       state = selectRoute(state, policy);
+      if (useCharts) state = chartRoute(state, policy);
       state = assignCrew(state, policy, useLeaders);
       const resolve = legalCommands(state).find((command) => command.type === 'resolve_shift');
       if (!resolve) throw new Error(`Policy ${policy} could not resolve shift ${state.shift} on ${state.seed}.`);

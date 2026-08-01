@@ -187,7 +187,9 @@ h1, h2 { font-family: var(--serif); font-weight: 500; }
 .route-card.is-selected { border: 2px solid var(--vein-400); padding: 11px; background: linear-gradient(115deg, rgba(88,225,220,.12), rgba(13,18,22,.9)); }
 .route-index { color: rgba(184,173,150,.3); font: 1rem var(--serif); }
 .route-copy { display: grid; align-content: start; gap: 3px; }
+.route-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 5px 9px; }
 .route-kind { color: var(--vein-400); font-size: .49rem; letter-spacing: .15em; text-transform: uppercase; }
+.route-carried-badge { color: var(--brass-400); font-size: .43rem; letter-spacing: .1em; }
 .route-copy strong { font: .95rem var(--serif); }
 .route-copy small, .route-copy em { color: var(--bone-300); font-size: .55rem; line-height: 1.35; font-style: normal; }
 .route-copy em { color: var(--brass-400); }
@@ -198,6 +200,17 @@ h1, h2 { font-family: var(--serif); font-weight: 500; }
 .route-forecast { grid-column: 2 / 4; display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; padding-top: 6px; border-top: 1px solid rgba(184,173,150,.12); color: var(--bone-300); font: 700 .46rem/1.2 var(--mono); letter-spacing: .04em; }
 .route-forecast small { color: var(--vein-400); }
 .route-forecast b { font: inherit; }
+.route-chart { margin-top: 9px; display: grid; gap: 7px; padding: 10px; border: 1px solid rgba(200,155,85,.32); background: rgba(200,155,85,.05); }
+.route-chart > div:first-child { display: grid; gap: 4px; }
+.route-chart > div:first-child strong { color: var(--brass-400); font-size: .5rem; letter-spacing: .1em; }
+.route-chart > div:first-child small { color: var(--bone-300); font-size: .48rem; line-height: 1.4; }
+.route-chart-actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 7px; }
+.route-chart-action { min-height: 46px; display: grid; align-content: center; gap: 3px; padding: 7px 9px; border: 1px solid var(--quiet-line); background: rgba(13,18,22,.78); cursor: pointer; text-align: left; }
+.route-chart-action span { color: var(--bone-300); font-size: .4rem; letter-spacing: .08em; }
+.route-chart-action strong { font: .68rem/1.15 var(--serif); }
+.route-chart-action.is-held { border-color: var(--brass-400); background: rgba(200,155,85,.12); }
+.route-chart-action.is-held span, .route-chart-action.is-held strong { color: var(--brass-400); }
+.route-chart-status { min-height: 1em; color: var(--vein-400); font-size: .46rem; }
 .leader-post { min-height: 68px; margin-top: 9px; display: grid; grid-template-columns: 38px 1fr auto; align-items: center; gap: 10px; padding: 9px 10px; border: 1px dashed var(--quiet-line); background: rgba(7,9,12,.42); }
 .leader-post.is-staffed { border-style: solid; border-color: rgba(200,155,85,.48); background: linear-gradient(110deg, rgba(200,155,85,.09), rgba(7,9,12,.5)); }
 .leader-mark { width: 30px; height: 30px; display: grid; place-items: center; border: 1px solid var(--brass-400); border-radius: 50%; color: var(--brass-400); font: .67rem var(--serif); }
@@ -353,6 +366,8 @@ h1, h2 { font-family: var(--serif); font-weight: 500; }
   .route-card { min-height: 118px; padding-inline: 9px; grid-template-columns: 25px 1fr 35px; }
   .route-card.is-selected { padding-inline: 8px; }
   .route-copy strong { font-size: .88rem; }
+  .route-chart { padding: 9px; }
+  .route-chart-actions { grid-template-columns: 1fr; gap: 6px; }
   .leader-post { grid-template-columns: 34px 1fr 62px; padding-inline: 8px; }
   .leader-post button { min-width: 60px; padding-inline: 4px; }
   .signal-log { grid-template-columns: 1fr; }

@@ -21,7 +21,8 @@ The engine is deterministic and renderer-independent. The web app is phone-first
 builds to a static export. Each shift combines a route choice, three chamber
 assignments, and an optional expedition leader, followed by story consequences and
 citadel development or emergency alloy plating. Distinct endings unlock canonical Chronicle relics that can be
-carried—one at a time—into later seeded expeditions.
+carried—one at a time—into later seeded expeditions. One lumen can also chart a declined
+route so it returns in the following shift, adding cross-shift planning without rerolls.
 
 See `docs/VALIDATION.md` for the current balance, browser, accessibility, visual,
 and dependency-audit evidence.
