@@ -195,6 +195,10 @@ test('shift seven opens all three endings with enough Notes and otherwise loses'
     assert.equal(ended.status, 'won');
     assert.equal(ended.ending, endingId);
     assert.ok(ended.endingText);
+    assert.match(ended.endingText, /Mara/);
+    assert.match(ended.endingText, /Tamsin/);
+    assert.match(ended.endingText, /Orin/);
+    assert.match(ended.endingText, /Sable/);
   }
   const deadline = prepare(0);
   assert.equal(deadline.status, 'lost');

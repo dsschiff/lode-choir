@@ -501,7 +501,29 @@ function endingText(state: GameState, endingId: EndingId): string {
   const coda = fulfilled > 0 ? `${fulfilled} vow${fulfilled === 1 ? '' : 's'} ring true in the final chord.` : 'Their unfinished vows remain in the stone.';
   const scars = scarred > 0 ? ` The moon keeps ${scarred} scar${scarred === 1 ? '' : 's'} as proof.` : '';
   const authored = ENDING_CONTENT.find((ending) => ending.id === endingId)?.epilogue;
-  return `${authored ?? 'The Heart-Lode answers, and the crew carry that answer into the dark.'} ${coda}${scars}`;
+  const crew = (id: CrewId) => state.crew.find((member) => member.id === id)!;
+  const proven = (id: CrewId) => crew(id).vowProgress >= 3 || crew(id).loyalty >= 2;
+  const personal = endingId === 'harvest'
+    ? [
+        proven('mara') ? 'Mara writes every living name above the cargo tally.' : 'Mara signs the extraction manifest and leaves the word rescue blank.',
+        crew('tamsin').scar ? 'Tamsin’s scar keeps time with the jars in the hold.' : 'Tamsin never again calls a quiet seam harmless.',
+        proven('orin') ? 'Orin scores the separated voices so none can be mistaken for silence.' : 'Orin locks his unfinished hymn where the drills cannot reach it.',
+        proven('sable') ? 'Sable records the harvested minds as persons, not yield.' : 'Sable labels the voices evidence and does not play them aloud.',
+      ]
+    : endingId === 'harmonize'
+      ? [
+          proven('mara') ? 'Mara adds Vesper to the roll call and waits for its answer.' : 'Mara keeps one hand near the evacuation bell even while the moon sings her name.',
+          crew('tamsin').scar ? 'Tamsin’s scar answers first when the lost delvers join the chord.' : 'Tamsin finally hears her old crew finish roll call.',
+          proven('orin') ? 'Orin leaves the fifth line of his hymn open, and Vesper fills it.' : 'Orin listens without conducting for the first time in his life.',
+          proven('sable') ? 'Sable revises memory is not proof to memory is a promise.' : 'Sable keeps one partition closed, not from fear but choice.',
+        ]
+      : [
+          proven('mara') ? 'Mara seals the last gate only after every name answers.' : 'Mara carries the unanswered names in the margin of her oathbook.',
+          crew('tamsin').scar ? 'Tamsin’s scar steadies when the final charge makes the deep quiet.' : 'Tamsin fires the charges and does not look away.',
+          proven('orin') ? 'Orin writes a rest seven shifts long into the unfinished hymn.' : 'Orin hears the absent interval long after the moon falls quiet.',
+          proven('sable') ? 'Sable deletes the makers’ commandment and keeps the memory of refusing it.' : 'Sable archives the sealed coordinates under a name no instrument can query.',
+        ];
+  return `${authored ?? 'The Heart-Lode answers, and the crew carry that answer into the dark.'} ${personal.join(' ')} ${coda}${scars}`;
 }
 
 export function applyCommand(input: GameState, command: Command): TransitionResult {
