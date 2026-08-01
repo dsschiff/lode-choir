@@ -91,7 +91,7 @@ export interface LogEntry {
 }
 
 export interface GameState {
-  version: 1;
+  version: 2;
   seed: string;
   rngState: number;
   shift: number;
@@ -104,6 +104,7 @@ export interface GameState {
   modules: ModuleState[];
   routeOffers: RouteOffer[];
   selectedRoute: string | null;
+  routeLeader: CrewId | null;
   activeEvent: string | null;
   developmentChoices: ModuleId[];
   ending: EndingId | null;
@@ -121,7 +122,7 @@ export interface CreateRunOptions {
 
 export interface SerializedGameEnvelope {
   game: 'lode-choir';
-  version: 1;
+  version: 2;
   state: GameState;
 }
 
@@ -137,6 +138,7 @@ export interface LegacyState {
 export type Command =
   | { type: 'select_route'; instanceId: string }
   | { type: 'assign_crew'; crewId: CrewId; slot: number }
+  | { type: 'assign_route_leader'; crewId: CrewId }
   | { type: 'unassign_crew'; crewId: CrewId }
   | { type: 'resolve_shift' }
   | { type: 'choose_event'; choiceIndex: number }
@@ -147,7 +149,7 @@ export type Command =
 
 export interface EngineEvent {
   id: number;
-  kind: 'room' | 'route' | 'damage' | 'story' | 'progress' | 'ending';
+  kind: 'room' | 'route' | 'crew' | 'damage' | 'story' | 'progress' | 'ending';
   text: string;
   emphasis?: 'positive' | 'negative' | 'mystic';
 }

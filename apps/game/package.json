@@ -7,7 +7,7 @@
     "build": "next build",
     "typecheck": "tsc --noEmit",
     "serve:out": "node scripts/serve-out.mjs 3321",
-    "test:e2e": "next build && playwright test"
+    "test:e2e": "node scripts/run-e2e.mjs"
   },
   "dependencies": {
     "@lode-choir/engine": "file:../../packages/engine",

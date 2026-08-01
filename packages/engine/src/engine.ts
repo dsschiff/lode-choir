@@ -134,7 +134,7 @@ export function createRun(options: CreateRunOptions | string): GameState {
   const normalized = typeof options === 'string' ? { seed: options } : options;
   if (normalized.seed.trim().length === 0) throw new Error('A non-empty seed is required.');
   const state: GameState = {
-    version: 1,
+    version: 2,
     seed: normalized.seed,
     rngState: 0,
     shift: 1,
@@ -155,6 +155,7 @@ export function createRun(options: CreateRunOptions | string): GameState {
     modules: STARTER_MODULES.map((id, slot) => ({ id, slot, level: 1, assignedCrew: null })),
     routeOffers: [],
     selectedRoute: null,
+    routeLeader: null,
     activeEvent: null,
     developmentChoices: [],
     ending: null,
@@ -184,6 +185,10 @@ function assignedCount(state: GameState): number {
   return state.modules.filter((module) => module.assignedCrew !== null).length;
 }
 
+function crewAssigned(state: GameState, crewId: CrewId): boolean {
+  return state.routeLeader === crewId || state.modules.some((module) => module.assignedCrew === crewId);
+}
+
 function developmentCommands(state: GameState): Command[] {
   const commands: Command[] = [];
   const occupied = new Set(state.modules.map((module) => module.slot));
@@ -204,9 +209,14 @@ export function legalCommands(state: GameState): Command[] {
   if (state.status !== 'playing') return [];
   if (state.phase === 'planning') {
     const commands: Command[] = state.routeOffers.map((offer) => ({ type: 'select_route', instanceId: offer.instanceId }));
+    const availableCrew = state.crew.filter((candidate) => crewAvailable(state, candidate.id));
+    const canAppointLeader = Boolean(state.selectedRoute)
+      && availableCrew.length === 4
+      && assignedCount(state) === requiredAssignments(state)
+      && state.resources.provisions >= 2;
     for (const crew of state.crew) {
       if (!crewAvailable(state, crew.id)) continue;
-      const alreadyAssigned = state.modules.some((module) => module.assignedCrew === crew.id);
+      const alreadyAssigned = crewAssigned(state, crew.id);
       if (alreadyAssigned) {
         commands.push({ type: 'unassign_crew', crewId: crew.id });
       }
@@ -214,6 +224,9 @@ export function legalCommands(state: GameState): Command[] {
         if (alreadyAssigned || assignedCount(state) < requiredAssignments(state) || module.assignedCrew !== null) {
           commands.push({ type: 'assign_crew', crewId: crew.id, slot: module.slot });
         }
+      }
+      if (canAppointLeader && !alreadyAssigned) {
+        commands.push({ type: 'assign_route_leader', crewId: crew.id });
       }
     }
     if (state.selectedRoute && assignedCount(state) === requiredAssignments(state)) commands.push({ type: 'resolve_shift' });
@@ -360,6 +373,8 @@ function resolveRooms(state: GameState, events: EngineEvent[]): RoomResolution {
 function resolveRoute(state: GameState, room: RoomResolution, events: EngineEvent[]): void {
   const offer = state.routeOffers.find((candidate) => candidate.instanceId === state.selectedRoute)!;
   const route = routeDefinition(offer.routeId);
+  const leader = state.routeLeader;
+  if (leader === 'sable') offer.revealed = true;
   for (const [id, amount] of Object.entries(route.baseRewards) as [ResourceId, number][]) addResource(state, id, amount);
   let noteProgress = route.noteProgress;
   const sable = state.crew.find((candidate) => candidate.id === 'sable')!;
@@ -369,12 +384,21 @@ function resolveRoute(state: GameState, room: RoomResolution, events: EngineEven
   const maraInWard = state.modules.some((module) => module.id === 'ward_array' && module.assignedCrew === 'mara');
   const mara = state.crew.find((candidate) => candidate.id === 'mara')!;
   const maraProtection = maraInWard ? (mara.signatureUnlocked ? 2 : 1) : 0;
-  const mitigation = room.ward + maraProtection;
+  const leaderProtection = leader === 'mara' ? 1 : 0;
+  const mitigation = room.ward + maraProtection + leaderProtection;
   const hiddenHazard = offer.hiddenComplication && !offer.revealed ? 1 : 0;
   const damage = Math.max(0, route.hazard + hiddenHazard - mitigation);
   state.integrity = Math.max(0, state.integrity - damage);
+  if (leader === 'mara') emit(state, events, 'crew', 'Mara leads from the forward bell and turns one layer of danger aside.', 'positive');
+  if (leader === 'tamsin') {
+    const salvage = Math.ceil(route.hazard / 2);
+    addResource(state, 'alloy', salvage);
+    emit(state, events, 'crew', `Tamsin marks a live seam and brings back ${salvage} extra alloy.`, 'positive');
+  }
+  if (leader === 'sable') emit(state, events, 'crew', 'Sable reads the chosen fault before it can close around the crew.', 'mystic');
   if (state.resources.provisions > 0) state.resources.provisions -= 1;
   else state.integrity = Math.max(0, state.integrity - 1);
+  if (leader) state.resources.provisions = Math.max(0, state.resources.provisions - 1);
 
   for (const module of state.modules) {
     if (!module.assignedCrew) continue;
@@ -383,7 +407,20 @@ function resolveRoute(state: GameState, room: RoomResolution, events: EngineEven
     const tamsinPenalty = module.assignedCrew === 'tamsin' && route.hazard >= 3 ? 1 : 0;
     adjustStrain(state, module.assignedCrew, routeStrain + scarPenalty + tamsinPenalty, events);
   }
+  if (leader === 'orin') {
+    for (const module of state.modules) {
+      if (module.assignedCrew) adjustStrain(state, module.assignedCrew, -1, events);
+    }
+    emit(state, events, 'crew', 'Orin’s countermarch eases one strain from every chamber crew.', 'positive');
+  }
+  if (leader) {
+    const routeStrain = route.hazard >= 4 ? 2 : route.hazard >= 2 ? 1 : 0;
+    const scarPenalty = state.crew.find((crew) => crew.id === leader)?.scar ? 1 : 0;
+    const tamsinPenalty = leader === 'tamsin' && route.hazard >= 3 ? 1 : 0;
+    adjustStrain(state, leader, 1 + routeStrain + scarPenalty + tamsinPenalty, events);
+  }
   const assigned = new Set(state.modules.map((module) => module.assignedCrew));
+  if (leader) assigned.add(leader);
   for (const crew of state.crew) {
     if (!assigned.has(crew.id) && crewAvailable(state, crew.id)) adjustStrain(state, crew.id, -2, events);
   }
@@ -396,8 +433,8 @@ function resolveRoute(state: GameState, room: RoomResolution, events: EngineEven
   if (state.integrity < maximumIntegrity(state) / 2) adjustStrain(state, 'orin', 1, events);
 
   if (damage === 0) progressVow(state, 'mara', events);
-  if (route.hazard >= 3 && state.modules.some((module) => module.assignedCrew === 'tamsin')) progressVow(state, 'tamsin', events);
-  if (room.repair > 0 || state.modules.some((module) => module.id === 'resonance_chamber' && module.assignedCrew === 'orin')) progressVow(state, 'orin', events);
+  if (route.hazard >= 3 && (leader === 'tamsin' || state.modules.some((module) => module.assignedCrew === 'tamsin'))) progressVow(state, 'tamsin', events);
+  if (leader === 'orin' || room.repair > 0 || state.modules.some((module) => module.id === 'resonance_chamber' && module.assignedCrew === 'orin')) progressVow(state, 'orin', events);
   if (offer.revealed) progressVow(state, 'sable', events);
 
   state.storyFlags.push(`route:${route.id}`);
@@ -460,6 +497,7 @@ function beginNextShift(state: GameState): void {
   state.phase = 'planning';
   state.developmentChoices = [];
   state.selectedRoute = null;
+  state.routeLeader = null;
   state.activeEvent = null;
   for (const module of state.modules) module.assignedCrew = null;
   const rng = rngFromState(state.rngState);
@@ -471,6 +509,7 @@ function resolveShift(state: GameState, events: EngineEvent[]): void {
   const room = resolveRooms(state, events);
   resolveRoute(state, room, events);
   for (const module of state.modules) module.assignedCrew = null;
+  state.routeLeader = null;
 
   if (state.integrity <= 0) {
     state.status = 'lost';
@@ -555,19 +594,33 @@ export function applyCommand(input: GameState, command: Command): TransitionResu
   const events: EngineEvent[] = [];
 
   if (command.type === 'select_route') {
+    state.routeLeader = null;
     state.selectedRoute = command.instanceId;
     const route = routeDefinition(state.routeOffers.find((offer) => offer.instanceId === command.instanceId)!.routeId);
     appendLog(state, 'route', `Course set for ${route.title}.`);
+    if (state.routeLeader === 'sable') {
+      state.routeOffers.find((offer) => offer.instanceId === command.instanceId)!.revealed = true;
+    }
   } else if (command.type === 'assign_crew') {
+    state.routeLeader = null;
     for (const module of state.modules) if (module.assignedCrew === command.crewId) module.assignedCrew = null;
     const target = state.modules.find((module) => module.slot === command.slot)!;
     target.assignedCrew = command.crewId;
     if (command.crewId === 'sable' && target.id === 'resonance_chamber') {
       for (const offer of state.routeOffers) offer.revealed = true;
     }
+  } else if (command.type === 'assign_route_leader') {
+    for (const module of state.modules) if (module.assignedCrew === command.crewId) module.assignedCrew = null;
+    state.routeLeader = command.crewId;
+    if (command.crewId === 'sable' && state.selectedRoute) {
+      state.routeOffers.find((offer) => offer.instanceId === state.selectedRoute)!.revealed = true;
+    }
   } else if (command.type === 'unassign_crew') {
-    const target = state.modules.find((module) => module.assignedCrew === command.crewId)!;
-    target.assignedCrew = null;
+    if (state.routeLeader === command.crewId) state.routeLeader = null;
+    else {
+      state.routeLeader = null;
+      state.modules.find((module) => module.assignedCrew === command.crewId)!.assignedCrew = null;
+    }
   } else if (command.type === 'resolve_shift') {
     resolveShift(state, events);
   } else if (command.type === 'choose_event') {
@@ -638,7 +691,7 @@ export function selectGameView(state: GameState): GameView {
 function assertGameState(value: unknown): asserts value is GameState {
   if (!value || typeof value !== 'object') throw new Error('Save does not contain an object.');
   const state = value as Partial<GameState>;
-  if (state.version !== 1 || typeof state.seed !== 'string' || !Array.isArray(state.crew) || !Array.isArray(state.modules)) {
+  if (state.version !== 2 || typeof state.seed !== 'string' || !Array.isArray(state.crew) || !Array.isArray(state.modules)) {
     throw new Error('Save is not a supported Lode Choir game state.');
   }
   if (!Array.isArray(state.commandTrace) || !Array.isArray(state.routeOffers) || !state.resources) {
@@ -647,7 +700,7 @@ function assertGameState(value: unknown): asserts value is GameState {
 }
 
 export function serialize(state: GameState): string {
-  const envelope: SerializedGameEnvelope = { game: 'lode-choir', version: 1, state };
+  const envelope: SerializedGameEnvelope = { game: 'lode-choir', version: 2, state };
   return JSON.stringify(envelope);
 }
 
@@ -674,6 +727,10 @@ export function deserialize(serialized: string): GameState {
     }
     migrated.developmentChoices = Array.isArray(old.developmentChoices) ? old.developmentChoices as ModuleId[] : [];
     candidate = migrated;
+  }
+  if (candidate && typeof candidate === 'object' && (candidate as { version?: unknown }).version === 1) {
+    (candidate as Record<string, unknown>).version = 2;
+    (candidate as Record<string, unknown>).routeLeader = null;
   }
   assertGameState(candidate);
   return cloneState(candidate);

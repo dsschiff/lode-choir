@@ -38,6 +38,9 @@ test('tap assignment, route selection, and shift resolution work on phone', asyn
     await page.getByTestId(`crew-${crew}`).click();
     await availableRooms.nth(roomIndex).click();
   }
+  await page.getByTestId('crew-sable').click();
+  await page.getByRole('button', { name: 'APPOINT' }).click();
+  await expect(page.getByTestId('leader-post')).toContainText('Sable-9');
 
   await expect(page.getByTestId('resolve-shift')).toBeEnabled();
   await page.getByTestId('resolve-shift').click();

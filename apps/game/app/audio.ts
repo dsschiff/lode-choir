@@ -31,6 +31,7 @@ class ChoirAudio {
       const frequencies: Record<EngineEvent['kind'], number> = {
         room: 196,
         route: 146.8,
+        crew: 293.7,
         damage: 82.4,
         story: 246.9,
         progress: 329.6,

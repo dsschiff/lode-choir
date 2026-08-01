@@ -13,8 +13,13 @@ npm run test:sim
 npm run typecheck
 npm run build
 npm run test:e2e
+npm run verify
 ```
 
 The engine is deterministic and renderer-independent. The web app is phone-first and
-builds to a static export.
+builds to a static export. Each shift combines a route choice, three chamber
+assignments, and an optional expedition leader, followed by story consequences and
+citadel development.
 
+See `docs/VALIDATION.md` for the current balance, browser, accessibility, visual,
+and dependency-audit evidence.

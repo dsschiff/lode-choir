@@ -67,6 +67,46 @@ test('a fourth crew member can replace an assignment but cannot overstaff the ci
   assert.equal(selectGameView(state).canResolveShift, true);
 });
 
+test('the fourth available crew member can lead the route without displacing chamber staff', () => {
+  let state = createRun({ seed: 'route-leader' });
+  state = applyCommand(state, { type: 'select_route', instanceId: state.routeOffers[0]!.instanceId }).state;
+  state = applyCommand(state, { type: 'assign_crew', crewId: 'mara', slot: 0 }).state;
+  state = applyCommand(state, { type: 'assign_crew', crewId: 'tamsin', slot: 1 }).state;
+  state = applyCommand(state, { type: 'assign_crew', crewId: 'orin', slot: 2 }).state;
+  assert.ok(legalCommands(state).some((command) => command.type === 'assign_route_leader' && command.crewId === 'sable'));
+  state = applyCommand(state, { type: 'assign_route_leader', crewId: 'sable' }).state;
+  assert.equal(state.routeLeader, 'sable');
+  assert.equal(state.modules.filter((module) => module.assignedCrew).length, 3);
+  const selected = state.routeOffers.find((offer) => offer.instanceId === state.selectedRoute)!;
+  assert.equal(selected.revealed, true);
+  const alternate = state.routeOffers.find((offer) => offer.instanceId !== state.selectedRoute)!;
+  state = applyCommand(state, { type: 'select_route', instanceId: alternate.instanceId }).state;
+  assert.equal(state.routeLeader, null);
+  state = applyCommand(state, { type: 'assign_route_leader', crewId: 'sable' }).state;
+  const route = selectGameView(state).routes.find((candidate) => candidate.instanceId === state.selectedRoute)!.definition;
+  state = applyCommand(state, { type: 'resolve_shift' }).state;
+  assert.equal(state.routeLeader, null);
+  assert.equal(state.resources.provisions, 3 + (route.baseRewards.provisions ?? 0));
+  assert.equal(state.crew.find((crew) => crew.id === 'sable')!.strain, 1 + (route.hazard >= 4 ? 2 : route.hazard >= 2 ? 1 : 0));
+});
+
+test('route leadership stays optional when only three crew are available', () => {
+  let state = createRun({ seed: 'short-handed' });
+  state.crew.find((crew) => crew.id === 'sable')!.incapacitatedUntil = 2;
+  state = applyCommand(state, { type: 'select_route', instanceId: state.routeOffers[0]!.instanceId }).state;
+  assert.equal(legalCommands(state).some((command) => command.type === 'assign_route_leader'), false);
+});
+
+test('expedition leadership requires the extra ration', () => {
+  let state = createRun({ seed: 'leader-ration' });
+  state = applyCommand(state, { type: 'select_route', instanceId: state.routeOffers[0]!.instanceId }).state;
+  state = applyCommand(state, { type: 'assign_crew', crewId: 'mara', slot: 0 }).state;
+  state = applyCommand(state, { type: 'assign_crew', crewId: 'tamsin', slot: 1 }).state;
+  state = applyCommand(state, { type: 'assign_crew', crewId: 'orin', slot: 2 }).state;
+  state.resources.provisions = 1;
+  assert.equal(legalCommands(state).some((command) => command.type === 'assign_route_leader'), false);
+});
+
 test('a resolved shift produces resources, route progress, story, and a clean next planning phase', () => {
   const ready = readyFirstShift('resolution');
   assert.equal(selectGameView(ready).canResolveShift, true);
@@ -152,15 +192,22 @@ test('event choices cannot spend resources the run does not have', () => {
   assert.throws(() => applyCommand(state, { type: 'choose_event', choiceIndex: costlyIndex }), /Illegal command/);
 });
 
-test('version-zero raw saves migrate missing trace-era fields', () => {
+test('legacy saves migrate missing trace-era and expedition fields', () => {
   const current = createRun({ seed: 'migration' });
   const old = { ...current, version: 0 } as Record<string, unknown>;
   delete old.developmentChoices;
+  delete old.routeLeader;
   const migrated = deserialize(JSON.stringify(old));
-  assert.equal(migrated.version, 1);
+  assert.equal(migrated.version, 2);
   assert.equal(migrated.seed, 'migration');
   assert.deepEqual(migrated.developmentChoices, []);
   assert.deepEqual(migrated.routeOffers, current.routeOffers);
+
+  const versionOne = { ...current, version: 1 } as Record<string, unknown>;
+  delete versionOne.routeLeader;
+  const migratedVersionOne = deserialize(JSON.stringify(versionOne));
+  assert.equal(migratedVersionOne.version, 2);
+  assert.equal(migratedVersionOne.routeLeader, null);
 });
 
 test('full runs terminate and winning runs update legacy without mutating it', () => {

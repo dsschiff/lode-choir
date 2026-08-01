@@ -5,7 +5,8 @@
 Observe without coaching:
 
 1. Can the player start and identify the first route choice within 15 seconds?
-2. Do they understand that one crew member rests while three operate rooms?
+2. Do they understand that three crew operate rooms while the fourth may rest or lead
+   the expedition for a character-specific benefit?
 3. Can they predict the main benefit and danger of the selected route?
 4. Does citadel construction change a later assignment decision?
 5. Can they explain why the run ended?
@@ -39,4 +40,3 @@ Any score below 4 produces a concrete fix before visual content expansion.
 
 Keep the final seed and command trace for representative win and loss runs, simulation
 summary, screenshots of title/planning/event/finale, and browser-console results.
-

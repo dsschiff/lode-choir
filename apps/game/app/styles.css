@@ -170,6 +170,15 @@ h1, h2 { font-family: var(--serif); font-weight: 500; }
 .route-risk b { font: 1.15rem var(--serif); }
 .route-risk small { color: var(--danger-400); font-size: .43rem; }
 .route-reward { grid-column: 2 / 4; padding-top: 7px; border-top: 1px solid var(--quiet-line); color: var(--brass-400); font-size: .5rem; letter-spacing: .04em; }
+.leader-post { min-height: 68px; margin-top: 9px; display: grid; grid-template-columns: 38px 1fr auto; align-items: center; gap: 10px; padding: 9px 10px; border: 1px dashed var(--quiet-line); background: rgba(7,9,12,.42); }
+.leader-post.is-staffed { border-style: solid; border-color: rgba(200,155,85,.48); background: linear-gradient(110deg, rgba(200,155,85,.09), rgba(7,9,12,.5)); }
+.leader-mark { width: 30px; height: 30px; display: grid; place-items: center; border: 1px solid var(--brass-400); border-radius: 50%; color: var(--brass-400); font: .67rem var(--serif); }
+.leader-copy { min-width: 0; display: grid; gap: 2px; }
+.leader-copy small { color: var(--vein-400); font-size: .43rem; letter-spacing: .08em; }
+.leader-copy strong { font: .83rem var(--serif); }
+.leader-copy em { color: var(--bone-300); font-size: .48rem; line-height: 1.35; font-style: normal; }
+.leader-post button { min-width: 68px; min-height: 42px; border: 1px solid var(--quiet-line); background: rgba(13,18,22,.82); color: var(--bone-300); cursor: pointer; font-size: .52rem; letter-spacing: .1em; }
+.leader-post button:not(:disabled):hover { border-color: var(--vein-400); color: var(--bone-100); }
 .route-panel > .primary-action { margin-top: 12px; }
 
 .crew-roster { padding-top: 6px; }
@@ -305,6 +314,8 @@ h1, h2 { font-family: var(--serif); font-weight: 500; }
   .route-card { min-height: 118px; padding-inline: 9px; grid-template-columns: 25px 1fr 35px; }
   .route-card.is-selected { padding-inline: 8px; }
   .route-copy strong { font-size: .88rem; }
+  .leader-post { grid-template-columns: 34px 1fr 62px; padding-inline: 8px; }
+  .leader-post button { min-width: 60px; padding-inline: 4px; }
   .signal-log { grid-template-columns: 1fr; }
   .signal-log > div { display: flex; align-items: baseline; justify-content: space-between; }
   .ending-choices { grid-template-columns: 1fr; }

@@ -39,19 +39,30 @@ function selectRoute(state: GameState, policy: PolicyName): GameState {
   return transition(state, { type: 'select_route', instanceId: ranked[0]!.instanceId });
 }
 
-function assignCrew(state: GameState, policy: PolicyName): GameState {
+function assignCrew(state: GameState, policy: PolicyName, useLeaders: boolean): GameState {
   const active = state.crew.filter((crew) => crew.incapacitatedUntil <= state.shift);
+  const routeKind = selectGameView(state).routes.find((route) => route.instanceId === state.selectedRoute)?.definition.kind;
+  const leaderByRoute = { refuge: 'mara', vein: 'tamsin', ruin: 'orin', rift: 'sable' } as const;
+  const desiredLeader = routeKind ? leaderByRoute[routeKind] : undefined;
+  const leader = active.find((candidate) => candidate.id === desiredLeader);
+  const reserveLeader = useLeaders && active.length === 4 && Boolean(leader && leader.strain <= 2 && state.resources.provisions >= 4);
   const preferences = policy === 'conservative'
     ? ['ward_array', 'infirmary', 'heart_engine', 'deep_drill', 'resonance_chamber', 'foundry']
     : policy === 'aggressive'
       ? ['deep_drill', 'resonance_chamber', 'ward_array', 'foundry', 'heart_engine', 'infirmary']
       : ['ward_array', 'deep_drill', 'heart_engine', 'resonance_chamber', 'infirmary', 'foundry'];
   const crewOrder = policy === 'conservative' ? ['mara', 'orin', 'sable', 'tamsin'] : ['tamsin', 'mara', 'sable', 'orin'];
-  const crew = [...active].sort((left, right) => crewOrder.indexOf(left.id) - crewOrder.indexOf(right.id));
+  const crew = active
+    .filter((candidate) => !reserveLeader || candidate.id !== desiredLeader)
+    .sort((left, right) => crewOrder.indexOf(left.id) - crewOrder.indexOf(right.id));
   const modules = [...state.modules].sort((left, right) => preferences.indexOf(left.id) - preferences.indexOf(right.id));
   const count = Math.min(3, crew.length, modules.length);
   for (let index = 0; index < count; index += 1) {
     state = transition(state, { type: 'assign_crew', crewId: crew[index]!.id, slot: modules[index]!.slot });
+  }
+  if (reserveLeader && leader
+    && legalCommands(state).some((command) => command.type === 'assign_route_leader' && command.crewId === leader.id)) {
+    state = transition(state, { type: 'assign_route_leader', crewId: leader.id });
   }
   return state;
 }
@@ -103,7 +114,7 @@ function develop(state: GameState, policy: PolicyName): GameState {
   return transition(state, ranked[0]!);
 }
 
-export function playRun(initial: GameState, policy: PolicyName): GameState {
+export function playRun(initial: GameState, policy: PolicyName, useLeaders = true): GameState {
   let state = initial;
   let steps = 0;
   while (state.status === 'playing') {
@@ -111,7 +122,7 @@ export function playRun(initial: GameState, policy: PolicyName): GameState {
     if (steps > 100) throw new Error(`Policy ${policy} deadlocked on seed ${state.seed} in ${state.phase}.`);
     if (state.phase === 'planning') {
       state = selectRoute(state, policy);
-      state = assignCrew(state, policy);
+      state = assignCrew(state, policy, useLeaders);
       const resolve = legalCommands(state).find((command) => command.type === 'resolve_shift');
       if (!resolve) throw new Error(`Policy ${policy} could not resolve shift ${state.shift} on ${state.seed}.`);
       state = transition(state, resolve);

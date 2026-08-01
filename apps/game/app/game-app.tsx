@@ -70,6 +70,13 @@ const MODULE_MARKS: Record<ModuleId, string> = {
   resonance_chamber: 'RC',
 };
 
+const LEADER_EFFECTS: Record<CrewId, string> = {
+  mara: 'Spend 1 provision. Turn aside one route hazard.',
+  tamsin: 'Spend 1 provision. Salvage alloy equal to half the route risk.',
+  orin: 'Spend 1 provision. Ease one strain from every chamber crew.',
+  sable: 'Spend 1 provision. Reveal the chosen route complication.',
+};
+
 declare global {
   interface Window {
     __LODE_CHOIR__?: {
@@ -239,11 +246,19 @@ function Citadel({ view, selectedCrew, selectedBuildSlot, onRoom, onEmpty }: {
   );
 }
 
-function RoutePanel({ view, onSelect, onResolve }: {
+function RoutePanel({ view, selectedCrew, onSelect, onLeader, onUnassignLeader, onResolve }: {
   view: GameView;
+  selectedCrew: CrewId | null;
   onSelect: (instanceId: string) => void;
+  onLeader: (crewId: CrewId) => void;
+  onUnassignLeader: (crewId: CrewId) => void;
   onResolve: () => void;
 }) {
+  const leader = view.crew.find((crew) => crew.id === view.state.routeLeader);
+  const candidate = view.crew.find((crew) => crew.id === selectedCrew);
+  const canAppoint = Boolean(selectedCrew && legalCommands(view.state as GameState).some(
+    (command) => command.type === 'assign_route_leader' && command.crewId === selectedCrew,
+  ));
   return (
     <section className="route-panel" aria-labelledby="route-title">
       <div className="section-heading compact">
@@ -275,6 +290,17 @@ function RoutePanel({ view, onSelect, onResolve }: {
             </button>
           );
         })}
+      </div>
+      <div className={`leader-post ${leader ? 'is-staffed' : ''}`} data-testid="leader-post">
+        <span className="leader-mark">IV</span>
+        <span className="leader-copy">
+          <small>OPTIONAL // EXPEDITION LEADER</small>
+          <strong>{leader?.name ?? candidate?.name ?? 'The fourth voice can lead'}</strong>
+          <em>{leader ? LEADER_EFFECTS[leader.id] : candidate ? LEADER_EFFECTS[candidate.id] : 'Rest is automatic. After staffing three chambers, select the fourth voice to lead.'}</em>
+        </span>
+        {leader
+          ? <button type="button" onClick={() => onUnassignLeader(leader.id)} aria-label={`Recall ${leader.name} from expedition leadership`}>RECALL</button>
+          : <button type="button" onClick={() => selectedCrew && onLeader(selectedCrew)} disabled={!canAppoint}>APPOINT</button>}
       </div>
       <button type="button" className="primary-action" onClick={onResolve} disabled={!view.canResolveShift} data-testid="resolve-shift">
         <span>{view.canResolveShift ? 'Commit expedition' : 'Select route and assign three crew'}</span>
@@ -588,7 +614,7 @@ export function GameApp() {
       setView(selectGameView(result.state));
       setFeedback(result.events.slice(-3));
       result.events.slice(-2).forEach((event) => choirAudio.play(event));
-      if (command.type === 'assign_crew' || command.type === 'unassign_crew') setSelectedCrew(null);
+      if (command.type === 'assign_crew' || command.type === 'assign_route_leader' || command.type === 'unassign_crew') setSelectedCrew(null);
       if (command.type === 'build_module') setSelectedBuildSlot(null);
       setNotice(null);
     } catch (error) {
@@ -601,7 +627,11 @@ export function GameApp() {
     return () => { delete window.__LODE_CHOIR__; };
   }, [dispatch, startRun]);
 
-  const assignedCrew = useMemo(() => new Set(view?.modules.map((module) => module.assignedCrew).filter(Boolean) ?? []), [view]);
+  const assignedCrew = useMemo(() => {
+    const assigned = new Set(view?.modules.map((module) => module.assignedCrew).filter(Boolean) ?? []);
+    if (view?.state.routeLeader) assigned.add(view.state.routeLeader);
+    return assigned;
+  }, [view]);
   const openMenuPage = (next: Surface) => { setReturnSurface(surface); setSurface(next); };
   const goBack = () => setSurface(returnSurface === 'game' && !view ? 'title' : returnSurface);
 
@@ -635,7 +665,7 @@ export function GameApp() {
         <h1 className="sr-only">Lode Choir expedition</h1>
         <Citadel view={view} selectedCrew={selectedCrew} selectedBuildSlot={selectedBuildSlot} onRoom={onRoom} onEmpty={setSelectedBuildSlot} />
         <aside className="command-deck">
-          {view.state.phase === 'planning' && <RoutePanel view={view} onSelect={(instanceId) => dispatch({ type: 'select_route', instanceId })} onResolve={() => dispatch({ type: 'resolve_shift' })} />}
+          {view.state.phase === 'planning' && <RoutePanel view={view} selectedCrew={selectedCrew} onSelect={(instanceId) => dispatch({ type: 'select_route', instanceId })} onLeader={(crewId) => dispatch({ type: 'assign_route_leader', crewId })} onUnassignLeader={(crewId) => dispatch({ type: 'unassign_crew', crewId })} onResolve={() => dispatch({ type: 'resolve_shift' })} />}
           {view.state.phase === 'event' && <EventPanel view={view} onChoose={(choiceIndex) => dispatch({ type: 'choose_event', choiceIndex })} />}
           {view.state.phase === 'development' && <DevelopmentPanel view={view} slot={selectedBuildSlot} onSlot={setSelectedBuildSlot} onBuild={(moduleId, slot) => dispatch({ type: 'build_module', moduleId, slot })} onUpgrade={(slot) => dispatch({ type: 'upgrade_module', slot })} onSkip={() => dispatch({ type: 'skip_development' })} />}
           {view.state.phase === 'finale' && <FinalePanel view={view} onChoose={(endingId) => dispatch({ type: 'choose_ending', endingId })} />}
