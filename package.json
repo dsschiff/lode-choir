@@ -1,0 +1,23 @@
+{
+  "name": "lode-choir",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "workspaces": [
+    "packages/*",
+    "apps/*"
+  ],
+  "scripts": {
+    "build": "npm --workspace @lode-choir/game run build",
+    "dev": "npm --workspace @lode-choir/game run dev",
+    "test": "npm --workspace @lode-choir/engine run test",
+    "test:sim": "npm --workspace @lode-choir/engine run test:sim",
+    "test:e2e": "npm --workspace @lode-choir/game run test:e2e",
+    "typecheck": "npm --workspace @lode-choir/engine run typecheck && npm --workspace @lode-choir/game run typecheck",
+    "verify": "npm test && npm run test:sim && npm run typecheck && npm run build"
+  },
+  "engines": {
+    "node": ">=22"
+  }
+}
+

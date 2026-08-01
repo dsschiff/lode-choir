@@ -1,0 +1,26 @@
+{
+  "name": "@lode-choir/game",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "typecheck": "tsc --noEmit",
+    "serve:out": "node scripts/serve-out.mjs 3321",
+    "test:e2e": "playwright test"
+  },
+  "dependencies": {
+    "@lode-choir/engine": "workspace:*",
+    "next": "16.2.9",
+    "react": "19.2.7",
+    "react-dom": "19.2.7"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.61.1",
+    "@types/node": "24.10.2",
+    "@types/react": "19.2.7",
+    "@types/react-dom": "19.2.3",
+    "typescript": "5.9.3"
+  }
+}
+
