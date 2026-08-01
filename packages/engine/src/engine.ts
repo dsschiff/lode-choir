@@ -1,4 +1,4 @@
-import { CREW, ENDINGS as ENDING_CONTENT, MODULES, ROUTES, STORY_EVENTS } from './data/content.ts';
+import { CREW, ENDINGS as ENDING_CONTENT, MODULES, RELICS, ROUTES, STORY_EVENTS } from './data/content.ts';
 import {
   FALLBACK_CREW,
   FALLBACK_EVENTS,
@@ -21,6 +21,7 @@ import type {
   ModuleId,
   ModuleState,
   ResourceId,
+  RelicId,
   RouteDefinition,
   RouteOffer,
   SerializedGameEnvelope,
@@ -33,6 +34,21 @@ const MAX_STRAIN = 6;
 const DEVELOPMENT_SHIFTS = new Set([2, 4]);
 const STARTER_MODULES: readonly ModuleId[] = ['heart_engine', 'deep_drill', 'ward_array'];
 const CREW_IDS: readonly CrewId[] = ['mara', 'tamsin', 'orin', 'sable'];
+const RELIC_ALIASES: Readonly<Record<string, RelicId>> = {
+  heart_splinter: 'heart_splinter',
+  'Cantor Blade': 'heart_splinter',
+  'brass-seed': 'heart_splinter',
+  vesper_tuning_fork: 'vesper_tuning_fork',
+  'Concordant Lens': 'vesper_tuning_fork',
+  'quiet-bell': 'vesper_tuning_fork',
+  oathkeepers_latch: 'oathkeepers_latch',
+  'Quiet Bell': 'oathkeepers_latch',
+  'pilgrim-thread': 'oathkeepers_latch',
+};
+
+function canonicalRelicId(value: unknown): RelicId | null {
+  return typeof value === 'string' ? RELIC_ALIASES[value] ?? null : null;
+}
 
 function effectiveCrew(): readonly CrewDefinition[] {
   return CREW.length >= CREW_IDS.length ? CREW : FALLBACK_CREW;
@@ -106,12 +122,10 @@ function rollOffers(state: GameState, rng: Rng): RouteOffer[] {
   return offers;
 }
 
-function applyRelic(state: GameState, relicId: string | undefined): void {
+function applyRelic(state: GameState, relicId: RelicId | undefined): void {
   if (!relicId) return;
+  if (!RELICS.some((relic) => relic.id === relicId)) throw new Error(`Unknown relic: ${relicId}`);
   state.storyFlags.push(`relic:${relicId}`);
-  if (relicId === 'brass-seed') state.resources.alloy += 2;
-  if (relicId === 'quiet-bell') state.resources.lumen += 1;
-  if (relicId === 'pilgrim-thread') state.resources.provisions += 2;
   if (relicId === 'heart_splinter') {
     state.resources.alloy += 2;
     state.crew.find((crew) => crew.id === 'tamsin')!.strain += 1;
@@ -127,15 +141,16 @@ function applyRelic(state: GameState, relicId: string | undefined): void {
 }
 
 function maximumIntegrity(state: GameState): number {
-  return state.storyFlags.includes('relic:oathkeepers_latch') ? MAX_INTEGRITY + 2 : MAX_INTEGRITY;
+  return state.startingRelic === 'oathkeepers_latch' ? MAX_INTEGRITY + 2 : MAX_INTEGRITY;
 }
 
 export function createRun(options: CreateRunOptions | string): GameState {
   const normalized = typeof options === 'string' ? { seed: options } : options;
   if (normalized.seed.trim().length === 0) throw new Error('A non-empty seed is required.');
   const state: GameState = {
-    version: 2,
+    version: 3,
     seed: normalized.seed,
+    startingRelic: normalized.relicId ?? null,
     rngState: 0,
     shift: 1,
     phase: 'planning',
@@ -169,6 +184,10 @@ export function createRun(options: CreateRunOptions | string): GameState {
   state.routeOffers = rollOffers(state, rng);
   applyRelic(state, normalized.relicId);
   appendLog(state, 'system', 'Orison wakes beneath the singing crust. Choose a route and crew the citadel.');
+  if (state.startingRelic) {
+    const relic = RELICS.find((candidate) => candidate.id === state.startingRelic)!;
+    appendLog(state, 'story', `${relic.name} crosses the threshold. ${relic.startingEffect}`);
+  }
   return state;
 }
 
@@ -682,6 +701,7 @@ export function selectGameView(state: GameState): GameView {
     routes: state.routeOffers.map((offer) => ({ ...offer, definition: routeDefinition(offer.routeId) })),
     activeStoryEvent: state.activeEvent ? storyEventDefinition(state.activeEvent) : null,
     canResolveShift: state.phase === 'planning' && Boolean(state.selectedRoute) && assignedCount(state) === requiredAssignments(state),
+    maxIntegrity: maximumIntegrity(state),
     objective: state.heartNotes >= 3
       ? 'Survive until the seventh shift and answer the Heart-Lode.'
       : `Find ${3 - state.heartNotes} more Heart Note${3 - state.heartNotes === 1 ? '' : 's'} before shift seven.`,
@@ -691,16 +711,19 @@ export function selectGameView(state: GameState): GameView {
 function assertGameState(value: unknown): asserts value is GameState {
   if (!value || typeof value !== 'object') throw new Error('Save does not contain an object.');
   const state = value as Partial<GameState>;
-  if (state.version !== 2 || typeof state.seed !== 'string' || !Array.isArray(state.crew) || !Array.isArray(state.modules)) {
+  if (state.version !== 3 || typeof state.seed !== 'string' || !Array.isArray(state.crew) || !Array.isArray(state.modules)) {
     throw new Error('Save is not a supported Lode Choir game state.');
   }
   if (!Array.isArray(state.commandTrace) || !Array.isArray(state.routeOffers) || !state.resources) {
     throw new Error('Save is incomplete.');
   }
+  if (state.startingRelic !== null && !RELICS.some((relic) => relic.id === state.startingRelic)) {
+    throw new Error('Save contains an unknown starting relic.');
+  }
 }
 
 export function serialize(state: GameState): string {
-  const envelope: SerializedGameEnvelope = { game: 'lode-choir', version: 2, state };
+  const envelope: SerializedGameEnvelope = { game: 'lode-choir', version: 3, state };
   return JSON.stringify(envelope);
 }
 
@@ -726,11 +749,28 @@ export function deserialize(serialized: string): GameState {
       if (old[key] !== undefined) (migrated as unknown as Record<string, unknown>)[key] = old[key];
     }
     migrated.developmentChoices = Array.isArray(old.developmentChoices) ? old.developmentChoices as ModuleId[] : [];
+    const relicFlag = migrated.storyFlags.find((flag) => flag.startsWith('relic:'))?.slice(6);
+    migrated.startingRelic = canonicalRelicId(relicFlag);
+    migrated.storyFlags = migrated.storyFlags.flatMap((flag) => {
+      if (!flag.startsWith('relic:')) return [flag];
+      const relicId = canonicalRelicId(flag.slice(6));
+      return relicId ? [`relic:${relicId}`] : [];
+    });
     candidate = migrated;
   }
-  if (candidate && typeof candidate === 'object' && (candidate as { version?: unknown }).version === 1) {
-    (candidate as Record<string, unknown>).version = 2;
-    (candidate as Record<string, unknown>).routeLeader = null;
+  if (candidate && typeof candidate === 'object' && [1, 2].includes(Number((candidate as { version?: unknown }).version))) {
+    const old = candidate as Record<string, unknown>;
+    const flags = Array.isArray(old.storyFlags) ? old.storyFlags.filter((flag): flag is string => typeof flag === 'string') : [];
+    const relicFlag = flags.find((flag) => flag.startsWith('relic:'))?.slice(6);
+    const relicId = canonicalRelicId(old.startingRelic) ?? canonicalRelicId(relicFlag);
+    old.version = 3;
+    old.routeLeader ??= null;
+    old.startingRelic = relicId;
+    old.storyFlags = flags.flatMap((flag) => {
+      if (!flag.startsWith('relic:')) return [flag];
+      const canonical = canonicalRelicId(flag.slice(6));
+      return canonical ? [`relic:${canonical}`] : [];
+    });
   }
   assertGameState(candidate);
   return cloneState(candidate);

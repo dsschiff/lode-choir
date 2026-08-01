@@ -5,13 +5,14 @@ Validated against the local `main` branch on 2026-07-31 with Node 24.14 and npm
 
 ## Rules and balance
 
-- 23 deterministic engine and content tests pass, including immutability, legal-command
+- 24 deterministic engine and content tests pass, including immutability, legal-command
   enforcement, save migration, exact replay, scars, loyalty, all endings, development
   deferral, route leadership, and short-handed runs.
 - The simulation regression covers 500 seeds under conservative, balanced, and
   aggressive policies, both with adaptive leadership and with every fourth crew member
-  resting: 3,000 full runs per test pass. Every run terminates, stays within resource
-  bounds, and replays to an exactly equal state.
+  resting, plus all four relic loadouts under every policy: 9,000 full runs per test
+  pass. Every run terminates, stays within resource bounds, and replays to an exactly
+  equal state.
 - A separate 1,000-seed audit produced the following win counts. Adaptive leadership is
   deliberately used only with at least four provisions and leader strain at most two.
 
@@ -24,13 +25,28 @@ Validated against the local `main` branch on 2026-07-31 with Node 24.14 and npm
 All four characters lead across every audited policy. The observed effect remains below
 the locked ten-point limit, so leadership is useful but not a compulsory upgrade.
 
+The 500-seed relic audit stayed inside its separate balance gates. Win counts were:
+
+| Policy | None | Heart Splinter | Vesper Tuning Fork | Oathkeeper's Latch |
+| --- | ---: | ---: | ---: | ---: |
+| Conservative | 414 | 414 | 446 | 414 |
+| Balanced | 63 | 51 | 63 | 114 |
+| Aggressive | 1 | 5 | 1 | 11 |
+
+No relic improved a policy by more than 10.2 percentage points over carrying nothing,
+and the largest within-policy relic spread was 12.6 points. The Oathkeeper's Latch is
+the strongest survival option for balanced/aggressive play; the Tuning Fork most helps
+conservative Note timing; the Heart Splinter's extra alloy is offset by Tamsin's
+starting strain.
+
 ## Interface and persistence
 
-- 12 Playwright checks pass in Pixel 5 and desktop Chromium projects. They cover title
+- 14 Playwright checks pass in Pixel 5 and desktop Chromium projects. They cover title
   navigation, settings, first choice, touch assignment, optional leadership, resolution,
+  loadout locking and keyboard selection, all three relic effects, relic resume,
   autosave/resume, corrupt-save recovery, later phase surfaces, and test hooks.
-- Axe scans report no detectable violations on the title and planning screens in either
-  browser project.
+- Axe scans report no detectable violations on the title, manual, loadout, or planning
+  screens in either browser project.
 - Production static export passes. The bounded E2E runner builds, serves, tests, closes
   its exact child server, and returns in roughly 19 seconds on this host.
 - Visual inspection at 1440x960 and 390x844 confirmed title composition, portrait crops,

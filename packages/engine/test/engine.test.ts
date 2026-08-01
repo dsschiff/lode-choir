@@ -170,9 +170,16 @@ test('save round trips exactly, corrupted saves fail safely, and replay is exact
   assert.throws(() => deserialize('{}'), /supported/);
   assert.deepEqual(replay(state.seed, state.commandTrace), state);
   const relicRun = createRun({ seed: 'relic-replay', relicId: 'heart_splinter' });
+  assert.equal(relicRun.startingRelic, 'heart_splinter');
   assert.equal(relicRun.resources.alloy, 7);
   assert.equal(relicRun.crew.find((crew) => crew.id === 'tamsin')!.strain, 1);
+  assert.match(relicRun.log.at(-1)!.text, /Heart Splinter crosses the threshold/);
   assert.deepEqual(replay({ seed: relicRun.seed, relicId: 'heart_splinter' }, relicRun.commandTrace), relicRun);
+  const latchRun = createRun({ seed: 'latch-view', relicId: 'oathkeepers_latch' });
+  assert.equal(latchRun.integrity, 14);
+  assert.equal(selectGameView(latchRun).maxIntegrity, 14);
+  assert.equal(createRun({ seed: 'no-relic' }).startingRelic, null);
+  assert.throws(() => createRun({ seed: 'unknown-relic', relicId: 'counterfeit' as never }), /Unknown relic/);
 });
 
 test('event choices cannot spend resources the run does not have', () => {
@@ -198,16 +205,31 @@ test('legacy saves migrate missing trace-era and expedition fields', () => {
   delete old.developmentChoices;
   delete old.routeLeader;
   const migrated = deserialize(JSON.stringify(old));
-  assert.equal(migrated.version, 2);
+  assert.equal(migrated.version, 3);
   assert.equal(migrated.seed, 'migration');
   assert.deepEqual(migrated.developmentChoices, []);
   assert.deepEqual(migrated.routeOffers, current.routeOffers);
 
   const versionOne = { ...current, version: 1 } as Record<string, unknown>;
   delete versionOne.routeLeader;
+  delete versionOne.startingRelic;
   const migratedVersionOne = deserialize(JSON.stringify(versionOne));
-  assert.equal(migratedVersionOne.version, 2);
+  assert.equal(migratedVersionOne.version, 3);
   assert.equal(migratedVersionOne.routeLeader, null);
+  assert.equal(migratedVersionOne.startingRelic, null);
+
+  const versionTwo = { ...current, version: 2, storyFlags: ['relic:quiet-bell'] } as Record<string, unknown>;
+  delete versionTwo.startingRelic;
+  const migratedVersionTwo = deserialize(JSON.stringify(versionTwo));
+  assert.equal(migratedVersionTwo.version, 3);
+  assert.equal(migratedVersionTwo.startingRelic, 'vesper_tuning_fork');
+  assert.ok(migratedVersionTwo.storyFlags.includes('relic:vesper_tuning_fork'));
+
+  const unknownRelic = { ...current, version: 2, storyFlags: ['relic:counterfeit', 'story:kept'] } as Record<string, unknown>;
+  delete unknownRelic.startingRelic;
+  const migratedUnknown = deserialize(JSON.stringify(unknownRelic));
+  assert.equal(migratedUnknown.startingRelic, null);
+  assert.deepEqual(migratedUnknown.storyFlags, ['story:kept']);
 });
 
 test('full runs terminate and winning runs update legacy without mutating it', () => {
@@ -223,6 +245,31 @@ test('full runs terminate and winning runs update legacy without mutating it', (
   assert.ok(['heart_splinter', 'vesper_tuning_fork', 'oathkeepers_latch'].includes(updated.relics[0]!));
   assert.ok(updated.lore.includes('orison_manifest'));
   assert.deepEqual(deserializeLegacy(serializeLegacy(updated)), updated);
+
+  const lost = createRun({ seed: 'legacy-loss' });
+  lost.status = 'lost';
+  lost.phase = 'complete';
+  lost.heartNotes = 1;
+  const afterLoss = recordLegacyRun(createLegacyState(), lost);
+  assert.equal(afterLoss.runsCompleted, 1);
+  assert.equal(afterLoss.echoShards, 1);
+  assert.deepEqual(afterLoss.endings, []);
+  assert.deepEqual(afterLoss.relics, []);
+
+  const migratedLegacy = deserializeLegacy(JSON.stringify({
+    version: 1,
+    runsCompleted: 2,
+    echoShards: 4,
+    endings: ['harvest', 'bogus'],
+    lore: ['tag:lost_crew', 'event:eighth_memory', 'unknown'],
+    relics: ['Cantor Blade', 'brass-seed', 'Concordant Lens', 'quiet-bell', 'Quiet Bell', 'pilgrim-thread'],
+  }));
+  assert.equal(migratedLegacy.version, 2);
+  assert.deepEqual([...migratedLegacy.relics].sort(), ['heart_splinter', 'oathkeepers_latch', 'vesper_tuning_fork']);
+  assert.deepEqual(migratedLegacy.endings, ['harvest']);
+  assert.ok(migratedLegacy.lore.includes('orison_manifest'));
+  assert.ok(migratedLegacy.lore.includes('rook_roll_call'));
+  assert.ok(migratedLegacy.lore.includes('sable_eight_last_log'));
 });
 
 test('integrity collapse is an explicit terminal loss', () => {

@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { createRun, replay, type CrewId, type RunStatus } from '../src/index.ts';
+import { createRun, replay, type CrewId, type RelicId, type RunStatus } from '../src/index.ts';
 import { playRun, type PolicyName } from './helpers.ts';
 
 test('500 seeds terminate under three policies with reproducible valid states', () => {
@@ -41,4 +41,42 @@ test('500 seeds terminate under three policies with reproducible valid states', 
     );
   }
   assert.deepEqual([...leaderCrew].sort(), ['mara', 'orin', 'sable', 'tamsin']);
+});
+
+test('500 seeds keep all four relic loadouts bounded under every policy', () => {
+  const policies: readonly PolicyName[] = ['conservative', 'balanced', 'aggressive'];
+  const loadouts: readonly (RelicId | null)[] = [null, 'heart_splinter', 'vesper_tuning_fork', 'oathkeepers_latch'];
+
+  for (const policy of policies) {
+    const results = new Map<string, { wins: number; integrity: number; notes: number; scars: number }>();
+    for (const relicId of loadouts) results.set(relicId ?? 'none', { wins: 0, integrity: 0, notes: 0, scars: 0 });
+
+    for (let seedIndex = 0; seedIndex < 500; seedIndex += 1) {
+      const seed = `relic-simulation-${seedIndex}`;
+      for (const relicId of loadouts) {
+        const options = { seed, ...(relicId ? { relicId } : {}) };
+        const run = playRun(createRun(options), policy);
+        const totals = results.get(relicId ?? 'none')!;
+        if (run.status === 'won') totals.wins += 1;
+        totals.integrity += run.integrity;
+        totals.notes += run.heartNotes;
+        totals.scars += run.crew.filter((crew) => crew.scar).length;
+        assert.notEqual(run.status, 'playing');
+        assert.deepEqual(replay(options, run.commandTrace), run);
+      }
+    }
+
+    const summary = Object.fromEntries([...results].map(([id, result]) => [id, {
+      wins: result.wins,
+      meanIntegrity: result.integrity / 500,
+      meanNotes: result.notes / 500,
+      meanScars: result.scars / 500,
+    }]));
+    const wins = [...results.values()].map((result) => result.wins);
+    const noRelicWins = results.get('none')!.wins;
+    assert.ok(Math.max(...wins) - Math.min(...wins) <= 100, `Relic spread exceeded twenty points for ${policy}: ${JSON.stringify(summary)}`);
+    for (const [relicId, result] of results) {
+      assert.ok(result.wins - noRelicWins <= 125, `${relicId} exceeded the no-relic run by twenty-five points for ${policy}: ${JSON.stringify(summary)}`);
+    }
+  }
 });

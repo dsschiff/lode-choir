@@ -7,7 +7,7 @@ Lode Choir separates deterministic rules from presentation.
 The engine is a pure command machine:
 
 ```text
-seed -> createRun -> GameState
+seed + optional relic -> createRun -> GameState v3
 GameState + Command -> applyCommand -> GameState + EngineEvent[]
 seed + Command[] -> replay -> identical GameState
 ```
@@ -22,6 +22,8 @@ characters, modules, routes, and story choices, while systems interpret those re
 - The app owns selection affordances, animation, audio, local storage, and settings.
 - The app renders engine selectors; it does not recreate rules to preview outcomes.
 - Local legacy progression is separate from the current run save.
+- `startingRelic` is explicit run state, while legacy v2 stores only canonical relic and
+  lore IDs. Migration normalizes earlier display names, aliases, and raw story flags.
 
 ## Determinism
 
@@ -33,4 +35,3 @@ Dates may appear only in app-level save metadata and never affect rules or repla
 New content must have a real mechanical effect, an opportunity cost, and bounded
 frequency. A new definition should enrich an existing command before creating a new
 subsystem.
-

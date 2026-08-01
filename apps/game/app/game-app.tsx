@@ -1,13 +1,20 @@
 'use client';
 
 import {
+  ENDINGS as ENDING_CONTENT,
+  LORE,
   MODULES,
+  RELICS,
   applyCommand,
+  createLegacyState,
   createRun,
   deserialize,
+  deserializeLegacy,
   legalCommands,
+  recordLegacyRun,
   selectGameView,
   serialize,
+  serializeLegacy,
   type Command,
   type CrewId,
   type EndingId,
@@ -16,6 +23,7 @@ import {
   type GameView,
   type LegacyState,
   type ModuleId,
+  type RelicId,
 } from '@lode-choir/engine';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { choirAudio } from './audio';
@@ -24,42 +32,35 @@ const AUTOSAVE_KEY = 'lode_choir_autosave_v1';
 const LEGACY_KEY = 'lode_choir_legacy_v1';
 const SETTINGS_KEY = 'lode_choir_settings_v1';
 
-type Surface = 'title' | 'game' | 'manual' | 'chronicle' | 'settings' | 'credits';
+type Surface = 'title' | 'loadout' | 'game' | 'manual' | 'chronicle' | 'settings' | 'credits';
 type Settings = { muted: boolean; highContrast: boolean; reducedMotion: boolean };
 
 const DEFAULT_SETTINGS: Settings = { muted: false, highContrast: false, reducedMotion: false };
-const DEFAULT_LEGACY: LegacyState = {
-  version: 1,
-  runsCompleted: 0,
-  echoShards: 0,
-  endings: [],
-  lore: [],
-  relics: [],
-};
 
-const ENDINGS: Record<EndingId, { title: string; description: string; cost: string }> = {
+const ENDING_DETAILS: Record<EndingId, { description: string; cost: string }> = {
   harvest: {
-    title: 'Harvest the Heart',
     description: 'Cut the impossible chord from the moon and carry its power home.',
     cost: 'The choir falls silent.',
   },
   harmonize: {
-    title: 'Join the Harmony',
     description: 'Tune Orison to the Heart-Lode and let both living machines answer.',
     cost: 'No one returns unchanged.',
   },
   seal: {
-    title: 'Seal the Deep',
     description: 'Close the wound, abandon the claim, and leave the song beneath stone.',
     cost: 'The expedition returns empty-handed.',
   },
 };
 
-const RELIC_BY_ENDING: Record<EndingId, string> = {
-  harvest: 'Cantor Blade',
-  harmonize: 'Concordant Lens',
-  seal: 'Quiet Bell',
-};
+const ENDINGS = Object.fromEntries(ENDING_CONTENT.map((ending) => [ending.id, {
+  title: ending.title,
+  ...ENDING_DETAILS[ending.id],
+}])) as Record<EndingId, { title: string; description: string; cost: string }>;
+
+const RELIC_BY_ENDING = Object.fromEntries(ENDING_CONTENT.map((ending) => [
+  ending.id,
+  ending.unlockRelicId,
+])) as Record<EndingId, RelicId>;
 
 const MODULE_MARKS: Record<ModuleId, string> = {
   heart_engine: 'HE',
@@ -82,7 +83,7 @@ declare global {
     __LODE_CHOIR__?: {
       getState: () => GameState | null;
       command: (command: Command) => void;
-      newRun: (seed: string) => void;
+      newRun: (seed: string, relicId?: RelicId) => void;
     };
   }
 }
@@ -113,12 +114,13 @@ function ToneMark({ active = false }: { active?: boolean }) {
   );
 }
 
-function ResourceRail({ state }: { state: GameState }) {
+function ResourceRail({ view }: { view: GameView }) {
+  const state = view.state;
   const items = [
     ['PRO', state.resources.provisions],
     ['ALY', state.resources.alloy],
     ['LUM', state.resources.lumen],
-    ['HULL', `${state.integrity}/12`],
+    ['HULL', `${state.integrity}/${view.maxIntegrity}`],
     ['NOTE', `${state.heartNotes}/3`],
   ];
   return (
@@ -423,12 +425,29 @@ function Chronicle({ legacy, onBack }: { legacy: LegacyState; onBack: () => void
           <article className={legacy.endings.includes(id) ? 'is-found' : ''} key={id}>
             <span>{legacy.endings.includes(id) ? 'RECORDED' : 'UNKNOWN'}</span>
             <strong>{legacy.endings.includes(id) ? ENDINGS[id].title : '•••••• ••• ••••'}</strong>
-            <small>{legacy.endings.includes(id) ? `Relic: ${RELIC_BY_ENDING[id]}` : 'Reach the Heart-Lode to reveal.'}</small>
+            <small>{legacy.endings.includes(id) ? `Relic: ${RELICS.find((relic) => relic.id === RELIC_BY_ENDING[id])!.name}` : 'Reach the Heart-Lode to reveal.'}</small>
           </article>
         ))}
       </div>
+      <h2>Recovered heirlooms</h2>
+      <div className="loadout-grid chronicle-relics">
+        {RELICS.map((relic) => {
+          const found = legacy.relics.includes(relic.id);
+          return (
+            <article className={`relic-card ${found ? 'is-selected' : 'is-locked'}`} key={relic.id}>
+              <span>{found ? 'AVAILABLE' : 'UNRECOVERED'}</span>
+              <strong>{found ? relic.name : 'Unknown heirloom'}</strong>
+              <p>{found ? relic.description : 'Another answer waits at the Heart-Lode.'}</p>
+              <small>{found ? relic.startingEffect : 'Effect unavailable.'}</small>
+            </article>
+          );
+        })}
+      </div>
       <h2>Lore fragments</h2>
-      {legacy.lore.length ? <ul className="lore-list">{legacy.lore.map((lore) => <li key={lore}>{lore}</li>)}</ul> : <p className="empty-message">The archive is quiet. Descend to recover its first memory.</p>}
+      {legacy.lore.length ? <ul className="lore-list">{legacy.lore.map((loreId) => {
+        const lore = LORE.find((candidate) => candidate.id === loreId);
+        return lore ? <li key={lore.id}><strong>{lore.title}</strong><span>{lore.text}</span></li> : null;
+      })}</ul> : <p className="empty-message">The archive is quiet. Descend to recover its first memory.</p>}
     </MenuPage>
   );
 }
@@ -463,6 +482,15 @@ function SettingsPage({ settings, onChange, onBack }: { settings: Settings; onCh
   );
 }
 
+function loadLegacy(value: string | null): LegacyState {
+  if (!value) return createLegacyState();
+  try {
+    return deserializeLegacy(value);
+  } catch {
+    return createLegacyState();
+  }
+}
+
 function ManualPage({ onBack }: { onBack: () => void }) {
   return (
     <MenuPage eyebrow="ORISON // FIELD MANUAL" title="How to descend" onBack={onBack}>
@@ -473,7 +501,41 @@ function ManualPage({ onBack }: { onBack: () => void }) {
         <article><span>04 // DESCENT</span><h2>Carry the cost</h2><p>Every route consumes a ration. High strain creates a lasting scar and removes that person from the following shift. Vows and story choices build loyalty.</p></article>
         <article><span>05 // CITADEL</span><h2>Wake chambers</h2><p>After shifts two and four, spend alloy to build or improve Orison—or conserve it. New chamber placement changes future adjacency and assignment choices.</p></article>
         <article><span>06 // HEART-LODE</span><h2>Find three Notes</h2><p>Reach shift seven with three Heart Notes and a living citadel. Then choose what the crew does with the moon-song; each answer leaves a different legacy.</p></article>
+        <article><span>07 // CHRONICLE</span><h2>Carry one relic</h2><p>Each distinct answer at the Heart-Lode unlocks an heirloom. A later expedition may carry one relic—or none—and its starting cost as part of the seed.</p></article>
       </div>
+    </MenuPage>
+  );
+}
+
+function LoadoutPage({ seed, unlocked, selected, onSelect, onBegin, onBack }: {
+  seed: string;
+  unlocked: readonly RelicId[];
+  selected: RelicId | null;
+  onSelect: (relicId: RelicId | null) => void;
+  onBegin: () => void;
+  onBack: () => void;
+}) {
+  return (
+    <MenuPage eyebrow="CHRONICLE // EXPEDITION LOADOUT" title="Choose what returns" onBack={onBack}>
+      <p className="loadout-intro">One heirloom may cross the threshold. Every gift arrives with a cost; carrying nothing remains a valid choice.</p>
+      <div className="loadout-grid" role="radiogroup" aria-label="Starting relic">
+        <label className={`relic-card none-card ${selected === null ? 'is-selected' : ''}`}>
+          <input type="radio" name="relic" checked={selected === null} onChange={() => onSelect(null)} />
+          <span>UNBURDENED</span><strong>No relic</strong><p>Begin with Orison’s standard stores, hull, and crew condition.</p><small>No inherited advantage or cost.</small>
+        </label>
+        {RELICS.map((relic) => {
+          const unlockedRelic = unlocked.includes(relic.id);
+          return (
+            <label className={`relic-card ${selected === relic.id ? 'is-selected' : ''} ${unlockedRelic ? '' : 'is-locked'}`} key={relic.id}>
+              <input type="radio" name="relic" value={relic.id} checked={selected === relic.id} disabled={!unlockedRelic} onChange={() => onSelect(relic.id)} />
+              <span>{unlockedRelic ? 'RECOVERED' : 'LOCKED'}</span><strong>{unlockedRelic ? relic.name : 'Unknown heirloom'}</strong>
+              <p>{unlockedRelic ? relic.description : 'Resolve another chord at the Heart-Lode to reveal this relic.'}</p>
+              <small>{unlockedRelic ? relic.startingEffect : 'Effect unavailable.'}</small>
+            </label>
+          );
+        })}
+      </div>
+      <div className="loadout-footer"><span>SEED // {seed}</span><button className="primary-action" type="button" onClick={onBegin} data-testid="begin-descent"><span>Commit this inheritance</span><b>BEGIN DESCENT</b></button></div>
     </MenuPage>
   );
 }
@@ -527,7 +589,7 @@ function TitleScreen({ seed, hasSave, notice, onSeed, onNew, onContinue, onNavig
           <button type="button" onClick={() => onNavigate('credits')}>Credits</button>
         </nav>
       </section>
-      <span className="build-stamp">ORISON BUILD // 0.1</span>
+      <span className="build-stamp">ORISON BUILD // 0.2</span>
     </main>
   );
 }
@@ -539,8 +601,9 @@ export function GameApp() {
   const [view, setView] = useState<GameView | null>(null);
   const [selectedCrew, setSelectedCrew] = useState<CrewId | null>(null);
   const [selectedBuildSlot, setSelectedBuildSlot] = useState<number | null>(null);
+  const [selectedRelic, setSelectedRelic] = useState<RelicId | null>(null);
   const [settings, setSettings] = useState<Settings>(DEFAULT_SETTINGS);
-  const [legacy, setLegacy] = useState<LegacyState>(DEFAULT_LEGACY);
+  const [legacy, setLegacy] = useState<LegacyState>(() => createLegacyState());
   const [hasSave, setHasSave] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
   const [feedback, setFeedback] = useState<EngineEvent[]>([]);
@@ -553,13 +616,19 @@ export function GameApp() {
     const loadedSettings = safeParse(localStorage.getItem(SETTINGS_KEY), DEFAULT_SETTINGS);
     setSettings(loadedSettings);
     choirAudio.setEnabled(!loadedSettings.muted);
-    setLegacy(safeParse(localStorage.getItem(LEGACY_KEY), DEFAULT_LEGACY));
+    const loadedLegacy = loadLegacy(localStorage.getItem(LEGACY_KEY));
+    setLegacy(loadedLegacy);
+    localStorage.setItem(LEGACY_KEY, serializeLegacy(loadedLegacy));
   }, []);
 
   useEffect(() => {
     choirAudio.setEnabled(!settings.muted);
     localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
   }, [settings]);
+
+  useEffect(() => {
+    if (selectedRelic && !legacy.relics.includes(selectedRelic)) setSelectedRelic(null);
+  }, [legacy, selectedRelic]);
 
   useEffect(() => {
     stateRef.current = view?.state as GameState | null;
@@ -575,30 +644,23 @@ export function GameApp() {
     const completionKey = `${view.state.seed}:${view.state.ending ?? 'lost'}`;
     if (recordedCompletion.current === completionKey) return;
     recordedCompletion.current = completionKey;
-    const ending = view.state.ending;
-    const next: LegacyState = {
-      ...legacy,
-      runsCompleted: legacy.runsCompleted + 1,
-      echoShards: legacy.echoShards + Math.max(1, view.state.heartNotes),
-      endings: ending && !legacy.endings.includes(ending) ? [...legacy.endings, ending] : legacy.endings,
-      lore: [...new Set([...legacy.lore, ...view.state.storyFlags])],
-      relics: ending && !legacy.relics.includes(RELIC_BY_ENDING[ending]) ? [...legacy.relics, RELIC_BY_ENDING[ending]] : legacy.relics,
-    };
+    const next = recordLegacyRun(legacy, view.state as GameState);
     setLegacy(next);
-    localStorage.setItem(LEGACY_KEY, JSON.stringify(next));
+    localStorage.setItem(LEGACY_KEY, serializeLegacy(next));
   }, [view]); // The completion guard deliberately keeps this tied to state transitions.
 
-  const startRun = useCallback((runSeed = seed) => {
-    const state = createRun({ seed: runSeed });
+  const startRun = useCallback((runSeed = seed, relicId: RelicId | null = selectedRelic) => {
+    const state = createRun({ seed: runSeed, ...(relicId ? { relicId } : {}) });
     setSeed(runSeed);
     setView(selectGameView(state));
     setSelectedCrew(null);
     setSelectedBuildSlot(null);
     setFeedback([]);
     setNotice(null);
+    recordedCompletion.current = null;
     setSurface('game');
     void choirAudio.wake();
-  }, [seed]);
+  }, [seed, selectedRelic]);
 
   useEffect(() => {
     if (feedback.length === 0) return;
@@ -650,9 +712,15 @@ export function GameApp() {
   }, [view]);
   const openMenuPage = (next: Surface) => { setReturnSurface(surface); setSurface(next); };
   const goBack = () => setSurface(returnSurface === 'game' && !view ? 'title' : returnSurface);
+  const prepareLoadout = (runSeed = seed) => {
+    setSeed(runSeed);
+    setReturnSurface(surface);
+    setSurface('loadout');
+  };
 
   const shellClasses = ['app-root', settings.highContrast ? 'high-contrast' : '', settings.reducedMotion ? 'reduced-motion' : ''].filter(Boolean).join(' ');
-  if (surface === 'title') return <div className={shellClasses}><TitleScreen seed={seed} hasSave={hasSave} notice={notice} onSeed={setSeed} onNew={() => startRun()} onContinue={continueRun} onNavigate={openMenuPage} /></div>;
+  if (surface === 'title') return <div className={shellClasses}><TitleScreen seed={seed} hasSave={hasSave} notice={notice} onSeed={setSeed} onNew={() => prepareLoadout()} onContinue={continueRun} onNavigate={openMenuPage} /></div>;
+  if (surface === 'loadout') return <div className={shellClasses}><LoadoutPage seed={seed} unlocked={legacy.relics} selected={selectedRelic} onSelect={setSelectedRelic} onBegin={() => startRun(seed, selectedRelic)} onBack={goBack} /></div>;
   if (surface === 'manual') return <div className={shellClasses}><ManualPage onBack={goBack} /></div>;
   if (surface === 'chronicle') return <div className={shellClasses}><Chronicle legacy={legacy} onBack={goBack} /></div>;
   if (surface === 'settings') return <div className={shellClasses}><SettingsPage settings={settings} onChange={setSettings} onBack={goBack} /></div>;
@@ -670,7 +738,7 @@ export function GameApp() {
         <button type="button" className="brand-button" onClick={() => { setReturnSurface('game'); setSurface('title'); }} aria-label="Return to title menu">
           <span className="brand-glyph">LC</span><span><b>LODE CHOIR</b><small>{view.state.seed}</small></span>
         </button>
-        <ResourceRail state={view.state as GameState} />
+        <ResourceRail view={view} />
         <div className="header-actions">
           <button type="button" onClick={() => openMenuPage('settings')} aria-label="Open settings">⚙</button>
           <button type="button" onClick={() => setSurface('title')}>MENU</button>
@@ -686,7 +754,7 @@ export function GameApp() {
           {view.state.phase === 'event' && <EventPanel view={view} onChoose={(choiceIndex) => dispatch({ type: 'choose_event', choiceIndex })} />}
           {view.state.phase === 'development' && <DevelopmentPanel view={view} slot={selectedBuildSlot} onSlot={setSelectedBuildSlot} onBuild={(moduleId, slot) => dispatch({ type: 'build_module', moduleId, slot })} onUpgrade={(slot) => dispatch({ type: 'upgrade_module', slot })} onSkip={() => dispatch({ type: 'skip_development' })} />}
           {view.state.phase === 'finale' && <FinalePanel view={view} onChoose={(endingId) => dispatch({ type: 'choose_ending', endingId })} />}
-          {view.state.phase === 'complete' && <CompletionPanel view={view} onNewRun={() => startRun(makeSeed())} onChronicle={() => openMenuPage('chronicle')} />}
+          {view.state.phase === 'complete' && <CompletionPanel view={view} onNewRun={() => prepareLoadout(makeSeed())} onChronicle={() => openMenuPage('chronicle')} />}
         </aside>
         <section className="crew-roster" aria-labelledby="crew-title">
           <div className="roster-heading"><span className="kicker">CREW // FOUR VOICES</span><h2 id="crew-title">Whom do you risk?</h2></div>

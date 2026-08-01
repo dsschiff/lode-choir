@@ -5,6 +5,7 @@ export type RouteKind = 'vein' | 'ruin' | 'refuge' | 'rift';
 export type RunStatus = 'playing' | 'won' | 'lost';
 export type RunPhase = 'planning' | 'event' | 'development' | 'finale' | 'complete';
 export type EndingId = 'harvest' | 'harmonize' | 'seal';
+export type RelicId = 'heart_splinter' | 'vesper_tuning_fork' | 'oathkeepers_latch';
 
 export interface CrewDefinition {
   id: CrewId;
@@ -91,8 +92,9 @@ export interface LogEntry {
 }
 
 export interface GameState {
-  version: 2;
+  version: 3;
   seed: string;
+  startingRelic: RelicId | null;
   rngState: number;
   shift: number;
   phase: RunPhase;
@@ -117,22 +119,22 @@ export interface GameState {
 
 export interface CreateRunOptions {
   seed: string;
-  relicId?: string;
+  relicId?: RelicId;
 }
 
 export interface SerializedGameEnvelope {
   game: 'lode-choir';
-  version: 2;
+  version: 3;
   state: GameState;
 }
 
 export interface LegacyState {
-  version: 1;
+  version: 2;
   runsCompleted: number;
   echoShards: number;
   endings: EndingId[];
   lore: string[];
-  relics: string[];
+  relics: RelicId[];
 }
 
 export type Command =
@@ -166,6 +168,7 @@ export interface GameView {
   routes: ReadonlyArray<RouteOffer & { definition: RouteDefinition }>;
   activeStoryEvent: StoryEventDefinition | null;
   canResolveShift: boolean;
+  maxIntegrity: number;
   objective: string;
 }
 

@@ -18,6 +18,9 @@ Observe without coaching:
 - **Crew-first:** prioritize vows, loyalty, and preventing scars.
 - **Exploit-seeking:** repeat the apparently strongest action and look for free loops,
   ignored resources, non-decisions, and save/reload manipulation.
+- **Inheritance comparison:** replay the same seed unburdened and with each unlocked
+  relic. Record whether the relic changes a real decision, whether its cost is felt,
+  and whether carrying nothing still feels legitimate.
 
 At least two strategies should win across a seed sample. The strongest strategy may be
 clear, but it must pay a visible cost and cannot make route choice irrelevant.
@@ -40,3 +43,5 @@ Any score below 4 produces a concrete fix before visual content expansion.
 
 Keep the final seed and command trace for representative win and loss runs, simulation
 summary, screenshots of title/planning/event/finale, and browser-console results.
+For a completed Chronicle, also capture the loadout screen and one resumed relic run so
+the persistent loop is evidenced rather than inferred.

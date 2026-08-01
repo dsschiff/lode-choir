@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test';
+import { expect, test, type Page } from '@playwright/test';
 import AxeBuilder from '@axe-core/playwright';
 
 test.beforeEach(async ({ page }) => {
@@ -27,14 +27,14 @@ test('title menu exposes seed, archive, settings, and credits', async ({ page })
 });
 
 test('new run reaches the first consequential choice immediately', async ({ page }) => {
-  await page.getByTestId('new-run').click();
+  await beginRun(page);
   await expect(page.getByTestId('citadel-grid')).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Choose a descent' })).toBeVisible();
   await expect(page.locator('[data-testid^="route-"]')).toHaveCount(3);
 });
 
 test('tap assignment, route selection, and shift resolution work on phone', async ({ page }) => {
-  await page.getByTestId('new-run').click();
+  await beginRun(page);
   await page.getByTestId('route-0').click();
 
   const availableRooms = page.locator('[data-testid^="room-"]:not(.empty-room)');
@@ -52,7 +52,7 @@ test('tap assignment, route selection, and shift resolution work on phone', asyn
 });
 
 test('autosave can resume and corrupted saves fail safely', async ({ page }) => {
-  await page.getByTestId('new-run').click();
+  await beginRun(page);
   await expect.poll(() => page.evaluate(() => localStorage.getItem('lode_choir_autosave_v1'))).not.toBeNull();
   await page.getByRole('button', { name: 'Return to title menu' }).click();
   await expect(page.getByTestId('continue-run')).toBeVisible();
@@ -67,12 +67,30 @@ test('autosave can resume and corrupted saves fail safely', async ({ page }) => 
   await expect(page.getByTestId('continue-run')).toHaveCount(0);
 });
 
-test('development, finale, and completion surfaces are available to deterministic test hooks', async ({ page }) => {
-  await page.getByTestId('new-run').click();
-  const hookReady = await page.evaluate(() => Boolean(window.__LODE_CHOIR__?.getState()));
-  expect(hookReady).toBe(true);
-  await expect(page.locator('.resource-rail')).toBeVisible();
+test('deterministic hook can resolve a finale and begin the next inherited descent', async ({ page }) => {
+  await beginRun(page);
+  await page.evaluate(() => {
+    const state = window.__LODE_CHOIR__?.getState();
+    if (!state) throw new Error('Test hook unavailable.');
+    state.phase = 'finale';
+    state.shift = 7;
+    state.heartNotes = 3;
+    window.__LODE_CHOIR__?.command({ type: 'choose_ending', endingId: 'harmonize' });
+  });
+  await expect(page.getByTestId('completion-panel')).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Join the Choir' })).toBeVisible();
+  await page.getByRole('button', { name: 'Begin another descent' }).click();
+  await expect(page.getByRole('heading', { name: 'Choose what returns' })).toBeVisible();
+  await expect(page.getByRole('radio', { name: /Vesper Tuning Fork/i })).toBeEnabled();
 });
+
+async function beginRun(page: Page) {
+  await page.getByTestId('new-run').click();
+  await expect(page.getByRole('heading', { name: 'Choose what returns' })).toBeVisible();
+  await expect(page.locator('.relic-card.is-locked input')).toHaveCount(3);
+  await expect(page.locator('.relic-card.is-locked input:not(:disabled)')).toHaveCount(0);
+  await page.getByTestId('begin-descent').click();
+}
 
 test('title, manual, and planning surfaces have no detectable accessibility violations', async ({ page }) => {
   const titleScan = await new AxeBuilder({ page }).analyze();
@@ -84,6 +102,62 @@ test('title, manual, and planning surfaces have no detectable accessibility viol
   await page.getByRole('button', { name: /RETURN/ }).click();
 
   await page.getByTestId('new-run').click();
+  const loadoutScan = await new AxeBuilder({ page }).analyze();
+  expect(loadoutScan.violations, JSON.stringify(loadoutScan.violations, null, 2)).toEqual([]);
+  await page.getByTestId('begin-descent').click();
   const planningScan = await new AxeBuilder({ page }).analyze();
   expect(planningScan.violations, JSON.stringify(planningScan.violations, null, 2)).toEqual([]);
+});
+
+test('unlocked Chronicle relics apply canonical starting effects', async ({ page }) => {
+  await page.evaluate(() => localStorage.setItem('lode_choir_legacy_v1', JSON.stringify({
+    game: 'lode-choir-legacy',
+    version: 2,
+    legacy: {
+      version: 2,
+      runsCompleted: 3,
+      echoShards: 9,
+      endings: ['harvest', 'harmonize', 'seal'],
+      lore: ['orison_manifest'],
+      relics: ['heart_splinter', 'vesper_tuning_fork', 'oathkeepers_latch'],
+    },
+  })));
+  await page.reload();
+  await page.getByRole('button', { name: 'Chronicle' }).click();
+  await expect(page.getByText('Heart Splinter', { exact: true })).toBeVisible();
+  await expect(page.getByText('Orison Launch Manifest')).toBeVisible();
+  await page.getByRole('button', { name: /RETURN/ }).click();
+
+  const beginWith = async (name: string) => {
+    await page.getByTestId('new-run').click();
+    await page.getByRole('radio', { name: new RegExp(name, 'i') }).check();
+    await page.getByTestId('begin-descent').click();
+  };
+  const returnForAnother = async () => page.getByRole('button', { name: 'Return to title menu' }).click();
+
+  await beginWith('Heart Splinter');
+  let state = await page.evaluate(() => window.__LODE_CHOIR__?.getState());
+  expect(state?.startingRelic).toBe('heart_splinter');
+  expect(state?.resources.alloy).toBe(7);
+  expect(state?.crew.find((crew) => crew.id === 'tamsin')?.strain).toBe(1);
+
+  await returnForAnother();
+  await page.getByTestId('continue-run').click();
+  state = await page.evaluate(() => window.__LODE_CHOIR__?.getState());
+  expect(state?.startingRelic).toBe('heart_splinter');
+
+  await returnForAnother();
+  await beginWith('Vesper Tuning Fork');
+  state = await page.evaluate(() => window.__LODE_CHOIR__?.getState());
+  expect(state?.startingRelic).toBe('vesper_tuning_fork');
+  expect(state?.heartNotes).toBe(1);
+  expect(state?.resources.lumen).toBe(1);
+
+  await returnForAnother();
+  await beginWith("Oathkeeper's Latch");
+  state = await page.evaluate(() => window.__LODE_CHOIR__?.getState());
+  expect(state?.startingRelic).toBe('oathkeepers_latch');
+  expect(state?.integrity).toBe(14);
+  expect(state?.resources.alloy).toBe(4);
+  await expect(page.locator('.resource-rail')).toContainText('14/14');
 });
