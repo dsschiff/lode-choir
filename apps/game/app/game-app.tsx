@@ -261,6 +261,7 @@ function RoutePanel({ view, selectedCrew, onSelect, onLeader, onUnassignLeader, 
   const canAppoint = Boolean(selectedCrew && legalCommands(view.state as GameState).some(
     (command) => command.type === 'assign_route_leader' && command.crewId === selectedCrew,
   ));
+  const carriedRelic = view.state.startingRelic ? RELICS.find((relic) => relic.id === view.state.startingRelic) : null;
   return (
     <section className="route-panel" aria-labelledby="route-title">
       <div className="section-heading compact">
@@ -268,6 +269,7 @@ function RoutePanel({ view, selectedCrew, onSelect, onLeader, onUnassignLeader, 
         <span className="phase-tag">PLANNING</span>
       </div>
       <p className="objective">{view.objective}</p>
+      {carriedRelic && <details className="run-relic"><summary>RELIC // {carriedRelic.name}</summary><p>{carriedRelic.startingEffect}</p></details>}
       <div className="route-list">
         {view.routes.map((route, index) => {
           const selected = view.state.selectedRoute === route.instanceId;
@@ -289,6 +291,12 @@ function RoutePanel({ view, selectedCrew, onSelect, onLeader, onUnassignLeader, 
               </span>
               <span className="route-risk"><b>{route.definition.hazard}</b><small>RISK</small></span>
               <span className="route-reward">{route.definition.rewardText}</span>
+              <span className="route-forecast" aria-label="Projected expedition cost">
+                <small>FORECAST</small>
+                <b>HULL −{route.forecast.hullDamageMin}{route.forecast.hullDamageMax !== route.forecast.hullDamageMin ? `–${route.forecast.hullDamageMax}` : ''}</b>
+                <b>RATION −{route.forecast.provisionCost}</b>
+                <b>TEAM STR {route.forecast.netCrewStrain >= 0 ? '+' : '−'}{Math.abs(route.forecast.netCrewStrain)}</b>
+              </span>
             </button>
           );
         })}
@@ -398,11 +406,13 @@ function FinalePanel({ view, onChoose }: { view: GameView; onChoose: (ending: En
 
 function CompletionPanel({ view, onNewRun, onChronicle }: { view: GameView; onNewRun: () => void; onChronicle: () => void }) {
   const won = view.state.status === 'won';
+  const heading = useRef<HTMLHeadingElement>(null);
+  useEffect(() => { heading.current?.focus(); }, []);
   return (
     <section className={`completion-panel ${won ? 'is-victory' : 'is-loss'}`} data-testid="completion-panel">
       <span className="kicker">RUN // {won ? 'CONCORDANT' : 'SILENCED'}</span>
       <ToneMark active={won} />
-      <h2>{won ? ENDINGS[view.state.ending ?? 'harmonize'].title : 'Orison goes dark.'}</h2>
+      <h2 ref={heading} tabIndex={-1}>{won ? ENDINGS[view.state.ending ?? 'harmonize'].title : 'Orison goes dark.'}</h2>
       <p>{view.state.endingText ?? (won ? 'The expedition leaves a mark in the moon—and the moon leaves one in them.' : 'The deep keeps what the surface could not protect.')}</p>
       <div className="completion-stats">
         <span><b>{view.state.shift}</b> shifts</span><span><b>{view.state.heartNotes}</b> Heart Notes</span><span><b>{view.state.integrity}</b> integrity</span>
@@ -434,7 +444,7 @@ function Chronicle({ legacy, onBack }: { legacy: LegacyState; onBack: () => void
         {RELICS.map((relic) => {
           const found = legacy.relics.includes(relic.id);
           return (
-            <article className={`relic-card ${found ? 'is-selected' : 'is-locked'}`} key={relic.id}>
+            <article className={`relic-card is-readonly ${found ? 'is-found' : 'is-locked'}`} key={relic.id}>
               <span>{found ? 'AVAILABLE' : 'UNRECOVERED'}</span>
               <strong>{found ? relic.name : 'Unknown heirloom'}</strong>
               <p>{found ? relic.description : 'Another answer waits at the Heart-Lode.'}</p>
@@ -489,6 +499,10 @@ function loadLegacy(value: string | null): LegacyState {
   } catch {
     return createLegacyState();
   }
+}
+
+function resetDocumentScroll(): void {
+  window.requestAnimationFrame(() => window.scrollTo(0, 0));
 }
 
 function ManualPage({ onBack }: { onBack: () => void }) {
@@ -659,6 +673,7 @@ export function GameApp() {
     setNotice(null);
     recordedCompletion.current = null;
     setSurface('game');
+    resetDocumentScroll();
     void choirAudio.wake();
   }, [seed, selectedRelic]);
 
@@ -676,6 +691,7 @@ export function GameApp() {
       setView(selectGameView(state));
       setSurface('game');
       setNotice(null);
+      resetDocumentScroll();
       void choirAudio.wake();
     } catch {
       localStorage.removeItem(AUTOSAVE_KEY);
@@ -690,7 +706,7 @@ export function GameApp() {
     try {
       const result = applyCommand(current, command);
       setView(selectGameView(result.state));
-      setFeedback(result.events.slice(-3));
+      setFeedback(result.events.filter((event) => event.kind !== 'ending').slice(-3));
       result.events.slice(-2).forEach((event) => choirAudio.play(event));
       if (command.type === 'assign_crew' || command.type === 'assign_route_leader' || command.type === 'unassign_crew') setSelectedCrew(null);
       if (command.type === 'build_module') setSelectedBuildSlot(null);
@@ -710,12 +726,13 @@ export function GameApp() {
     if (view?.state.routeLeader) assigned.add(view.state.routeLeader);
     return assigned;
   }, [view]);
-  const openMenuPage = (next: Surface) => { setReturnSurface(surface); setSurface(next); };
+  const openMenuPage = (next: Surface) => { setReturnSurface(surface); setSurface(next); resetDocumentScroll(); };
   const goBack = () => setSurface(returnSurface === 'game' && !view ? 'title' : returnSurface);
   const prepareLoadout = (runSeed = seed) => {
     setSeed(runSeed);
     setReturnSurface(surface);
     setSurface('loadout');
+    resetDocumentScroll();
   };
 
   const shellClasses = ['app-root', settings.highContrast ? 'high-contrast' : '', settings.reducedMotion ? 'reduced-motion' : ''].filter(Boolean).join(' ');

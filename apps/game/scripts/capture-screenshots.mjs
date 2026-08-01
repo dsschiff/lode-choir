@@ -59,6 +59,7 @@ async function capture(browser, name, viewport, mobile = false) {
   }
   await page.getByTestId('crew-sable').click();
   await page.getByRole('button', { name: 'APPOINT' }).click();
+  await page.evaluate(() => window.scrollTo(0, 0));
   await page.screenshot({ path: resolve(outputRoot, `planning-${name}.jpg`), fullPage: true, type: 'jpeg', quality: 84 });
   await page.close();
 }

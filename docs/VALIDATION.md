@@ -44,14 +44,16 @@ starting strain.
 - 14 Playwright checks pass in Pixel 5 and desktop Chromium projects. They cover title
   navigation, settings, first choice, touch assignment, optional leadership, resolution,
   loadout locking and keyboard selection, all three relic effects, relic resume,
-  autosave/resume, corrupt-save recovery, later phase surfaces, and test hooks.
+  exact route-cost forecasts, autosave/resume, corrupt-save recovery, later phase
+  surfaces, and test hooks.
 - Axe scans report no detectable violations on the title, manual, loadout, or planning
   screens in either browser project.
 - Production static export passes. The bounded E2E runner builds, serves, tests, closes
   its exact child server, and returns in roughly 19 seconds on this host.
 - Visual inspection at 1440x960 and 390x844 confirmed title composition, portrait crops,
-  touch targets, resource rail, citadel grid, route hierarchy, leader preview, and long
-  mobile scrolling with no horizontal overflow.
+  touch targets, sticky resource rail, citadel grid, engine-derived route forecasts,
+  leader preview, mobile action-before-roster order, and long scrolling with no
+  horizontal overflow.
 
 ## Asset and dependency checks
 

@@ -23,6 +23,7 @@ import type {
   ResourceId,
   RelicId,
   RouteDefinition,
+  RouteForecast,
   RouteOffer,
   SerializedGameEnvelope,
   StoryEventDefinition,
@@ -208,6 +209,16 @@ function crewAssigned(state: GameState, crewId: CrewId): boolean {
   return state.routeLeader === crewId || state.modules.some((module) => module.assignedCrew === crewId);
 }
 
+function refreshRevelations(state: GameState): void {
+  for (const offer of state.routeOffers) offer.revealed = false;
+  const sableInResonance = state.modules.some((module) => module.id === 'resonance_chamber' && module.assignedCrew === 'sable');
+  if (sableInResonance) for (const offer of state.routeOffers) offer.revealed = true;
+  if (state.routeLeader === 'sable' && state.selectedRoute) {
+    const selected = state.routeOffers.find((offer) => offer.instanceId === state.selectedRoute);
+    if (selected) selected.revealed = true;
+  }
+}
+
 function developmentCommands(state: GameState): Command[] {
   const commands: Command[] = [];
   const occupied = new Set(state.modules.map((module) => module.slot));
@@ -335,6 +346,13 @@ interface RoomResolution {
   repair: number;
 }
 
+function roomStrength(state: GameState, module: ModuleState, crewId: CrewId): number {
+  const crew = state.crew.find((candidate) => candidate.id === crewId)!;
+  const heartAdjacency = module.id !== 'heart_engine' && hasAdjacentModule(state, module, 'heart_engine') ? 1 : 0;
+  const orinBonus = crewId === 'orin' && crew.signatureUnlocked ? 1 : 0;
+  return module.level + heartAdjacency + orinBonus;
+}
+
 function resolveRooms(state: GameState, events: EngineEvent[]): RoomResolution {
   let ward = 0;
   let repair = 0;
@@ -342,9 +360,7 @@ function resolveRooms(state: GameState, events: EngineEvent[]): RoomResolution {
     const crewId = module.assignedCrew;
     if (!crewId) continue;
     const crew = state.crew.find((candidate) => candidate.id === crewId)!;
-    const heartAdjacency = module.id !== 'heart_engine' && hasAdjacentModule(state, module, 'heart_engine') ? 1 : 0;
-    const orinBonus = crewId === 'orin' && crew.signatureUnlocked ? 1 : 0;
-    const strength = module.level + heartAdjacency + orinBonus;
+    const strength = roomStrength(state, module, crewId);
     if (module.id === 'heart_engine') {
       addResource(state, 'provisions', strength);
       if (crewId === 'orin') repair += 1;
@@ -389,24 +405,101 @@ function resolveRooms(state: GameState, events: EngineEvent[]): RoomResolution {
   return { ward, repair };
 }
 
-function resolveRoute(state: GameState, room: RoomResolution, events: EngineEvent[]): void {
+interface RouteResolution {
+  damage: number;
+  provisionCost: number;
+}
+
+function projectedWard(state: GameState): number {
+  return state.modules.reduce((total, module) => {
+    if (module.id !== 'ward_array' || !module.assignedCrew) return total;
+    return total + roomStrength(state, module, module.assignedCrew);
+  }, 0);
+}
+
+function projectedRepair(state: GameState): number {
+  let repair = 0;
+  let alloy = state.resources.alloy;
+  for (const module of state.modules) {
+    const crewId = module.assignedCrew;
+    if (!crewId) continue;
+    const crew = state.crew.find((candidate) => candidate.id === crewId)!;
+    const strength = roomStrength(state, module, crewId);
+    if (module.id === 'heart_engine' && crewId === 'orin') repair += 1;
+    if (module.id === 'deep_drill') {
+      const penalty = crewId === 'orin' ? 1 : 0;
+      const bonus = crewId === 'tamsin' ? (crew.signatureUnlocked ? 2 : 1) : 0;
+      alloy += Math.max(1, strength * 2 - penalty + bonus);
+    }
+    if (module.id === 'ward_array') repair += Math.ceil(module.level / 2) + (crewId === 'orin' ? 1 : 0);
+    if (module.id === 'foundry' && alloy > 0) {
+      alloy -= 1;
+      repair += strength + (hasAdjacentModule(state, module, 'deep_drill') ? 1 : 0);
+    }
+  }
+  return repair;
+}
+
+function projectedDamage(state: GameState, offer: RouteOffer, leader: CrewId | null, revealed: boolean): number {
+  const route = routeDefinition(offer.routeId);
+  const maraInWard = state.modules.some((module) => module.id === 'ward_array' && module.assignedCrew === 'mara');
+  const mara = state.crew.find((candidate) => candidate.id === 'mara')!;
+  const maraProtection = maraInWard ? (mara.signatureUnlocked ? 2 : 1) : 0;
+  const leaderProtection = leader === 'mara' ? 1 : 0;
+  const hiddenHazard = offer.hiddenComplication && !revealed ? 1 : 0;
+  return Math.max(0, route.hazard + hiddenHazard - projectedWard(state) - maraProtection - leaderProtection);
+}
+
+function projectedNetStrain(state: GameState, offer: RouteOffer, leader: CrewId | null, revealed: boolean): number {
+  const route = routeDefinition(offer.routeId);
+  const strain = new Map(state.crew.map((crew) => [crew.id, crew.strain]));
+  const adjust = (crewId: CrewId, amount: number) => strain.set(crewId, Math.max(0, Math.min(MAX_STRAIN, strain.get(crewId)! + amount)));
+  for (const module of state.modules) {
+    const crewId = module.assignedCrew;
+    if (!crewId) continue;
+    const strength = roomStrength(state, module, crewId);
+    if (module.id === 'heart_engine' && crewId !== 'sable') adjust(crewId, -1);
+    if (module.id === 'deep_drill') adjust(crewId, 1);
+    if (module.id === 'infirmary') for (const crew of state.crew) adjust(crew.id, -strength);
+  }
+  const baseRouteStrain = route.hazard >= 4 ? 2 : route.hazard >= 2 ? 1 : 0;
+  for (const module of state.modules) {
+    if (!module.assignedCrew) continue;
+    const crew = state.crew.find((candidate) => candidate.id === module.assignedCrew)!;
+    const tamsinPenalty = crew.id === 'tamsin' && route.hazard >= 3 ? 1 : 0;
+    adjust(crew.id, baseRouteStrain + (crew.scar ? 1 : 0) + tamsinPenalty);
+  }
+  if (leader === 'orin') {
+    for (const module of state.modules) if (module.assignedCrew) adjust(module.assignedCrew, -1);
+  }
+  if (leader) {
+    const crew = state.crew.find((candidate) => candidate.id === leader)!;
+    const tamsinPenalty = leader === 'tamsin' && route.hazard >= 3 ? 1 : 0;
+    adjust(leader, 1 + baseRouteStrain + (crew.scar ? 1 : 0) + tamsinPenalty);
+  }
+  const working = new Set(state.modules.map((module) => module.assignedCrew));
+  if (leader) working.add(leader);
+  for (const crew of state.crew) if (!working.has(crew.id) && crewAvailable(state, crew.id)) adjust(crew.id, -2);
+  if (route.kind !== 'refuge' && state.routeOffers.some((candidate) => routeDefinition(candidate.routeId).kind === 'refuge')) adjust('mara', 1);
+  const projectedIntegrity = Math.min(maximumIntegrity(state), state.integrity + projectedRepair(state))
+    - projectedDamage(state, offer, leader, revealed);
+  if (projectedIntegrity < maximumIntegrity(state) / 2) adjust('orin', 1);
+  const before = state.crew.reduce((total, crew) => total + crew.strain, 0);
+  const after = [...strain.values()].reduce((total, value) => total + value, 0);
+  return after - before;
+}
+
+function resolveRoute(state: GameState, room: RoomResolution, events: EngineEvent[]): RouteResolution {
   const offer = state.routeOffers.find((candidate) => candidate.instanceId === state.selectedRoute)!;
   const route = routeDefinition(offer.routeId);
   const leader = state.routeLeader;
-  if (leader === 'sable') offer.revealed = true;
   for (const [id, amount] of Object.entries(route.baseRewards) as [ResourceId, number][]) addResource(state, id, amount);
   let noteProgress = route.noteProgress;
   const sable = state.crew.find((candidate) => candidate.id === 'sable')!;
   if (sable.signatureUnlocked && offer.revealed && route.kind === 'rift') noteProgress += 1;
   state.heartNotes = Math.min(3, state.heartNotes + noteProgress);
 
-  const maraInWard = state.modules.some((module) => module.id === 'ward_array' && module.assignedCrew === 'mara');
-  const mara = state.crew.find((candidate) => candidate.id === 'mara')!;
-  const maraProtection = maraInWard ? (mara.signatureUnlocked ? 2 : 1) : 0;
-  const leaderProtection = leader === 'mara' ? 1 : 0;
-  const mitigation = room.ward + maraProtection + leaderProtection;
-  const hiddenHazard = offer.hiddenComplication && !offer.revealed ? 1 : 0;
-  const damage = Math.max(0, route.hazard + hiddenHazard - mitigation);
+  const damage = projectedDamage(state, offer, leader, offer.revealed);
   state.integrity = Math.max(0, state.integrity - damage);
   if (leader === 'mara') emit(state, events, 'crew', 'Mara leads from the forward bell and turns one layer of danger aside.', 'positive');
   if (leader === 'tamsin') {
@@ -461,6 +554,22 @@ function resolveRoute(state: GameState, room: RoomResolution, events: EngineEven
   appendLog(state, 'route', `${route.title}: ${route.rewardText}${damage > 0 ? ` The citadel loses ${damage} integrity.` : ' The wards hold.'}`);
   emit(state, events, 'route', `${route.title} yields its secret.`, noteProgress > 0 ? 'mystic' : 'positive');
   if (damage > 0) emit(state, events, 'damage', `The citadel loses ${damage} integrity.`, 'negative');
+  return { damage, provisionCost: leader ? 2 : 1 };
+}
+
+function forecastRoute(state: GameState, offer: RouteOffer): RouteForecast {
+  const leader = state.selectedRoute === offer.instanceId ? state.routeLeader : null;
+  const certainlyRevealed = offer.revealed || (state.selectedRoute === offer.instanceId && state.routeLeader === 'sable');
+  const knownDamage = projectedDamage(state, offer, leader, true);
+  const hiddenDamage = offer.hiddenComplication && !certainlyRevealed
+    ? projectedDamage(state, offer, leader, false)
+    : knownDamage;
+  return {
+    hullDamageMin: Math.min(knownDamage, hiddenDamage),
+    hullDamageMax: Math.max(knownDamage, hiddenDamage),
+    provisionCost: leader ? 2 : 1,
+    netCrewStrain: projectedNetStrain(state, offer, leader, certainlyRevealed || !offer.hiddenComplication),
+  };
 }
 
 function allCrewIncapacitated(state: GameState): boolean {
@@ -617,23 +726,14 @@ export function applyCommand(input: GameState, command: Command): TransitionResu
     state.selectedRoute = command.instanceId;
     const route = routeDefinition(state.routeOffers.find((offer) => offer.instanceId === command.instanceId)!.routeId);
     appendLog(state, 'route', `Course set for ${route.title}.`);
-    if (state.routeLeader === 'sable') {
-      state.routeOffers.find((offer) => offer.instanceId === command.instanceId)!.revealed = true;
-    }
   } else if (command.type === 'assign_crew') {
     state.routeLeader = null;
     for (const module of state.modules) if (module.assignedCrew === command.crewId) module.assignedCrew = null;
     const target = state.modules.find((module) => module.slot === command.slot)!;
     target.assignedCrew = command.crewId;
-    if (command.crewId === 'sable' && target.id === 'resonance_chamber') {
-      for (const offer of state.routeOffers) offer.revealed = true;
-    }
   } else if (command.type === 'assign_route_leader') {
     for (const module of state.modules) if (module.assignedCrew === command.crewId) module.assignedCrew = null;
     state.routeLeader = command.crewId;
-    if (command.crewId === 'sable' && state.selectedRoute) {
-      state.routeOffers.find((offer) => offer.instanceId === state.selectedRoute)!.revealed = true;
-    }
   } else if (command.type === 'unassign_crew') {
     if (state.routeLeader === command.crewId) state.routeLeader = null;
     else {
@@ -685,10 +785,12 @@ export function applyCommand(input: GameState, command: Command): TransitionResu
     state.endingText = endingText(state, command.endingId);
     state.status = 'won';
     state.phase = 'complete';
-    appendLog(state, 'story', state.endingText);
+    const ending = ENDING_CONTENT.find((candidate) => candidate.id === command.endingId);
+    appendLog(state, 'story', `The expedition resolves: ${ending?.title ?? command.endingId}.`);
     emit(state, events, 'ending', state.endingText, 'mystic');
   }
 
+  refreshRevelations(state);
   state.commandTrace.push(structuredClone(command));
   return { state, events };
 }
@@ -698,7 +800,11 @@ export function selectGameView(state: GameState): GameView {
     state,
     crew: state.crew.map((crew) => ({ ...effectiveCrew().find((definition) => definition.id === crew.id)!, ...crew })),
     modules: state.modules.map((module) => ({ ...moduleDefinition(module.id), ...module })),
-    routes: state.routeOffers.map((offer) => ({ ...offer, definition: routeDefinition(offer.routeId) })),
+    routes: state.routeOffers.map((offer) => ({
+      ...offer,
+      definition: routeDefinition(offer.routeId),
+      forecast: forecastRoute(state, offer),
+    })),
     activeStoryEvent: state.activeEvent ? storyEventDefinition(state.activeEvent) : null,
     canResolveShift: state.phase === 'planning' && Boolean(state.selectedRoute) && assignedCount(state) === requiredAssignments(state),
     maxIntegrity: maximumIntegrity(state),
@@ -771,6 +877,10 @@ export function deserialize(serialized: string): GameState {
       const canonical = canonicalRelicId(flag.slice(6));
       return canonical ? [`relic:${canonical}`] : [];
     });
+  }
+  if (candidate && typeof candidate === 'object') {
+    const record = candidate as Partial<GameState>;
+    if (Array.isArray(record.routeOffers) && Array.isArray(record.modules)) refreshRevelations(candidate as GameState);
   }
   assertGameState(candidate);
   return cloneState(candidate);

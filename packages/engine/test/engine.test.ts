@@ -34,6 +34,12 @@ test('createRun is deterministic and seeds three distinct route offers', () => {
   assert.equal(new Set(left.routeOffers.map((offer) => offer.routeId)).size, 3);
   assert.equal(left.modules.length, 3);
   assert.equal(left.crew.length, 4);
+  const view = selectGameView(left);
+  for (const route of view.routes) {
+    assert.ok(route.forecast.hullDamageMin >= 0);
+    assert.ok(route.forecast.hullDamageMax >= route.forecast.hullDamageMin);
+    assert.equal(route.forecast.provisionCost, 1);
+  }
 });
 
 test('commands are immutable transitions and reject illegal actions', () => {
@@ -55,6 +61,8 @@ test('assignments move crew, displace occupants, and Sable reveals complications
   state.modules.push({ id: 'resonance_chamber', slot: 3, level: 1, assignedCrew: null });
   state = applyCommand(state, { type: 'assign_crew', crewId: 'sable', slot: 3 }).state;
   assert.ok(state.routeOffers.every((offer) => offer.revealed));
+  state = applyCommand(state, { type: 'assign_crew', crewId: 'sable', slot: 0 }).state;
+  assert.ok(state.routeOffers.every((offer) => !offer.revealed));
 });
 
 test('a fourth crew member can replace an assignment but cannot overstaff the citadel', () => {
@@ -79,13 +87,25 @@ test('the fourth available crew member can lead the route without displacing cha
   assert.equal(state.modules.filter((module) => module.assignedCrew).length, 3);
   const selected = state.routeOffers.find((offer) => offer.instanceId === state.selectedRoute)!;
   assert.equal(selected.revealed, true);
+  state = applyCommand(state, { type: 'unassign_crew', crewId: 'sable' }).state;
+  assert.ok(state.routeOffers.every((offer) => !offer.revealed));
+  state = applyCommand(state, { type: 'assign_route_leader', crewId: 'sable' }).state;
+  const ledForecast = selectGameView(state).routes.find((route) => route.instanceId === state.selectedRoute)!.forecast;
+  assert.equal(ledForecast.provisionCost, 2);
+  assert.equal(ledForecast.hullDamageMin, ledForecast.hullDamageMax);
   const alternate = state.routeOffers.find((offer) => offer.instanceId !== state.selectedRoute)!;
   state = applyCommand(state, { type: 'select_route', instanceId: alternate.instanceId }).state;
   assert.equal(state.routeLeader, null);
   state = applyCommand(state, { type: 'assign_route_leader', crewId: 'sable' }).state;
-  const route = selectGameView(state).routes.find((candidate) => candidate.instanceId === state.selectedRoute)!.definition;
+  const selectedView = selectGameView(state).routes.find((candidate) => candidate.instanceId === state.selectedRoute)!;
+  const route = selectedView.definition;
+  const forecast = selectedView.forecast;
+  const integrityBefore = state.integrity;
+  const strainBefore = state.crew.reduce((total, crew) => total + crew.strain, 0);
   state = applyCommand(state, { type: 'resolve_shift' }).state;
   assert.equal(state.routeLeader, null);
+  assert.equal(integrityBefore - state.integrity, forecast.hullDamageMax);
+  assert.equal(state.crew.reduce((total, crew) => total + crew.strain, 0) - strainBefore, forecast.netCrewStrain);
   assert.equal(state.resources.provisions, 3 + (route.baseRewards.provisions ?? 0));
   assert.equal(state.crew.find((crew) => crew.id === 'sable')!.strain, 1 + (route.hazard >= 4 ? 2 : route.hazard >= 2 ? 1 : 0));
 });

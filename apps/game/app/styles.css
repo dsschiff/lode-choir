@@ -33,7 +33,7 @@ button:focus-visible, input:focus-visible, summary:focus-visible { outline: 2px 
 button:disabled { cursor: not-allowed; opacity: 0.42; }
 h1, h2, h3, p { margin-top: 0; }
 h1, h2 { font-family: var(--serif); font-weight: 500; }
-.app-root { min-height: 100vh; position: relative; isolation: isolate; overflow-x: hidden; }
+.app-root { min-height: 100vh; position: relative; isolation: isolate; overflow-x: clip; }
 .app-root::before {
   position: fixed;
   inset: 0;
@@ -120,6 +120,8 @@ h1, h2 { font-family: var(--serif); font-weight: 500; }
 .relic-card { min-height: 188px; position: relative; display: flex; flex-direction: column; padding: 18px; border: 1px solid var(--quiet-line); background: linear-gradient(145deg, rgba(24,32,39,.94), rgba(13,18,22,.9)); cursor: pointer; }
 .relic-card.is-selected { border-color: var(--vein-400); box-shadow: inset 0 0 0 1px rgba(88,225,220,.18); }
 .relic-card.is-locked { opacity: .42; cursor: not-allowed; }
+.relic-card.is-readonly { cursor: default; }
+.relic-card.is-readonly.is-found { border-color: rgba(200,155,85,.48); box-shadow: none; background: linear-gradient(145deg, rgba(200,155,85,.1), rgba(13,18,22,.9)); }
 .relic-card input { position: absolute; top: 14px; right: 14px; width: 18px; height: 18px; accent-color: var(--vein-400); }
 .relic-card > span { color: var(--vein-400); font-size: .5rem; letter-spacing: .12em; }
 .relic-card strong { margin: 18px 0 8px; font: 1.3rem var(--serif); }
@@ -176,8 +178,11 @@ h1, h2 { font-family: var(--serif); font-weight: 500; }
 .citadel-caption { min-height: 36px; display: flex; align-items: center; justify-content: center; gap: 10px; padding-top: 8px; color: var(--bone-300); font-size: .56rem; line-height: 1.4; text-align: center; }
 .citadel-caption .tone-mark { width: 62px; flex: none; }
 .objective { margin-bottom: 14px; color: var(--bone-300); font-size: .7rem; line-height: 1.5; }
+.run-relic { margin: -5px 0 12px; padding: 8px 10px; border: 1px solid rgba(200,155,85,.35); background: rgba(200,155,85,.07); color: var(--bone-300); font-size: .54rem; line-height: 1.45; }
+.run-relic summary { min-height: 28px; display: flex; align-items: center; color: var(--brass-400); cursor: pointer; letter-spacing: .08em; }
+.run-relic p { margin: 5px 0 0; }
 .route-list { display: grid; gap: 7px; }
-.route-card { min-height: 112px; display: grid; grid-template-columns: 32px 1fr 42px; grid-template-rows: 1fr auto; gap: 6px 10px; padding: 12px; border: 1px solid var(--quiet-line); border-radius: 3px; background: linear-gradient(115deg, rgba(24,32,39,.92), rgba(13,18,22,.84)); cursor: pointer; text-align: left; transition: border-color .15s, transform .15s; }
+.route-card { min-height: 136px; display: grid; grid-template-columns: 32px 1fr 42px; grid-template-rows: 1fr auto auto; gap: 6px 10px; padding: 12px; border: 1px solid var(--quiet-line); border-radius: 3px; background: linear-gradient(115deg, rgba(24,32,39,.92), rgba(13,18,22,.84)); cursor: pointer; text-align: left; transition: border-color .15s, transform .15s; }
 .route-card:hover { transform: translateX(-2px); border-color: rgba(88,225,220,.5); }
 .route-card.is-selected { border: 2px solid var(--vein-400); padding: 11px; background: linear-gradient(115deg, rgba(88,225,220,.12), rgba(13,18,22,.9)); }
 .route-index { color: rgba(184,173,150,.3); font: 1rem var(--serif); }
@@ -190,6 +195,9 @@ h1, h2 { font-family: var(--serif); font-weight: 500; }
 .route-risk b { font: 1.15rem var(--serif); }
 .route-risk small { color: var(--danger-400); font-size: .43rem; }
 .route-reward { grid-column: 2 / 4; padding-top: 7px; border-top: 1px solid var(--quiet-line); color: var(--brass-400); font-size: .5rem; letter-spacing: .04em; }
+.route-forecast { grid-column: 2 / 4; display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; padding-top: 6px; border-top: 1px solid rgba(184,173,150,.12); color: var(--bone-300); font: 700 .46rem/1.2 var(--mono); letter-spacing: .04em; }
+.route-forecast small { color: var(--vein-400); }
+.route-forecast b { font: inherit; }
 .leader-post { min-height: 68px; margin-top: 9px; display: grid; grid-template-columns: 38px 1fr auto; align-items: center; gap: 10px; padding: 9px 10px; border: 1px dashed var(--quiet-line); background: rgba(7,9,12,.42); }
 .leader-post.is-staffed { border-style: solid; border-color: rgba(200,155,85,.48); background: linear-gradient(110deg, rgba(200,155,85,.09), rgba(7,9,12,.5)); }
 .leader-mark { width: 30px; height: 30px; display: grid; place-items: center; border: 1px solid var(--brass-400); border-radius: 50%; color: var(--brass-400); font: .67rem var(--serif); }
@@ -297,7 +305,7 @@ h1, h2 { font-family: var(--serif); font-weight: 500; }
   .resource-rail { justify-self: center; }
   .resource { min-width: 50px; }
   .header-actions button:last-child { display: none; }
-  .game-shell { grid-template-columns: 1fr; grid-template-areas: "citadel" "crew" "command" "log"; padding: 12px; gap: 14px; }
+  .game-shell { grid-template-columns: 1fr; grid-template-areas: "citadel" "command" "crew" "log"; padding: 12px; gap: 14px; }
   .command-deck { min-height: 0; padding: 16px 0 0; border-left: 0; border-top: 1px solid var(--quiet-line); }
   .event-panel, .development-panel, .finale-panel, .completion-panel { min-height: 420px; }
 }
@@ -348,6 +356,8 @@ h1, h2 { font-family: var(--serif); font-weight: 500; }
   .ending-choices button { min-height: 110px; }
   .heart-glyph { width: 88px; height: 88px; margin-block: 20px; }
   .feedback-stack { top: 66px; right: 8px; }
+  .loadout-footer { position: sticky; bottom: 0; z-index: 12; margin-inline: -16px; padding: 9px 16px 12px; border-top: 1px solid var(--quiet-line); background: rgba(7,9,12,.96); backdrop-filter: blur(14px); }
+  .loadout-footer > span { display: none; }
 }
 
 @media (prefers-reduced-motion: reduce) {

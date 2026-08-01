@@ -31,6 +31,13 @@ test('new run reaches the first consequential choice immediately', async ({ page
   await expect(page.getByTestId('citadel-grid')).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Choose a descent' })).toBeVisible();
   await expect(page.locator('[data-testid^="route-"]')).toHaveCount(3);
+  await expect(page.locator('.route-forecast')).toHaveCount(3);
+  await expect(page.locator('.route-forecast').first()).toContainText('RATION −1');
+  await expect.poll(() => page.evaluate(() => window.scrollY)).toBe(0);
+  await expect(page.locator('.game-header')).toBeInViewport();
+  const routeBox = await page.locator('.route-panel').boundingBox();
+  const crewBox = await page.locator('.crew-roster').boundingBox();
+  expect(routeBox?.y).toBeLessThan(crewBox?.y ?? Number.POSITIVE_INFINITY);
 });
 
 test('tap assignment, route selection, and shift resolution work on phone', async ({ page }) => {
@@ -45,6 +52,12 @@ test('tap assignment, route selection, and shift resolution work on phone', asyn
   await page.getByTestId('crew-sable').click();
   await page.getByRole('button', { name: 'APPOINT' }).click();
   await expect(page.getByTestId('leader-post')).toContainText('Sable-9');
+  await expect(page.locator('.route-card.is-selected')).toContainText('Foreseen:');
+  await expect(page.locator('.route-card.is-selected .route-forecast')).toContainText('RATION −2');
+  await page.getByRole('button', { name: /Recall Sable-9/i }).click();
+  await expect(page.locator('.route-card.is-selected')).not.toContainText('Foreseen:');
+  await page.getByTestId('crew-sable').click();
+  await page.getByRole('button', { name: 'APPOINT' }).click();
 
   await expect(page.getByTestId('resolve-shift')).toBeEnabled();
   await page.getByTestId('resolve-shift').click();
@@ -79,6 +92,8 @@ test('deterministic hook can resolve a finale and begin the next inherited desce
   });
   await expect(page.getByTestId('completion-panel')).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Join the Choir' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Join the Choir' })).toBeFocused();
+  await expect(page.locator('.feedback-stack .feedback')).toHaveCount(0);
   await page.getByRole('button', { name: 'Begin another descent' }).click();
   await expect(page.getByRole('heading', { name: 'Choose what returns' })).toBeVisible();
   await expect(page.getByRole('radio', { name: /Vesper Tuning Fork/i })).toBeEnabled();
@@ -140,6 +155,7 @@ test('unlocked Chronicle relics apply canonical starting effects', async ({ page
   expect(state?.startingRelic).toBe('heart_splinter');
   expect(state?.resources.alloy).toBe(7);
   expect(state?.crew.find((crew) => crew.id === 'tamsin')?.strain).toBe(1);
+  await expect(page.getByText('RELIC // Heart Splinter')).toBeVisible();
 
   await returnForAnother();
   await page.getByTestId('continue-run').click();

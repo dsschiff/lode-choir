@@ -64,6 +64,13 @@ export interface RouteOffer {
   revealed: boolean;
 }
 
+export interface RouteForecast {
+  hullDamageMin: number;
+  hullDamageMax: number;
+  provisionCost: number;
+  netCrewStrain: number;
+}
+
 export interface EventChoice {
   label: string;
   consequence: string;
@@ -165,7 +172,7 @@ export interface GameView {
   state: Readonly<GameState>;
   crew: ReadonlyArray<CrewState & CrewDefinition>;
   modules: ReadonlyArray<ModuleState & ModuleDefinition>;
-  routes: ReadonlyArray<RouteOffer & { definition: RouteDefinition }>;
+  routes: ReadonlyArray<RouteOffer & { definition: RouteDefinition; forecast: RouteForecast }>;
   activeStoryEvent: StoryEventDefinition | null;
   canResolveShift: boolean;
   maxIntegrity: number;

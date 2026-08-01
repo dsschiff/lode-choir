@@ -1,7 +1,8 @@
 import {
+  ROUTES,
+  STORY_EVENTS,
   applyCommand,
   legalCommands,
-  selectGameView,
   type Command,
   type GameState,
   type RouteDefinition,
@@ -18,8 +19,10 @@ function rewardValue(route: RouteDefinition): number {
 }
 
 function selectRoute(state: GameState, policy: PolicyName): GameState {
-  const view = selectGameView(state);
-  const ranked = [...view.routes].sort((left, right) => {
+  const ranked = state.routeOffers.map((offer) => ({
+    ...offer,
+    definition: ROUTES.find((route) => route.id === offer.routeId)!,
+  })).sort((left, right) => {
     const leftRoute = left.definition;
     const rightRoute = right.definition;
     if (policy === 'aggressive') {
@@ -41,7 +44,8 @@ function selectRoute(state: GameState, policy: PolicyName): GameState {
 
 function assignCrew(state: GameState, policy: PolicyName, useLeaders: boolean): GameState {
   const active = state.crew.filter((crew) => crew.incapacitatedUntil <= state.shift);
-  const routeKind = selectGameView(state).routes.find((route) => route.instanceId === state.selectedRoute)?.definition.kind;
+  const selectedOffer = state.routeOffers.find((route) => route.instanceId === state.selectedRoute);
+  const routeKind = ROUTES.find((route) => route.id === selectedOffer?.routeId)?.kind;
   const leaderByRoute = { refuge: 'mara', vein: 'tamsin', ruin: 'orin', rift: 'sable' } as const;
   const desiredLeader = routeKind ? leaderByRoute[routeKind] : undefined;
   const leader = active.find((candidate) => candidate.id === desiredLeader);
@@ -68,7 +72,7 @@ function assignCrew(state: GameState, policy: PolicyName, useLeaders: boolean): 
 }
 
 function chooseEvent(state: GameState, policy: PolicyName): GameState {
-  const event = selectGameView(state).activeStoryEvent!;
+  const event = STORY_EVENTS.find((candidate) => candidate.id === state.activeEvent)!;
   const legalChoices = new Set(
     legalCommands(state)
       .filter((command) => command.type === 'choose_event')
