@@ -1,0 +1,42 @@
+# Playtest Protocol
+
+## Five-minute read
+
+Observe without coaching:
+
+1. Can the player start and identify the first route choice within 15 seconds?
+2. Do they understand that one crew member rests while three operate rooms?
+3. Can they predict the main benefit and danger of the selected route?
+4. Does citadel construction change a later assignment decision?
+5. Can they explain why the run ended?
+
+## Strategy passes
+
+- **Conservative:** prioritize Ward, Infirmary, rest, and low-hazard routes.
+- **Aggressive:** prioritize Drill, Foundry, high-yield routes, and rapid Heart Notes.
+- **Crew-first:** prioritize vows, loyalty, and preventing scars.
+- **Exploit-seeking:** repeat the apparently strongest action and look for free loops,
+  ignored resources, non-decisions, and save/reload manipulation.
+
+At least two strategies should win across a seed sample. The strongest strategy may be
+clear, but it must pay a visible cost and cannot make route choice irrelevant.
+
+## Interface rubric
+
+Score 1-5 after live use at 390x844 and desktop:
+
+- Immediate orientation and objective
+- Assignment and route legibility
+- Character attachment and consequence clarity
+- Citadel growth and visual feedback
+- Mobile density and touch comfort
+- Sound usefulness and restraint
+- Recovery, settings, and restart confidence
+
+Any score below 4 produces a concrete fix before visual content expansion.
+
+## Evidence bundle
+
+Keep the final seed and command trace for representative win and loss runs, simulation
+summary, screenshots of title/planning/event/finale, and browser-console results.
+
