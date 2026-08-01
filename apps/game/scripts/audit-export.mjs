@@ -2,6 +2,7 @@ import { readdir, readFile, stat } from 'node:fs/promises';
 import { extname, relative, resolve, sep } from 'node:path';
 
 const outputRoot = resolve('out');
+const deploymentPrefix = process.env.GITHUB_PAGES === 'true' ? '/lode-choir' : '';
 const limits = {
   total: 1_600_000,
   javascript: 800_000,
@@ -39,7 +40,11 @@ const remoteUrls = referencedUrls.filter((url) => /^https?:/i.test(url) || url.s
 if (remoteUrls.length > 0) throw new Error(`Exported shell references remote runtime assets: ${remoteUrls.join(', ')}`);
 const referencedPaths = [...new Set(referencedUrls
   .filter((url) => url.startsWith('/'))
-  .map((url) => url.slice(1).split('?')[0]))];
+  .map((url) => {
+    const path = url.split('?')[0];
+    if (deploymentPrefix && path.startsWith(`${deploymentPrefix}/`)) return path.slice(deploymentPrefix.length + 1);
+    return path.slice(1);
+  }))];
 const recordByPath = new Map(records.map((record) => [record.relativePath, record]));
 const missingReferences = referencedPaths.filter((path) => !recordByPath.has(path));
 if (missingReferences.length > 0) throw new Error(`Exported shell references missing local files: ${missingReferences.join(', ')}`);

@@ -36,6 +36,7 @@ import { choirAudio } from './audio';
 const AUTOSAVE_KEY = 'lode_choir_autosave_v1';
 const LEGACY_KEY = 'lode_choir_legacy_v1';
 const SETTINGS_KEY = 'lode_choir_settings_v1';
+const BASE_PATH = process.env.NEXT_PUBLIC_BASE_PATH ?? '';
 
 type Surface = 'title' | 'loadout' | 'game' | 'manual' | 'chronicle' | 'settings' | 'credits';
 type Settings = { muted: boolean; highContrast: boolean; reducedMotion: boolean; volume: number };
@@ -168,7 +169,7 @@ function CrewCard({ crew, selected, assigned, shift, onSelect, onUnassign }: {
       >
         <span className="crew-portrait" style={{ '--crew-color': crew.color } as React.CSSProperties}>
           <img
-            src={`/art/crew-${crew.id}.webp`}
+            src={`${BASE_PATH}/art/crew-${crew.id}.webp`}
             width="720"
             height="720"
             loading="lazy"
@@ -866,7 +867,7 @@ function TitleScreen({ seed, hasSave, savePreview, notice, onSeed, onNew, onCont
     <main className="title-screen" data-testid="title-screen">
       <div className="title-art">
         <img
-          src="/art/orison-title.webp"
+          src={`${BASE_PATH}/art/orison-title.webp`}
           width="1536"
           height="1024"
           fetchPriority="high"

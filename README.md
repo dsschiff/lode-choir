@@ -3,6 +3,8 @@
 An original science-fantasy roguelite/base-builder about a named crew guiding the
 living citadel Orison through a singing moon.
 
+**Play online:** https://dsschiff.github.io/lode-choir/
+
 ## Commands
 
 ```powershell
