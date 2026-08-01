@@ -139,13 +139,27 @@ export interface SerializedGameEnvelope {
   state: GameState;
 }
 
+export interface RunRecord {
+  seed: string;
+  outcome: 'won' | 'lost';
+  ending: EndingId | null;
+  shift: number;
+  heartNotes: number;
+  integrity: number;
+  startingRelic: RelicId | null;
+  score: number;
+  scars: number;
+  fulfilledVows: number;
+}
+
 export interface LegacyState {
-  version: 2;
+  version: 3;
   runsCompleted: number;
   echoShards: number;
   endings: EndingId[];
   lore: string[];
   relics: RelicId[];
+  records: RunRecord[];
 }
 
 export type Command =

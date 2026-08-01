@@ -12,6 +12,7 @@ import {
   deserializeLegacy,
   legalCommands,
   recordLegacyRun,
+  scoreRun,
   selectGameView,
   serialize,
   serializeLegacy,
@@ -476,7 +477,7 @@ function CompletionPanel({ view, onNewRun, onChronicle }: { view: GameView; onNe
       <h2 ref={heading} tabIndex={-1}>{won ? ENDINGS[view.state.ending ?? 'harmonize'].title : 'Orison goes dark.'}</h2>
       <p>{view.state.endingText ?? (won ? 'The expedition leaves a mark in the moon—and the moon leaves one in them.' : 'The deep keeps what the surface could not protect.')}</p>
       <div className="completion-stats">
-        <span><b>{view.state.shift}</b> shifts</span><span><b>{view.state.heartNotes}</b> Heart Notes</span><span><b>{view.state.integrity}</b> integrity</span>
+        <span><b>{scoreRun(view.state as GameState)}</b> echo score</span><span><b>{view.state.shift}</b> shifts</span><span><b>{view.state.heartNotes}</b> Heart Notes</span><span><b>{view.state.integrity}</b> integrity</span>
       </div>
       <div className="completion-actions">
         <button className="primary-action" type="button" onClick={onNewRun}>Begin another descent</button>
@@ -487,9 +488,20 @@ function CompletionPanel({ view, onNewRun, onChronicle }: { view: GameView; onNe
 }
 
 function Chronicle({ legacy, onBack }: { legacy: LegacyState; onBack: () => void }) {
+  const bestScore = Math.max(0, ...legacy.records.map((record) => record.score));
   return (
     <MenuPage eyebrow="ARCHIVE // PERSISTENT MEMORY" title="The Chronicle" onBack={onBack}>
-      <div className="chronicle-summary"><span><b>{legacy.runsCompleted}</b> descents</span><span><b>{legacy.echoShards}</b> Echo Shards</span></div>
+      <div className="chronicle-summary"><span><b>{legacy.runsCompleted}</b> descents</span><span><b>{bestScore}</b> best echo score</span></div>
+      <h2>Recent descents</h2>
+      {legacy.records.length ? <ol className="run-history">{legacy.records.map((record, index) => {
+        const relic = record.startingRelic ? RELICS.find((candidate) => candidate.id === record.startingRelic) : null;
+        const outcome = record.outcome === 'won' && record.ending ? ENDINGS[record.ending].title : 'Orison went dark';
+        return <li key={`${record.seed}-${index}`}>
+          <span className={record.outcome === 'won' ? 'is-win' : 'is-loss'}>{record.outcome === 'won' ? 'CONCORDANT' : 'SILENCED'}</span>
+          <strong>{outcome}</strong><b>{record.score}</b>
+          <small>{record.seed} · SHIFT {record.shift}/7 · {record.heartNotes} NOTES · {record.scars} SCARS{relic ? ` · ${relic.name}` : ''}</small>
+        </li>;
+      })}</ol> : <p className="empty-message">No expedition has yet returned to the archive.</p>}
       <h2>Resolved chords</h2>
       <div className="archive-grid">
         {(Object.keys(ENDINGS) as EndingId[]).map((id) => (
@@ -576,7 +588,7 @@ function ManualPage({ onBack }: { onBack: () => void }) {
         <article><span>04 // DESCENT</span><h2>Carry the cost</h2><p>Every route consumes a ration. High strain creates a lasting scar and removes that person from the following shift. Vows and story choices build loyalty.</p></article>
         <article><span>05 // CITADEL</span><h2>Wake or mend</h2><p>After shifts two and four, spend alloy to build or improve Orison, plate two points of damaged hull, or conserve it. Every option ends development.</p></article>
         <article><span>06 // HEART-LODE</span><h2>Find three Notes</h2><p>Reach shift seven with three Heart Notes and a living citadel. Then choose what the crew does with the moon-song; each answer leaves a different legacy.</p></article>
-        <article><span>07 // CHRONICLE</span><h2>Carry one relic</h2><p>Each distinct answer at the Heart-Lode unlocks an heirloom. A later expedition may carry one relic—or none—and its starting cost as part of the seed.</p></article>
+        <article><span>07 // CHRONICLE</span><h2>Leave a record</h2><p>Every ending unlocks an heirloom for later expeditions. The Chronicle keeps twelve deterministic scores with seed, outcome, scars, vows, and carried relic.</p></article>
       </div>
     </MenuPage>
   );

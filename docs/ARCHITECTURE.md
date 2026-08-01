@@ -22,8 +22,9 @@ characters, modules, routes, and story choices, while systems interpret those re
 - The app owns selection affordances, animation, audio, local storage, and settings.
 - The app renders engine selectors; it does not recreate rules to preview outcomes.
 - Local legacy progression is separate from the current run save.
-- `startingRelic` is explicit run state, while legacy v2 stores only canonical relic and
-  lore IDs. Migration normalizes earlier display names, aliases, and raw story flags.
+- `startingRelic` is explicit run state, while legacy v3 stores canonical relic/lore IDs
+  and a bounded deterministic run record. Migration normalizes earlier display names,
+  aliases, raw story flags, and pre-history legacy saves.
 - Route reservations escrow one lumen in run state. The engine rolls the normal next
   forecast before deterministically replacing one slot, preserving PRNG state and any
   charted Sable knowledge without reviving the free-reveal exploit.

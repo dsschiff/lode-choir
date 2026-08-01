@@ -1,5 +1,5 @@
 import { ENDINGS, LORE, ROUTES, STORY_EVENTS } from './data/content.ts';
-import type { EndingId, GameState, LegacyState, RelicId } from './types.ts';
+import type { EndingId, GameState, LegacyState, RelicId, RunRecord } from './types.ts';
 
 const RELIC_ALIASES: Readonly<Record<string, RelicId>> = {
   heart_splinter: 'heart_splinter',
@@ -34,7 +34,20 @@ function normalizeLore(values: readonly unknown[], runsCompleted: number): strin
 }
 
 export function createLegacyState(): LegacyState {
-  return { version: 2, runsCompleted: 0, echoShards: 0, endings: [], lore: [], relics: [] };
+  return { version: 3, runsCompleted: 0, echoShards: 0, endings: [], lore: [], relics: [], records: [] };
+}
+
+export function scoreRun(run: GameState): number {
+  const vows = run.crew.filter((crew) => crew.vowProgress >= 3).length;
+  const scars = run.crew.filter((crew) => crew.scar).length;
+  const loyalty = run.crew.reduce((total, crew) => total + Math.max(0, crew.loyalty), 0);
+  return Math.max(0, (run.status === 'won' ? 1000 : 0)
+    + run.shift * 50
+    + run.heartNotes * 150
+    + run.integrity * 25
+    + vows * 100
+    + loyalty * 20
+    - scars * 75);
 }
 
 export function recordLegacyRun(legacy: LegacyState, run: GameState): LegacyState {
@@ -49,11 +62,51 @@ export function recordLegacyRun(legacy: LegacyState, run: GameState): LegacyStat
   for (const lore of LORE) {
     if (unlockTags.has(lore.unlockTag) && !next.lore.includes(lore.id)) next.lore.push(lore.id);
   }
+  next.records.unshift({
+    seed: run.seed,
+    outcome: run.status,
+    ending: run.ending,
+    shift: run.shift,
+    heartNotes: run.heartNotes,
+    integrity: run.integrity,
+    startingRelic: run.startingRelic,
+    score: scoreRun(run),
+    scars: run.crew.filter((crew) => crew.scar).length,
+    fulfilledVows: run.crew.filter((crew) => crew.vowProgress >= 3).length,
+  });
+  next.records = next.records.slice(0, 12);
   return next;
 }
 
 export function serializeLegacy(legacy: LegacyState): string {
-  return JSON.stringify({ game: 'lode-choir-legacy', version: 2, legacy });
+  return JSON.stringify({ game: 'lode-choir-legacy', version: 3, legacy });
+}
+
+function normalizeRecords(values: readonly unknown[]): RunRecord[] {
+  const validEndings = new Set(ENDINGS.map((ending) => ending.id));
+  return values.flatMap((value) => {
+    if (!value || typeof value !== 'object') return [];
+    const record = value as Partial<RunRecord>;
+    if (typeof record.seed !== 'string' || !['won', 'lost'].includes(String(record.outcome))
+      || typeof record.shift !== 'number' || typeof record.heartNotes !== 'number'
+      || typeof record.integrity !== 'number' || typeof record.score !== 'number') return [];
+    const startingRelic = record.startingRelic === null ? null : RELIC_ALIASES[String(record.startingRelic)] ?? null;
+    const ending = record.ending === null || record.ending === undefined
+      ? null
+      : validEndings.has(record.ending) ? record.ending : null;
+    return [{
+      seed: record.seed,
+      outcome: record.outcome as 'won' | 'lost',
+      ending,
+      shift: Math.max(1, Math.min(7, record.shift)),
+      heartNotes: Math.max(0, Math.min(3, record.heartNotes)),
+      integrity: Math.max(0, record.integrity),
+      startingRelic,
+      score: Math.max(0, Math.round(record.score)),
+      scars: Math.max(0, Math.round(record.scars ?? 0)),
+      fulfilledVows: Math.max(0, Math.round(record.fulfilledVows ?? 0)),
+    }];
+  }).slice(0, 12);
 }
 
 export function deserializeLegacy(serialized: string): LegacyState {
@@ -68,13 +121,13 @@ export function deserializeLegacy(serialized: string): LegacyState {
   const candidate = record.game === 'lode-choir-legacy' ? record.legacy : value;
   if (!candidate || typeof candidate !== 'object') throw new Error('Legacy save is invalid.');
   const legacy = candidate as Partial<LegacyState> & { version?: unknown };
-  if (![1, 2].includes(Number(legacy.version)) || !Array.isArray(legacy.endings) || !Array.isArray(legacy.lore) || !Array.isArray(legacy.relics)) {
+  if (![1, 2, 3].includes(Number(legacy.version)) || !Array.isArray(legacy.endings) || !Array.isArray(legacy.lore) || !Array.isArray(legacy.relics)) {
     throw new Error('Legacy save version is unsupported.');
   }
   if (typeof legacy.runsCompleted !== 'number' || typeof legacy.echoShards !== 'number') throw new Error('Legacy save is incomplete.');
   const validEndings = new Set(ENDINGS.map((ending) => ending.id));
   return {
-    version: 2,
+    version: 3,
     runsCompleted: Math.max(0, legacy.runsCompleted),
     echoShards: Math.max(0, legacy.echoShards),
     endings: [...new Set(legacy.endings.filter((ending): ending is EndingId => typeof ending === 'string' && validEndings.has(ending as EndingId)))],
@@ -82,5 +135,6 @@ export function deserializeLegacy(serialized: string): LegacyState {
     relics: [...new Set(legacy.relics
       .map((relic) => typeof relic === 'string' ? RELIC_ALIASES[relic] : undefined)
       .filter((relic): relic is RelicId => Boolean(relic)))],
+    records: normalizeRecords(Array.isArray(legacy.records) ? legacy.records : []),
   };
 }

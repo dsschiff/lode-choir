@@ -9,6 +9,7 @@ import {
   legalCommands,
   recordLegacyRun,
   replay,
+  scoreRun,
   selectGameView,
   serialize,
   serializeLegacy,
@@ -351,6 +352,10 @@ test('full runs terminate and winning runs update legacy without mutating it', (
   assert.equal(updated.relics.length, 1);
   assert.ok(['heart_splinter', 'vesper_tuning_fork', 'oathkeepers_latch'].includes(updated.relics[0]!));
   assert.ok(updated.lore.includes('orison_manifest'));
+  assert.equal(updated.records.length, 1);
+  assert.equal(updated.records[0]!.seed, run.seed);
+  assert.equal(updated.records[0]!.score, scoreRun(run));
+  assert.equal(updated.records[0]!.outcome, 'won');
   assert.deepEqual(deserializeLegacy(serializeLegacy(updated)), updated);
 
   const lost = createRun({ seed: 'legacy-loss' });
@@ -362,6 +367,8 @@ test('full runs terminate and winning runs update legacy without mutating it', (
   assert.equal(afterLoss.echoShards, 1);
   assert.deepEqual(afterLoss.endings, []);
   assert.deepEqual(afterLoss.relics, []);
+  assert.equal(afterLoss.records[0]!.outcome, 'lost');
+  assert.ok(afterLoss.records[0]!.score >= 0);
 
   const migratedLegacy = deserializeLegacy(JSON.stringify({
     version: 1,
@@ -371,12 +378,23 @@ test('full runs terminate and winning runs update legacy without mutating it', (
     lore: ['tag:lost_crew', 'event:eighth_memory', 'unknown'],
     relics: ['Cantor Blade', 'brass-seed', 'Concordant Lens', 'quiet-bell', 'Quiet Bell', 'pilgrim-thread'],
   }));
-  assert.equal(migratedLegacy.version, 2);
+  assert.equal(migratedLegacy.version, 3);
   assert.deepEqual([...migratedLegacy.relics].sort(), ['heart_splinter', 'oathkeepers_latch', 'vesper_tuning_fork']);
   assert.deepEqual(migratedLegacy.endings, ['harvest']);
   assert.ok(migratedLegacy.lore.includes('orison_manifest'));
   assert.ok(migratedLegacy.lore.includes('rook_roll_call'));
   assert.ok(migratedLegacy.lore.includes('sable_eight_last_log'));
+  assert.deepEqual(migratedLegacy.records, []);
+
+  let history = createLegacyState();
+  for (let index = 0; index < 15; index += 1) {
+    const archived = createRun({ seed: `archive-${index}` });
+    archived.status = 'lost';
+    archived.phase = 'complete';
+    history = recordLegacyRun(history, archived);
+  }
+  assert.equal(history.records.length, 12);
+  assert.equal(history.records[0]!.seed, 'archive-14');
 });
 
 test('integrity collapse is an explicit terminal loss', () => {

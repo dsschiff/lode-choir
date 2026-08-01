@@ -93,8 +93,15 @@ test('deterministic hook can resolve a finale and begin the next inherited desce
   });
   await expect(page.getByTestId('completion-panel')).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Join the Choir' })).toBeVisible();
+  await expect(page.getByText('echo score')).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Join the Choir' })).toBeFocused();
   await expect(page.locator('.feedback-stack .feedback')).toHaveCount(0);
+  const completedSeed = await page.evaluate(() => window.__LODE_CHOIR__?.getState()?.seed);
+  await page.getByRole('button', { name: 'Open Chronicle' }).click();
+  await expect(page.getByRole('heading', { name: 'Recent descents' })).toBeVisible();
+  await expect(page.locator('.run-history').first()).toContainText(completedSeed!);
+  await expect(page.locator('.run-history').first()).toContainText('CONCORDANT');
+  await page.getByRole('button', { name: /RETURN/ }).click();
   await page.getByRole('button', { name: 'Begin another descent' }).click();
   await expect(page.getByRole('heading', { name: 'Choose what returns' })).toBeVisible();
   await expect(page.getByRole('radio', { name: /Vesper Tuning Fork/i })).toBeEnabled();

@@ -23,6 +23,8 @@ assignments, and an optional expedition leader, followed by story consequences a
 citadel development or emergency alloy plating. Distinct endings unlock canonical Chronicle relics that can be
 carried—one at a time—into later seeded expeditions. One lumen can also chart a declined
 route so it returns in the following shift, adding cross-shift planning without rerolls.
+Completed runs leave deterministic echo scores and a bounded twelve-run history in the
+Chronicle, alongside unlocked endings, relics, and lore.
 
 See `docs/VALIDATION.md` for the current balance, browser, accessibility, visual,
 and dependency-audit evidence.

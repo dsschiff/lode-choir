@@ -65,7 +65,7 @@ replacement.
   loadout locking and keyboard selection, all three relic effects, relic resume,
   exact route-cost forecasts, chart hold/swap/refund/reload/return behavior,
   autosave previews/resume, unaffordable story-choice gating, corrupt-save recovery,
-  later phase surfaces, and test hooks.
+  scored Chronicle history, later phase surfaces, and test hooks.
 - Axe scans report no detectable violations on the title, manual, loadout, planning,
   expanded charting, or resource-gated event surfaces in either browser project.
 - Production static export passes. The bounded E2E runner builds, serves, tests, closes
