@@ -7,10 +7,15 @@ type AudioWindow = Window & typeof globalThis & {
 class ChoirAudio {
   private context: AudioContext | null = null;
   private enabled = true;
+  private ambienceRequested = false;
+  private ambience: { oscillators: OscillatorNode[]; lfo: OscillatorNode; master: GainNode } | null = null;
 
   setEnabled(enabled: boolean) {
     this.enabled = enabled;
-    if (!enabled && this.context?.state === 'running') void this.context.suspend();
+    if (!enabled) {
+      this.stopAmbience();
+      if (this.context?.state === 'running') void this.context.suspend();
+    }
   }
 
   async wake() {
@@ -18,13 +23,68 @@ class ChoirAudio {
     const AudioConstructor = window.AudioContext ?? (window as AudioWindow).webkitAudioContext;
     if (!AudioConstructor) return;
     this.context ??= new AudioConstructor();
-    if (this.context.state === 'suspended') await this.context.resume();
+    if (this.context.state === 'suspended') {
+      try {
+        await this.context.resume();
+      } catch {
+        return;
+      }
+    }
+  }
+
+  setAmbience(active: boolean) {
+    this.ambienceRequested = active;
+    if (!active || !this.enabled) {
+      this.stopAmbience();
+      return;
+    }
+    void this.wake().then(() => {
+      if (!this.ambienceRequested || !this.enabled || !this.context || this.context.state !== 'running' || this.ambience) return;
+      const now = this.context.currentTime;
+      const master = this.context.createGain();
+      master.gain.setValueAtTime(0.0001, now);
+      master.gain.exponentialRampToValueAtTime(0.012, now + 1.6);
+      master.connect(this.context.destination);
+
+      const frequencies = [55, 82.4];
+      const oscillators = frequencies.map((frequency, index) => {
+        const oscillator = this.context!.createOscillator();
+        const voice = this.context!.createGain();
+        oscillator.type = index === 0 ? 'sine' : 'triangle';
+        oscillator.frequency.setValueAtTime(frequency, now);
+        oscillator.detune.setValueAtTime(index === 0 ? -7 : 5, now);
+        voice.gain.setValueAtTime(index === 0 ? 0.72 : 0.28, now);
+        oscillator.connect(voice).connect(master);
+        oscillator.start(now);
+        return oscillator;
+      });
+      const lfo = this.context.createOscillator();
+      const lfoDepth = this.context.createGain();
+      lfo.type = 'sine';
+      lfo.frequency.setValueAtTime(0.075, now);
+      lfoDepth.gain.setValueAtTime(0.0035, now);
+      lfo.connect(lfoDepth).connect(master.gain);
+      lfo.start(now);
+      this.ambience = { oscillators, lfo, master };
+    });
+  }
+
+  private stopAmbience() {
+    if (!this.ambience || !this.context) return;
+    const now = this.context.currentTime;
+    const stopAt = now + 0.35;
+    this.ambience.master.gain.cancelScheduledValues(now);
+    this.ambience.master.gain.setValueAtTime(Math.max(0.0001, this.ambience.master.gain.value), now);
+    this.ambience.master.gain.exponentialRampToValueAtTime(0.0001, stopAt);
+    for (const oscillator of this.ambience.oscillators) oscillator.stop(stopAt);
+    this.ambience.lfo.stop(stopAt);
+    this.ambience = null;
   }
 
   play(event: EngineEvent) {
     if (!this.enabled) return;
     void this.wake().then(() => {
-      if (!this.context) return;
+      if (!this.context || this.context.state !== 'running') return;
       const now = this.context.currentTime;
       const oscillator = this.context.createOscillator();
       const gain = this.context.createGain();

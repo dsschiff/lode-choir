@@ -148,6 +148,63 @@ test('the complete static export installs and reopens from its generated offline
   }
 });
 
+test('procedural ambience follows run, menu, mute, resume, and completion lifecycle', async ({ page }) => {
+  await page.addInitScript(() => {
+    const metrics = { started: 0, stopped: 0, suspended: 0, resumed: 0 };
+    class AudioParamStub {
+      value = 0.01;
+      setValueAtTime(value: number) { this.value = value; }
+      exponentialRampToValueAtTime(value: number) { this.value = value; }
+      cancelScheduledValues() {}
+    }
+    class NodeStub {
+      connect<T>(target: T) { return target; }
+    }
+    class OscillatorStub extends NodeStub {
+      frequency = new AudioParamStub();
+      detune = new AudioParamStub();
+      type = 'sine';
+      start() { metrics.started += 1; }
+      stop() { metrics.stopped += 1; }
+    }
+    class GainStub extends NodeStub { gain = new AudioParamStub(); }
+    class AudioContextStub {
+      state = 'running';
+      currentTime = 0;
+      destination = new NodeStub();
+      createOscillator() { return new OscillatorStub(); }
+      createGain() { return new GainStub(); }
+      async suspend() { metrics.suspended += 1; this.state = 'suspended'; }
+      async resume() { metrics.resumed += 1; this.state = 'running'; }
+    }
+    Object.defineProperty(window, 'AudioContext', { value: AudioContextStub, configurable: true });
+    Object.defineProperty(window, '__AUDIO_METRICS__', { value: metrics, configurable: true });
+  });
+  await page.reload();
+  await beginRun(page);
+  await expect.poll(() => page.evaluate(() => (window as unknown as { __AUDIO_METRICS__: { started: number } }).__AUDIO_METRICS__.started)).toBe(3);
+
+  await page.getByRole('button', { name: 'Open settings' }).click();
+  await expect.poll(() => page.evaluate(() => (window as unknown as { __AUDIO_METRICS__: { stopped: number } }).__AUDIO_METRICS__.stopped)).toBe(3);
+  await page.getByText('Mute the choir').click();
+  await page.getByRole('button', { name: /RETURN/ }).click();
+  expect(await page.evaluate(() => (window as unknown as { __AUDIO_METRICS__: { started: number } }).__AUDIO_METRICS__.started)).toBe(3);
+
+  await page.getByRole('button', { name: 'Open settings' }).click();
+  await page.getByText('Mute the choir').click();
+  await page.getByRole('button', { name: /RETURN/ }).click();
+  await expect.poll(() => page.evaluate(() => (window as unknown as { __AUDIO_METRICS__: { started: number; resumed: number } }).__AUDIO_METRICS__)).toMatchObject({ started: 6, resumed: 1 });
+  await page.evaluate(() => {
+    const state = window.__LODE_CHOIR__?.getState();
+    if (!state) throw new Error('Test hook unavailable.');
+    state.phase = 'finale';
+    state.shift = 7;
+    state.heartNotes = 3;
+    window.__LODE_CHOIR__?.command({ type: 'choose_ending', endingId: 'harmonize' });
+  });
+  await expect.poll(() => page.evaluate(() => (window as unknown as { __AUDIO_METRICS__: { stopped: number } }).__AUDIO_METRICS__.stopped)).toBeGreaterThanOrEqual(6);
+});
+
 test('validated progress backups preserve the active signal, Chronicle, and settings', async ({ page }) => {
   await beginRun(page);
   await page.getByTestId('route-0').click();

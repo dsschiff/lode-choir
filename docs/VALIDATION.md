@@ -93,7 +93,7 @@ recomputed honestly.
 
 ## Interface and persistence
 
-- 28 Playwright checks pass in Pixel 5 and desktop Chromium projects. They cover title
+- 30 Playwright checks pass in Pixel 5 and desktop Chromium projects. They cover title
   navigation, settings, first choice, touch assignment, optional leadership, resolution,
   loadout locking and keyboard selection, all three relic effects, relic resume,
   exact route-cost forecasts, chart hold/swap/refund/reload/return behavior,
@@ -102,6 +102,9 @@ recomputed honestly.
   save/resume, completion, archive categorization and fresh-run reset, later phase
   surfaces, validated backup rejection/restore across run, Chronicle, and settings,
   shared-seed URL initialization, Chronicle rematch preparation, and test hooks.
+  A stubbed Web Audio contract additionally verifies the ambient voices start with an
+  active run, stop in menus, remain stopped while muted, resume after unmuting, and stop
+  again at terminal completion in both viewport projects.
 - The production finalizer generated a content-addressed service worker with 35
   precached export files. Browser checks validate the standalone portrait manifest,
   registrar, generated chunk/art coverage, active service-worker control, then force
@@ -122,15 +125,18 @@ recomputed honestly.
 
 ## Asset and dependency checks
 
-- The production export currently contains 36 files and 1,304,341 uncompressed bytes.
-  The directly referenced initial shell is 966,160 bytes; JavaScript totals 729,117
+- The production export currently contains 36 files and 1,305,887 uncompressed bytes.
+  The directly referenced initial shell is 967,706 bytes; JavaScript totals 730,663
   bytes, imagery 489,093 bytes, and CSS 34,522 bytes. The largest individual file is a
   227,538-byte framework chunk. All remain below committed build-breaking budgets.
 - The export audit found no remote runtime asset references, no missing shell files,
   and no emitted file omitted from the generated service-worker cache.
 - The title art and all four 720px crew portraits were inspected after WebP conversion.
   Their combined transfer size is about 489 KB.
-- The app uses generated WebP imagery, CSS/SVG structure, and procedural Web Audio; it
+- The app uses generated WebP imagery, CSS/SVG structure, and procedural Web Audio for
+  a two-voice low-frequency moon-drone plus event-kind tones. The drone is gesture-gated,
+  pauses outside an active run, stops at completion, and shares the persisted mute
+  lifecycle; it
   has no runtime asset host or analytics dependency.
 - `npm audit` currently reports three high transitive advisories in the latest stable
   Next release's pinned PostCSS and Sharp packages. The affected packages process only

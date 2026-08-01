@@ -839,6 +839,12 @@ export function GameApp() {
     localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
   }, [settings]);
 
+  const ambienceActive = surface === 'game' && view?.state.status === 'playing' && !settings.muted;
+  useEffect(() => {
+    choirAudio.setAmbience(ambienceActive);
+    return () => choirAudio.setAmbience(false);
+  }, [ambienceActive]);
+
   useEffect(() => {
     if (selectedRelic && !legacy.relics.includes(selectedRelic)) setSelectedRelic(null);
   }, [legacy, selectedRelic]);
@@ -995,7 +1001,7 @@ export function GameApp() {
   if (surface === 'manual') return <div className={shellClasses}><ManualPage onBack={goBack} /></div>;
   if (surface === 'chronicle') return <div className={shellClasses}><Chronicle legacy={legacy} onRetry={prepareArchivedRun} onBack={goBack} /></div>;
   if (surface === 'settings') return <div className={shellClasses}><SettingsPage settings={settings} onChange={setSettings} onCreateBackup={createProgressBackup} onRestoreBackup={restoreProgressBackup} onBack={goBack} /></div>;
-  if (surface === 'credits') return <div className={shellClasses}><MenuPage eyebrow="TRANSMISSION // AUTHORS" title="Credits" onBack={goBack}><div className="credits-copy"><p>Designed and built as an original game about care, extraction, and the cost of listening.</p><p>Rules, words, interface, vector marks, and procedural tones created for <em>Lode Choir</em>.</p><ToneMark active /></div></MenuPage></div>;
+  if (surface === 'credits') return <div className={shellClasses}><MenuPage eyebrow="TRANSMISSION // AUTHORS" title="Credits" onBack={goBack}><div className="credits-copy"><p>Designed and built as an original game about care, extraction, and the cost of listening.</p><p>Rules, words, interface, vector marks, event tones, and the procedural moon-drone created for <em>Lode Choir</em>.</p><ToneMark active /></div></MenuPage></div>;
   if (!view) return null;
 
   const onRoom = (slot: number) => {
