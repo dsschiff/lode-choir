@@ -44,15 +44,21 @@ async function waitForServer() {
 
 async function capture(browser, name, viewport, mobile = false) {
   const page = await browser.newPage({ viewport, isMobile: mobile, hasTouch: mobile });
+  await page.emulateMedia({ reducedMotion: 'reduce' });
   const screenshot = async (surface) => {
     await page.evaluate(() => window.scrollTo(0, 0));
     await page.screenshot({ path: resolve(outputRoot, `${surface}-${name}.jpg`), fullPage: true, type: 'jpeg', quality: 84 });
   };
-  await page.goto('http://127.0.0.1:3321');
+  await page.goto('http://127.0.0.1:3321/?seed=QA-ORISON');
   await page.evaluate(() => localStorage.clear());
   await page.reload();
   await page.waitForLoadState('networkidle');
   await screenshot('title');
+
+  await page.getByRole('button', { name: 'Settings' }).click();
+  await page.getByRole('button', { name: 'CREATE BACKUP' }).click();
+  await screenshot('settings');
+  await page.getByRole('button', { name: /RETURN/ }).click();
 
   await page.getByTestId('new-run').click();
   await screenshot('loadout');

@@ -28,6 +28,11 @@ Chronicle, alongside unlocked endings, relics, and lore. An optional Black Desce
 contract composes with every relic: it starts Orison light, makes unread high-risk
 faults and emergency plating more punishing, archives the mode separately, and awards
 a transparent 1.25× score.
+The Settings menu can create and validate a portable text backup containing the active
+autosave, Chronicle progression, and accessibility/audio settings before restoring any
+local data.
+Append `?seed=SHARED-SIGNAL` to the local game URL to prepare the same deterministic
+expedition for another player or later playtest.
 
 See `docs/VALIDATION.md` for the current balance, browser, accessibility, visual,
 and dependency-audit evidence.
@@ -36,5 +41,5 @@ Current review captures: [desktop title](docs/screenshots/title-desktop.jpg),
 [phone title](docs/screenshots/title-phone.jpg),
 [desktop planning](docs/screenshots/planning-desktop.jpg), and
 [phone planning](docs/screenshots/planning-phone.jpg). The same folder also contains
-reproducible Standard and Black Descent loadouts, event, development, finale,
-completion, and Chronicle captures for both viewports.
+reproducible Settings, Standard and Black Descent loadouts, event, development,
+finale, completion, and Chronicle captures for both viewports.

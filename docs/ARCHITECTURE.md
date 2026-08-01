@@ -22,6 +22,9 @@ characters, modules, routes, and story choices, while systems interpret those re
 - The app owns selection affordances, animation, audio, local storage, and settings.
 - The app renders engine selectors; it does not recreate rules to preview outcomes.
 - Local legacy progression is separate from the current run save.
+- Portable backup v1 wraps the already serialized run and legacy envelopes plus the
+  three boolean settings. Restore parses and validates every nested envelope before it
+  replaces any local-storage key or live React state.
 - `startingRelic` and `runMode` are explicit run state, while legacy v4 stores canonical
   relic/lore IDs and bounded deterministic run records with base score, multiplier, and
   final score. Records retain a score-formula version so migrated values remain visible
@@ -39,6 +42,8 @@ characters, modules, routes, and story choices, while systems interpret those re
 
 All randomness uses the persisted PRNG state. Commands contain intent, not outcomes.
 Dates may appear only in app-level save metadata and never affect rules or replay.
+The optional `?seed=` URL parameter is app-level initialization only; it supplies the
+same bounded seed string that `createRun` already consumes and does not alter PRNG rules.
 
 ## Content growth
 

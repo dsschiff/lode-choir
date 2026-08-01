@@ -93,14 +93,15 @@ recomputed honestly.
 
 ## Interface and persistence
 
-- 22 Playwright checks pass in Pixel 5 and desktop Chromium projects. They cover title
+- 26 Playwright checks pass in Pixel 5 and desktop Chromium projects. They cover title
   navigation, settings, first choice, touch assignment, optional leadership, resolution,
   loadout locking and keyboard selection, all three relic effects, relic resume,
   exact route-cost forecasts, chart hold/swap/refund/reload/return behavior,
   autosave previews/resume, unaffordable story-choice gating, corrupt-save recovery,
   scored Chronicle history, Black Descent keyboard selection, exact preview,
   save/resume, completion, archive categorization and fresh-run reset, later phase
-  surfaces, and test hooks.
+  surfaces, validated backup rejection/restore across run, Chronicle, and settings,
+  shared-seed URL initialization, and test hooks.
 - Axe scans report no detectable violations on the title, manual, loadout, planning,
   expanded charting, or resource-gated event surfaces in either browser project.
 - Production static export passes. The bounded E2E runner builds, serves, tests, closes
@@ -110,6 +111,9 @@ recomputed honestly.
   touch targets, sticky resource rail, citadel grid, engine-derived route forecasts,
   leader preview, mobile action-before-roster order, and long scrolling with no
   horizontal overflow.
+- The 20-image review suite uses the fixed `QA-ORISON` URL seed and reduced-motion
+  media. Two consecutive full captures produced identical SHA-256 hashes for every
+  JPEG, so visual evidence no longer drifts with random title seeds or animation frames.
 
 ## Asset and dependency checks
 

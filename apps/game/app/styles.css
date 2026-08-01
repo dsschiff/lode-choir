@@ -117,6 +117,16 @@ h1, h2 { font-family: var(--serif); font-weight: 500; }
 .settings-list label > i::after { position: absolute; top: 4px; left: 4px; width: 16px; height: 16px; border-radius: 50%; content: ""; background: var(--bone-300); transition: transform .16s; }
 .settings-list input:checked + i { border-color: var(--vein-400); }
 .settings-list input:checked + i::after { background: var(--vein-400); transform: translateX(22px); }
+.progress-backup { margin-top: 34px; padding-top: 28px; border-top: 1px solid var(--quiet-line); }
+.progress-backup h2 { margin: 8px 0 10px; }
+.progress-backup > p { max-width: 680px; color: var(--bone-300); font: .83rem/1.55 var(--serif); }
+.progress-backup textarea { width: 100%; min-height: 150px; resize: vertical; padding: 12px; border: 1px solid var(--quiet-line); border-radius: 0; color: var(--bone-100); background: rgba(7,9,12,.82); font: .56rem/1.5 var(--mono); }
+.backup-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+.backup-actions button { min-height: 44px; padding: 0 14px; border: 1px solid var(--quiet-line); color: var(--bone-100); background: rgba(13,18,22,.82); cursor: pointer; font-size: .55rem; letter-spacing: .08em; }
+.backup-actions button:hover:not(:disabled) { border-color: var(--vein-400); }
+.backup-actions .restore-backup { margin-left: auto; border-color: var(--brass-400); }
+.backup-actions button:disabled { opacity: .38; cursor: not-allowed; }
+.backup-status { min-height: 28px; display: block; padding-top: 10px; color: var(--brass-400); font-size: .58rem; line-height: 1.5; }
 .credits-copy { max-width: 600px; color: var(--bone-300); font: 1.15rem/1.8 var(--serif); }
 .manual-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 1px; border: 1px solid var(--quiet-line); background: var(--quiet-line); }
 .manual-grid article { min-height: 190px; padding: 22px; background: linear-gradient(145deg, rgba(24,32,39,.96), var(--ink-900)); }
@@ -380,6 +390,8 @@ h1, h2 { font-family: var(--serif); font-weight: 500; }
   .chronicle-summary { gap: 28px; }
   .settings-list label { padding-inline: 12px; }
   .settings-list label small { max-width: 225px; line-height: 1.4; }
+  .backup-actions { display: grid; grid-template-columns: 1fr 1fr; }
+  .backup-actions .restore-backup { grid-column: 1 / -1; margin-left: 0; }
   .game-header { grid-template-columns: 36px 1fr 44px; }
   .resource-rail { width: 100%; justify-self: stretch; }
   .resource { min-width: 0; flex: 1 1 0; }

@@ -42,7 +42,9 @@ test('new run reaches the first consequential choice immediately', async ({ page
 
 test('tap assignment, route selection, and shift resolution work on phone', async ({ page }) => {
   await beginRun(page);
-  await page.getByTestId('route-0').click();
+  const complicatedRoute = await page.evaluate(() => window.__LODE_CHOIR__?.getState()?.routeOffers.findIndex((route) => Boolean(route.hiddenComplication)) ?? -1);
+  expect(complicatedRoute).toBeGreaterThanOrEqual(0);
+  await page.getByTestId(`route-${complicatedRoute}`).click();
 
   const availableRooms = page.locator('[data-testid^="room-"]:not(.empty-room)');
   for (const [crew, roomIndex] of [['mara', 0], ['tamsin', 1], ['orin', 2]] as const) {
@@ -105,6 +107,53 @@ test('deterministic hook can resolve a finale and begin the next inherited desce
   await page.getByRole('button', { name: 'Begin another descent' }).click();
   await expect(page.getByRole('heading', { name: 'Choose what returns' })).toBeVisible();
   await expect(page.getByRole('radio', { name: /Vesper Tuning Fork/i })).toBeEnabled();
+});
+
+test('a shared seed URL prepares the exact deterministic signal', async ({ page }) => {
+  await page.goto('/?seed=SHARED-SIGNAL');
+  await expect(page.locator('.seed-console')).toContainText('SHARED-SIGNAL');
+  await page.getByTestId('new-run').click();
+  await expect(page.locator('.loadout-footer')).toContainText('SHARED-SIGNAL');
+  await page.getByTestId('begin-descent').click();
+  expect(await page.evaluate(() => window.__LODE_CHOIR__?.getState()?.seed)).toBe('SHARED-SIGNAL');
+});
+
+test('validated progress backups preserve the active signal, Chronicle, and settings', async ({ page }) => {
+  await beginRun(page);
+  await page.getByTestId('route-0').click();
+  const expected = await page.evaluate(() => {
+    const state = window.__LODE_CHOIR__?.getState();
+    return state ? { seed: state.seed, selectedRoute: state.selectedRoute } : null;
+  });
+  await page.getByRole('button', { name: 'Open settings' }).click();
+  await page.getByText('High contrast').click();
+  await expect(page.locator('.app-root')).toHaveClass(/high-contrast/);
+  const scan = await new AxeBuilder({ page }).analyze();
+  expect(scan.violations, JSON.stringify(scan.violations, null, 2)).toEqual([]);
+
+  await page.getByRole('button', { name: 'CREATE BACKUP' }).click();
+  const backup = await page.getByRole('textbox', { name: 'Progress backup text' }).inputValue();
+  expect(backup).toContain('lode-choir-backup');
+  expect(backup).toContain(expected!.seed);
+  await page.getByText('High contrast').click();
+  await page.getByRole('textbox', { name: 'Progress backup text' }).fill('{"game":"counterfeit"}');
+  await page.getByRole('button', { name: /VALIDATE.*RESTORE/ }).click();
+  await expect(page.locator('.backup-status')).toContainText('not a supported Lode Choir progress file');
+
+  await page.getByRole('textbox', { name: 'Progress backup text' }).fill(backup);
+  await page.getByRole('button', { name: /VALIDATE.*RESTORE/ }).click();
+  await expect(page.locator('.backup-status')).toContainText(`and ${expected!.seed} at shift 1`);
+  await expect(page.locator('.app-root')).toHaveClass(/high-contrast/);
+  await page.getByRole('button', { name: /RETURN/ }).click();
+  const restored = await page.evaluate(() => window.__LODE_CHOIR__?.getState());
+  expect(restored?.seed).toBe(expected!.seed);
+  expect(restored?.selectedRoute).toBe(expected!.selectedRoute);
+
+  await page.reload();
+  await page.getByTestId('continue-run').click();
+  const resumed = await page.evaluate(() => window.__LODE_CHOIR__?.getState());
+  expect(resumed?.seed).toBe(expected!.seed);
+  expect(resumed?.selectedRoute).toBe(expected!.selectedRoute);
 });
 
 test('Black Descent previews exact conditions, resumes, scores, archives, and resets deliberately', async ({ page }) => {

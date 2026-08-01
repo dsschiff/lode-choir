@@ -37,6 +37,7 @@ const SETTINGS_KEY = 'lode_choir_settings_v1';
 type Surface = 'title' | 'loadout' | 'game' | 'manual' | 'chronicle' | 'settings' | 'credits';
 type Settings = { muted: boolean; highContrast: boolean; reducedMotion: boolean };
 type SavePreview = { seed: string; shift: number; relicName: string | null; runMode: RunMode };
+type ProgressBackup = { game: 'lode-choir-backup'; version: 1; autosave: string | null; legacy: string; settings: Settings };
 
 const DEFAULT_SETTINGS: Settings = { muted: false, highContrast: false, reducedMotion: false };
 
@@ -297,6 +298,34 @@ function RouteChartStrip({ view, status, onReserve, onClear }: {
   );
 }
 
+function parseProgressBackup(serialized: string): { run: GameState | null; legacy: LegacyState; settings: Settings } {
+  if (serialized.length > 1_000_000) throw new Error('Backup exceeds the one-megabyte safety limit.');
+  let value: unknown;
+  try {
+    value = JSON.parse(serialized);
+  } catch {
+    throw new Error('Backup is not valid JSON.');
+  }
+  if (!value || typeof value !== 'object') throw new Error('Backup does not contain an object.');
+  const backup = value as Partial<ProgressBackup>;
+  if (backup.game !== 'lode-choir-backup' || backup.version !== 1 || typeof backup.legacy !== 'string') {
+    throw new Error('Backup is not a supported Lode Choir progress file.');
+  }
+  const candidateSettings = backup.settings;
+  if (!candidateSettings || typeof candidateSettings.muted !== 'boolean'
+    || typeof candidateSettings.highContrast !== 'boolean' || typeof candidateSettings.reducedMotion !== 'boolean') {
+    throw new Error('Backup settings are incomplete.');
+  }
+  if (backup.autosave !== null && typeof backup.autosave !== 'string') throw new Error('Backup run data is incomplete.');
+  const run = backup.autosave ? deserialize(backup.autosave) : null;
+  if (run && (run.status !== 'playing' || run.phase === 'complete')) throw new Error('Backup autosave is already complete.');
+  return {
+    run,
+    legacy: deserializeLegacy(backup.legacy),
+    settings: candidateSettings,
+  };
+}
+
 function RoutePanel({ view, selectedCrew, chartStatus, onSelect, onReserve, onClearReservation, onLeader, onUnassignLeader, onResolve }: {
   view: GameView;
   selectedCrew: CrewId | null;
@@ -551,12 +580,40 @@ function MenuPage({ eyebrow, title, onBack, children }: { eyebrow: string; title
   );
 }
 
-function SettingsPage({ settings, onChange, onBack }: { settings: Settings; onChange: (settings: Settings) => void; onBack: () => void }) {
+function SettingsPage({ settings, onChange, onCreateBackup, onRestoreBackup, onBack }: {
+  settings: Settings;
+  onChange: (settings: Settings) => void;
+  onCreateBackup: () => string;
+  onRestoreBackup: (serialized: string) => string;
+  onBack: () => void;
+}) {
+  const [backupText, setBackupText] = useState('');
+  const [backupStatus, setBackupStatus] = useState<string | null>(null);
   const settingRows: { key: keyof Settings; title: string; body: string }[] = [
     { key: 'muted', title: 'Mute the choir', body: 'Disable music and procedural interface tones.' },
     { key: 'highContrast', title: 'High contrast', body: 'Brighten text and strengthen structural lines.' },
     { key: 'reducedMotion', title: 'Reduce motion', body: 'Replace chamber, descent, and finale movement with still feedback.' },
   ];
+  const createBackup = () => {
+    setBackupText(onCreateBackup());
+    setBackupStatus('Backup ready. Copy this text somewhere safe.');
+  };
+  const copyBackup = async () => {
+    if (!backupText) { setBackupStatus('Create a backup before copying it.'); return; }
+    try {
+      await navigator.clipboard.writeText(backupText);
+      setBackupStatus('Backup copied to the clipboard.');
+    } catch {
+      setBackupStatus('Clipboard access was unavailable. Select and copy the backup text manually.');
+    }
+  };
+  const restoreBackup = () => {
+    try {
+      setBackupStatus(onRestoreBackup(backupText));
+    } catch (error) {
+      setBackupStatus(error instanceof Error ? error.message : 'Backup could not be restored.');
+    }
+  };
   return (
     <MenuPage eyebrow="ORISON // INSTRUMENT PANEL" title="Settings" onBack={onBack}>
       <div className="settings-list">
@@ -568,6 +625,18 @@ function SettingsPage({ settings, onChange, onBack }: { settings: Settings; onCh
           </label>
         ))}
       </div>
+      <section className="progress-backup" aria-labelledby="progress-backup-title">
+        <span className="kicker">LOCAL DATA // PORTABLE RECORD</span>
+        <h2 id="progress-backup-title">Back up this expedition</h2>
+        <p>Create a portable text record of the active autosave, Chronicle, and settings. Restoring replaces those local records only after the entire backup validates.</p>
+        <textarea aria-label="Progress backup text" value={backupText} onChange={(event) => { setBackupText(event.target.value); setBackupStatus(null); }} placeholder="Create a backup, or paste one here to validate and restore." spellCheck={false} />
+        <div className="backup-actions">
+          <button type="button" onClick={createBackup}>CREATE BACKUP</button>
+          <button type="button" onClick={copyBackup} disabled={!backupText}>COPY BACKUP</button>
+          <button type="button" className="restore-backup" onClick={restoreBackup} disabled={!backupText}>VALIDATE &amp; RESTORE</button>
+        </div>
+        <span className="backup-status" role="status" aria-live="polite">{backupStatus}</span>
+      </section>
     </MenuPage>
   );
 }
@@ -743,7 +812,8 @@ export function GameApp() {
   const recordedCompletion = useRef<string | null>(null);
 
   useEffect(() => {
-    setSeed(makeSeed());
+    const sharedSeed = new URLSearchParams(window.location.search).get('seed')?.trim();
+    setSeed(sharedSeed && sharedSeed.length <= 64 ? sharedSeed : makeSeed());
     const autosave = localStorage.getItem(AUTOSAVE_KEY);
     setHasSave(Boolean(autosave));
     if (autosave) {
@@ -874,12 +944,48 @@ export function GameApp() {
     resetDocumentScroll();
   };
 
+  const createProgressBackup = () => JSON.stringify({
+    game: 'lode-choir-backup',
+    version: 1,
+    autosave: localStorage.getItem(AUTOSAVE_KEY),
+    legacy: serializeLegacy(legacy),
+    settings,
+  } satisfies ProgressBackup);
+
+  const restoreProgressBackup = (serialized: string) => {
+    const restored = parseProgressBackup(serialized.trim());
+    localStorage.setItem(LEGACY_KEY, serializeLegacy(restored.legacy));
+    localStorage.setItem(SETTINGS_KEY, JSON.stringify(restored.settings));
+    setLegacy(restored.legacy);
+    setSettings(restored.settings);
+    setFeedback([]);
+    setChartStatus(null);
+    setSelectedCrew(null);
+    setSelectedBuildSlot(null);
+    recordedCompletion.current = null;
+    if (restored.run) {
+      localStorage.setItem(AUTOSAVE_KEY, serialize(restored.run));
+      stateRef.current = restored.run;
+      setView(selectGameView(restored.run));
+      setSeed(restored.run.seed);
+      setHasSave(true);
+      setSavePreview({ seed: restored.run.seed, shift: restored.run.shift, runMode: restored.run.runMode, relicName: restored.run.startingRelic ? RELICS.find((relic) => relic.id === restored.run!.startingRelic)?.name ?? null : null });
+    } else {
+      localStorage.removeItem(AUTOSAVE_KEY);
+      stateRef.current = null;
+      setView(null);
+      setHasSave(false);
+      setSavePreview(null);
+    }
+    return `Backup restored: ${restored.legacy.runsCompleted} Chronicle descent${restored.legacy.runsCompleted === 1 ? '' : 's'}${restored.run ? ` and ${restored.run.seed} at shift ${restored.run.shift}` : ''}.`;
+  };
+
   const shellClasses = ['app-root', settings.highContrast ? 'high-contrast' : '', settings.reducedMotion ? 'reduced-motion' : ''].filter(Boolean).join(' ');
   if (surface === 'title') return <div className={shellClasses}><TitleScreen seed={seed} hasSave={hasSave} savePreview={savePreview} notice={notice} onSeed={setSeed} onNew={() => prepareLoadout()} onContinue={continueRun} onNavigate={openMenuPage} /></div>;
   if (surface === 'loadout') return <div className={shellClasses}><LoadoutPage seed={seed} unlocked={legacy.relics} selected={selectedRelic} runMode={selectedRunMode} onSelect={setSelectedRelic} onMode={setSelectedRunMode} onBegin={() => startRun(seed, selectedRelic, selectedRunMode)} onBack={goBack} /></div>;
   if (surface === 'manual') return <div className={shellClasses}><ManualPage onBack={goBack} /></div>;
   if (surface === 'chronicle') return <div className={shellClasses}><Chronicle legacy={legacy} onBack={goBack} /></div>;
-  if (surface === 'settings') return <div className={shellClasses}><SettingsPage settings={settings} onChange={setSettings} onBack={goBack} /></div>;
+  if (surface === 'settings') return <div className={shellClasses}><SettingsPage settings={settings} onChange={setSettings} onCreateBackup={createProgressBackup} onRestoreBackup={restoreProgressBackup} onBack={goBack} /></div>;
   if (surface === 'credits') return <div className={shellClasses}><MenuPage eyebrow="TRANSMISSION // AUTHORS" title="Credits" onBack={goBack}><div className="credits-copy"><p>Designed and built as an original game about care, extraction, and the cost of listening.</p><p>Rules, words, interface, vector marks, and procedural tones created for <em>Lode Choir</em>.</p><ToneMark active /></div></MenuPage></div>;
   if (!view) return null;
 
