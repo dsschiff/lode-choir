@@ -1,5 +1,6 @@
 import { expect, test, type Page } from '@playwright/test';
 import AxeBuilder from '@axe-core/playwright';
+import { ROUTES } from '@lode-choir/engine';
 
 test.beforeEach(async ({ page }) => {
   await page.goto('/?no-sw=1');
@@ -16,8 +17,19 @@ test('title menu exposes seed, archive, settings, and credits', async ({ page })
   await expect(page.getByRole('heading', { name: 'How to descend' })).toBeVisible();
   await page.getByRole('button', { name: /RETURN/ }).click();
 
+  await page.evaluate(() => {
+    const promptEvent = new Event('beforeinstallprompt', { cancelable: true });
+    Object.defineProperties(promptEvent, {
+      prompt: { value: () => { localStorage.setItem('install-prompted', 'yes'); return Promise.resolve(); } },
+      userChoice: { value: Promise.resolve({ outcome: 'accepted' }) },
+    });
+    window.dispatchEvent(promptEvent);
+  });
   await page.getByRole('button', { name: 'Settings' }).click();
   await expect(page.getByRole('heading', { name: 'Settings' })).toBeVisible();
+  await page.getByRole('button', { name: 'INSTALL APP' }).click();
+  await expect(page.getByRole('heading', { name: 'Installation accepted' })).toBeVisible();
+  expect(await page.evaluate(() => localStorage.getItem('install-prompted'))).toBe('yes');
   const volume = page.getByRole('slider', { name: 'Choir volume' });
   await expect(volume).toHaveValue('0.7');
   await volume.fill('0.35');
@@ -58,6 +70,63 @@ test('new run reaches the first consequential choice immediately', async ({ page
   const routeBox = await page.locator('.route-panel').boundingBox();
   const crewBox = await page.locator('.crew-roster').boundingBox();
   expect(routeBox?.y).toBeLessThan(crewBox?.y ?? Number.POSITIVE_INFINITY);
+});
+
+test('a pasted expedition seed starts the matching signal', async ({ page }) => {
+  const seedInput = page.getByRole('textbox', { name: 'Expedition seed' });
+  await seedInput.fill('  PASTED-CHALLENGE  ');
+  await seedInput.blur();
+  await expect(seedInput).toHaveValue('PASTED-CHALLENGE');
+  await page.getByTestId('new-run').click();
+  await expect(page.locator('.loadout-footer')).toContainText('PASTED-CHALLENGE');
+  await page.getByTestId('begin-descent').click();
+  expect(await page.evaluate(() => window.__LODE_CHOIR__?.getState()?.seed)).toBe('PASTED-CHALLENGE');
+});
+
+test('visible controls carry a complete expedition through all seven shifts', async ({ page }) => {
+  await page.getByRole('textbox', { name: 'Expedition seed' }).fill('UI-FULL-0');
+  await beginRun(page);
+  const crewOrder = ['mara', 'orin', 'sable', 'tamsin'];
+  const moduleOrder = ['ward_array', 'infirmary', 'heart_engine', 'deep_drill', 'resonance_chamber', 'foundry'];
+
+  for (let step = 0; step < 40; step += 1) {
+    const state = await page.evaluate(() => window.__LODE_CHOIR__?.getState());
+    if (!state) throw new Error('Test hook unavailable.');
+    if (state.status !== 'playing') break;
+
+    if (state.phase === 'planning') {
+      const notesNeeded = Math.max(0, 3 - state.heartNotes);
+      const urgent = state.shift >= 8 - notesNeeded;
+      const ranked = state.routeOffers.map((offer, index) => {
+        const route = ROUTES.find((candidate) => candidate.id === offer.routeId)!;
+        const rewards = Object.values(route.baseRewards).reduce((sum, value) => sum + (value ?? 0), 0);
+        return { index, score: (urgent ? route.noteProgress * 20 : route.noteProgress * 4) + rewards - route.hazard * 4 };
+      }).sort((left, right) => right.score - left.score);
+      await page.getByTestId(`route-${ranked[0]!.index}`).click();
+
+      const activeCrew = state.crew
+        .filter((crew) => crew.incapacitatedUntil <= state.shift)
+        .sort((left, right) => crewOrder.indexOf(left.id) - crewOrder.indexOf(right.id));
+      const modules = [...state.modules].sort((left, right) => moduleOrder.indexOf(left.id) - moduleOrder.indexOf(right.id));
+      for (let index = 0; index < Math.min(3, activeCrew.length, modules.length); index += 1) {
+        await page.getByTestId(`crew-${activeCrew[index]!.id}`).click();
+        await page.getByTestId(`room-${modules[index]!.slot}`).click();
+      }
+      await page.getByTestId('resolve-shift').click();
+    } else if (state.phase === 'event') {
+      await page.locator('[data-testid^="event-choice-"]:enabled').first().click();
+    } else if (state.phase === 'development') {
+      await page.getByRole('button', { name: 'Conserve alloy and continue' }).click();
+    } else if (state.phase === 'finale') {
+      await page.getByTestId('ending-seal').click();
+    }
+  }
+
+  const completed = await page.evaluate(() => window.__LODE_CHOIR__?.getState());
+  expect(completed?.status).toBe('won');
+  expect(completed?.shift).toBe(7);
+  expect(completed?.ending).toBe('seal');
+  await expect(page.getByTestId('completion-panel')).toContainText('Seal the Deep');
 });
 
 test('tap assignment, route selection, and shift resolution work on phone', async ({ page }) => {
@@ -127,10 +196,13 @@ test('deterministic hook can resolve a finale and begin the next inherited desce
   await page.getByRole('button', { name: 'Copy expedition report' }).click();
   await expect(page.getByRole('button', { name: 'Report copied' })).toBeVisible();
   await expect.poll(() => page.evaluate(() => localStorage.getItem('copied-expedition-report'))).toContain('Replay this signal:');
+  await expect.poll(() => page.evaluate(() => localStorage.getItem('copied-expedition-report'))).toContain('mode=standard');
   await expect(page.locator('.feedback-stack .feedback')).toHaveCount(0);
   const completedSeed = await page.evaluate(() => window.__LODE_CHOIR__?.getState()?.seed);
   await page.getByRole('button', { name: 'Open Chronicle' }).click();
   await expect(page.getByRole('heading', { name: 'Recent descents' })).toBeVisible();
+  await expect(page.locator('.chronicle-summary')).toContainText('1/3 resolved chords');
+  await expect(page.locator('.chronicle-summary')).toContainText('1/12 lore fragments');
   await expect(page.locator('.run-history').first()).toContainText(completedSeed!);
   await expect(page.locator('.run-history').first()).toContainText('CONCORDANT');
   await page.getByRole('button', { name: /RETURN/ }).click();
@@ -139,13 +211,19 @@ test('deterministic hook can resolve a finale and begin the next inherited desce
   await expect(page.getByRole('radio', { name: /Vesper Tuning Fork/i })).toBeEnabled();
 });
 
-test('a shared seed URL prepares the exact deterministic signal', async ({ page }) => {
-  await page.goto('/?seed=SHARED-SIGNAL&no-sw=1');
-  await expect(page.locator('.seed-console')).toContainText('SHARED-SIGNAL');
+test('a shared URL prepares the exact deterministic signal and contract', async ({ page }) => {
+  await page.goto('/?seed=SHARED-SIGNAL&mode=black_descent&no-sw=1');
+  await expect(page.getByRole('textbox', { name: 'Expedition seed' })).toHaveValue('SHARED-SIGNAL');
   await page.getByTestId('new-run').click();
   await expect(page.locator('.loadout-footer')).toContainText('SHARED-SIGNAL');
+  await expect(page.getByRole('radio', { name: /Black Descent/i })).toBeChecked();
   await page.getByTestId('begin-descent').click();
   expect(await page.evaluate(() => window.__LODE_CHOIR__?.getState()?.seed)).toBe('SHARED-SIGNAL');
+  expect(await page.evaluate(() => window.__LODE_CHOIR__?.getState()?.runMode)).toBe('black_descent');
+
+  await page.goto('/?seed=SAFE-SIGNAL&mode=counterfeit&no-sw=1');
+  await page.getByTestId('new-run').click();
+  await expect(page.getByRole('radio', { name: /^STANDARD DESCENT Standard$/i })).toBeChecked();
 });
 
 test('the complete static export installs and reopens from its generated offline shell', async ({ page, request, context }) => {
@@ -171,7 +249,7 @@ test('the complete static export installs and reopens from its generated offline
   try {
     await page.reload({ waitUntil: 'domcontentloaded' });
     await expect(page.getByRole('heading', { name: /Lode Choir/i })).toBeVisible();
-    await expect(page.locator('.seed-console')).toContainText('OFFLINE-CHOIR');
+    await expect(page.getByRole('textbox', { name: 'Expedition seed' })).toHaveValue('OFFLINE-CHOIR');
     await expect.poll(() => page.locator('.title-art img').evaluate((image: HTMLImageElement) => image.complete && image.naturalWidth > 0)).toBe(true);
   } finally {
     await context.setOffline(false);
@@ -216,14 +294,25 @@ test('procedural ambience follows run, menu, mute, resume, and completion lifecy
 
   await page.getByRole('button', { name: 'Open settings' }).click();
   await expect.poll(() => page.evaluate(() => (window as unknown as { __AUDIO_METRICS__: { stopped: number } }).__AUDIO_METRICS__.stopped)).toBe(3);
-  await page.getByText('Mute the choir').click();
+  await page.getByRole('slider', { name: 'Choir volume' }).fill('0');
   await page.getByRole('button', { name: /RETURN/ }).click();
+  await page.waitForTimeout(50);
   expect(await page.evaluate(() => (window as unknown as { __AUDIO_METRICS__: { started: number } }).__AUDIO_METRICS__.started)).toBe(3);
+
+  await page.getByRole('button', { name: 'Open settings' }).click();
+  await page.getByRole('slider', { name: 'Choir volume' }).fill('0.7');
+  await page.getByRole('button', { name: /RETURN/ }).click();
+  await expect.poll(() => page.evaluate(() => (window as unknown as { __AUDIO_METRICS__: { started: number } }).__AUDIO_METRICS__.started)).toBe(6);
 
   await page.getByRole('button', { name: 'Open settings' }).click();
   await page.getByText('Mute the choir').click();
   await page.getByRole('button', { name: /RETURN/ }).click();
-  await expect.poll(() => page.evaluate(() => (window as unknown as { __AUDIO_METRICS__: { started: number; resumed: number } }).__AUDIO_METRICS__)).toMatchObject({ started: 6, resumed: 1 });
+  expect(await page.evaluate(() => (window as unknown as { __AUDIO_METRICS__: { started: number } }).__AUDIO_METRICS__.started)).toBe(6);
+
+  await page.getByRole('button', { name: 'Open settings' }).click();
+  await page.getByText('Mute the choir').click();
+  await page.getByRole('button', { name: /RETURN/ }).click();
+  await expect.poll(() => page.evaluate(() => (window as unknown as { __AUDIO_METRICS__: { started: number; resumed: number } }).__AUDIO_METRICS__)).toMatchObject({ started: 9, resumed: 1 });
   await page.evaluate(() => {
     const state = window.__LODE_CHOIR__?.getState();
     if (!state) throw new Error('Test hook unavailable.');
@@ -232,7 +321,7 @@ test('procedural ambience follows run, menu, mute, resume, and completion lifecy
     state.heartNotes = 3;
     window.__LODE_CHOIR__?.command({ type: 'choose_ending', endingId: 'harmonize' });
   });
-  await expect.poll(() => page.evaluate(() => (window as unknown as { __AUDIO_METRICS__: { stopped: number } }).__AUDIO_METRICS__.stopped)).toBeGreaterThanOrEqual(6);
+  await expect.poll(() => page.evaluate(() => (window as unknown as { __AUDIO_METRICS__: { stopped: number } }).__AUDIO_METRICS__.stopped)).toBeGreaterThanOrEqual(9);
 });
 
 test('validated progress backups preserve the active signal, Chronicle, and settings', async ({ page }) => {

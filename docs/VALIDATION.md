@@ -5,7 +5,7 @@ Validated against the local `main` branch on 2026-07-31 with Node 24.14 and npm
 
 ## Rules and balance
 
-- 31 deterministic engine, content, and simulation tests pass, including immutability, legal-command
+- 32 deterministic engine, content, simulation, and evidence-integrity tests pass, including immutability, legal-command
   enforcement, save migration, exact replay, scars, loyalty, all endings, development
   deferral, mode-aware emergency repair, Black Descent composition and scoring, route
   leadership, and short-handed runs.
@@ -89,24 +89,48 @@ maximal synthetic Black Descent loss (2,375). Run records persist base score,
 multiplier, and final score rather than hiding the category adjustment.
 Pre-v2 score records migrate as visibly marked archived-formula history and are excluded
 from the current best-per-mode summaries because their missing crew components cannot be
-  recomputed honestly.
+recomputed honestly.
 - The engine exposes the seven score components as a tested ledger; the UI shows the
   base and mode multiplier and copies a deterministic seed-linked expedition report.
 - Content validation now proves all sixteen routes can surface a keyed story event and
   all twelve Chronicle lore fragments have reachable unlock tags.
 
+### Deep deterministic soak
+
+The repeatable `npm run audit:deep -- --seeds=10000` audit completed 480,000 full runs:
+10,000 seeds across two modes, three policies, charting on/off, and four relic states.
+Every command trace was independently replayed to an exactly equal terminal state.
+No run violated phase, shift, hull, Heart Note, non-negative integer resource, or crew
+strain bounds; score components, multiplier, and total agreed in every terminal state.
+
+Standard won 95,111/240,000 runs (39.63%) and Black Descent won 78,794/240,000
+(32.83%), a 6.80-point overall difficulty gap. Policy-level results were:
+
+| Policy | Standard wins / 80,000 | Black wins / 80,000 |
+| --- | ---: | ---: |
+| Conservative | 70,141 (87.68%) | 70,092 (87.62%) |
+| Balanced | 23,516 (29.40%) | 8,292 (10.36%) |
+| Aggressive | 1,454 (1.82%) | 410 (0.51%) |
+
+The weakest observed win scored 2,665; the strongest observed loss scored 1,706.
+The complete 48-cell machine-readable record, including repairs, reservations,
+carried selections, mean score, and mean command length, is in `docs/deep-audit.json`.
+A regression test validates its schema, run/replay totals, per-cell completeness, mode
+aggregates, score boundary, rates, and physical ranges before the evidence can pass CI.
+
 ## Interface and persistence
 
-- 32 Playwright checks pass in Pixel 5 and desktop Chromium projects. They cover title
-  navigation, settings migration and persistent volume, first choice, touch assignment, optional leadership, resolution,
+- 36 Playwright checks pass in Pixel 5 and desktop Chromium projects. They cover title
+  navigation, direct seed entry, settings migration, installation prompt handling and persistent volume, first choice, touch assignment, optional leadership, resolution,
   loadout locking and keyboard selection, all three relic effects, relic resume,
   exact route-cost forecasts, chart hold/swap/refund/reload/return behavior,
   autosave previews/resume, unaffordable story-choice gating, corrupt-save recovery,
   scored Chronicle history, Black Descent keyboard selection, exact preview,
   save/resume, completion, archive categorization and fresh-run reset, later phase
   surfaces, validated backup rejection/restore across run, Chronicle, and settings,
-  exact event-effect labels, score-ledger disclosure, copied seed-linked reports,
-  shared-seed URL initialization, Chronicle rematch preparation, and test hooks.
+  exact event-effect labels, score-ledger disclosure, copied seed-and-mode reports,
+  shared URL initialization with invalid-mode fallback, Chronicle progression counts,
+  Chronicle rematch preparation, a complete seven-shift visible-control win, and test hooks.
   A stubbed Web Audio contract additionally verifies the ambient voices start with an
   active run, stop in menus, remain stopped while muted, resume after unmuting, and stop
   again at terminal completion in both viewport projects.
@@ -130,9 +154,9 @@ from the current best-per-mode summaries because their missing crew components c
 
 ## Asset and dependency checks
 
-- The production export currently contains 36 files and 1,312,189 uncompressed bytes.
-  The directly referenced initial shell is 974,008 bytes; JavaScript totals 735,513
-  bytes, imagery 489,093 bytes, and CSS 35,974 bytes. The largest individual file is a
+- The production export currently contains 36 files and 1,315,179 uncompressed bytes.
+  The directly referenced initial shell is 976,998 bytes; JavaScript totals 737,732
+  bytes, imagery 489,093 bytes, and CSS 36,672 bytes. The largest individual file is a
   227,538-byte framework chunk. All remain below committed build-breaking budgets.
 - The export audit found no remote runtime asset references, no missing shell files,
   and no emitted file omitted from the generated service-worker cache.

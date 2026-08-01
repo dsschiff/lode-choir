@@ -41,6 +41,11 @@ type Surface = 'title' | 'loadout' | 'game' | 'manual' | 'chronicle' | 'settings
 type Settings = { muted: boolean; highContrast: boolean; reducedMotion: boolean; volume: number };
 type SavePreview = { seed: string; shift: number; relicName: string | null; runMode: RunMode };
 type ProgressBackup = { game: 'lode-choir-backup'; version: 1; autosave: string | null; legacy: string; settings: Settings };
+type InstallPromptEvent = Event & {
+  prompt: () => Promise<void>;
+  userChoice: Promise<{ outcome: 'accepted' | 'dismissed' }>;
+};
+type InstallStatus = 'browser' | 'ready' | 'accepted' | 'installed';
 
 const DEFAULT_SETTINGS: Settings = { muted: false, highContrast: false, reducedMotion: false, volume: 0.7 };
 
@@ -548,6 +553,7 @@ function CompletionPanel({ view, onNewRun, onChronicle }: { view: GameView; onNe
   const copyReport = async () => {
     const replayUrl = new URL(window.location.pathname, window.location.href);
     replayUrl.searchParams.set('seed', view.state.seed);
+    replayUrl.searchParams.set('mode', view.state.runMode);
     const outcome = won ? ENDINGS[view.state.ending ?? 'harmonize'].title : 'Orison went dark';
     const report = [
       `LODE CHOIR // ${won ? 'CONCORDANT' : 'SILENCED'}`,
@@ -608,6 +614,8 @@ function Chronicle({ legacy, onRetry, onBack }: { legacy: LegacyState; onRetry: 
         <span><b>{legacy.runsCompleted}</b> descents</span>
         <span><b>{standardScores.length ? Math.max(...standardScores) : '—'}</b> best standard</span>
         <span><b>{blackScores.length ? Math.max(...blackScores) : '—'}</b> best Black Descent</span>
+        <span><b>{legacy.endings.length}/3</b> resolved chords</span>
+        <span><b>{legacy.lore.length}/{LORE.length}</b> lore fragments</span>
       </div>
       <h2>Recent descents</h2>
       {legacy.records.length ? <ol className="run-history">{legacy.records.map((record, index) => {
@@ -662,9 +670,11 @@ function MenuPage({ eyebrow, title, onBack, children }: { eyebrow: string; title
   );
 }
 
-function SettingsPage({ settings, onChange, onCreateBackup, onRestoreBackup, onBack }: {
+function SettingsPage({ settings, installStatus, onChange, onInstall, onCreateBackup, onRestoreBackup, onBack }: {
   settings: Settings;
+  installStatus: InstallStatus;
   onChange: (settings: Settings) => void;
+  onInstall: () => void;
   onCreateBackup: () => string;
   onRestoreBackup: (serialized: string) => string;
   onBack: () => void;
@@ -712,6 +722,20 @@ function SettingsPage({ settings, onChange, onCreateBackup, onRestoreBackup, onB
           <output>{Math.round(settings.volume * 100)}%</output>
         </label>
       </div>
+      <section className="install-card" aria-labelledby="install-card-title">
+        <span className="kicker">OFFLINE // FIELD KIT</span>
+        <div>
+          <h2 id="install-card-title">{installStatus === 'installed' ? 'Orison is installed' : installStatus === 'ready' ? 'Install Lode Choir' : installStatus === 'accepted' ? 'Installation accepted' : 'Keep Orison offline'}</h2>
+          <p>{installStatus === 'installed'
+            ? 'This build is running as a standalone installed expedition.'
+            : installStatus === 'ready'
+              ? 'Add the complete expedition to this device for a standalone, offline-ready launch.'
+              : installStatus === 'accepted'
+                ? 'The browser accepted the request. Follow its final system prompt if one appears.'
+                : 'After one online visit, the complete expedition is cached. Use your browser’s Install app or Add to Home Screen command to keep it.'}</p>
+        </div>
+        {installStatus === 'ready' && <button type="button" onClick={onInstall}>INSTALL APP</button>}
+      </section>
       <section className="progress-backup" aria-labelledby="progress-backup-title">
         <span className="kicker">LOCAL DATA // PORTABLE RECORD</span>
         <h2 id="progress-backup-title">Back up this expedition</h2>
@@ -863,7 +887,8 @@ function TitleScreen({ seed, hasSave, savePreview, notice, onSeed, onNew, onCont
           </button>
         </div>
         <div className="seed-console">
-          <span>EXPEDITION SEED</span><b>{seed}</b>
+          <span>EXPEDITION SEED</span>
+          <input aria-label="Expedition seed" value={seed} maxLength={64} spellCheck={false} onChange={(event) => onSeed(event.target.value)} onBlur={(event) => onSeed(event.target.value.trim() || makeSeed())} />
           <button type="button" onClick={() => onSeed(makeSeed())} aria-label="Reroll seed">↻</button>
           <button type="button" onClick={copySeed} aria-label="Copy seed">{copied ? '✓' : '⧉'}</button>
         </div>
@@ -895,6 +920,8 @@ export function GameApp() {
   const [notice, setNotice] = useState<string | null>(null);
   const [feedback, setFeedback] = useState<EngineEvent[]>([]);
   const [chartStatus, setChartStatus] = useState<string | null>(null);
+  const [installPrompt, setInstallPrompt] = useState<InstallPromptEvent | null>(null);
+  const [installStatus, setInstallStatus] = useState<InstallStatus>('browser');
   const stateRef = useRef<GameState | null>(null);
   const recordedCompletion = useRef<string | null>(null);
 
@@ -1023,6 +1050,23 @@ export function GameApp() {
     return () => { delete window.__LODE_CHOIR__; };
   }, [dispatch, startRun]);
 
+  useEffect(() => {
+    const navigatorWithStandalone = navigator as Navigator & { standalone?: boolean };
+    if (window.matchMedia('(display-mode: standalone)').matches || navigatorWithStandalone.standalone) setInstallStatus('installed');
+    const capturePrompt = (event: Event) => {
+      event.preventDefault();
+      setInstallPrompt(event as InstallPromptEvent);
+      setInstallStatus('ready');
+    };
+    const markInstalled = () => { setInstallPrompt(null); setInstallStatus('installed'); };
+    window.addEventListener('beforeinstallprompt', capturePrompt);
+    window.addEventListener('appinstalled', markInstalled);
+    return () => {
+      window.removeEventListener('beforeinstallprompt', capturePrompt);
+      window.removeEventListener('appinstalled', markInstalled);
+    };
+  }, []);
+
   const assignedCrew = useMemo(() => {
     const assigned = new Set(view?.modules.map((module) => module.assignedCrew).filter(Boolean) ?? []);
     if (view?.state.routeLeader) assigned.add(view.state.routeLeader);
@@ -1030,9 +1074,9 @@ export function GameApp() {
   }, [view]);
   const openMenuPage = (next: Surface) => { setReturnSurface(surface); setSurface(next); resetDocumentScroll(); };
   const goBack = () => setSurface(returnSurface === 'game' && !view ? 'title' : returnSurface);
-  const prepareLoadout = (runSeed = seed) => {
+  const prepareLoadout = (runSeed = seed, runMode: RunMode = 'standard') => {
     setSeed(runSeed);
-    setSelectedRunMode('standard');
+    setSelectedRunMode(runMode);
     setReturnSurface(surface);
     setSurface('loadout');
     resetDocumentScroll();
@@ -1081,12 +1125,24 @@ export function GameApp() {
     return `Backup restored: ${restored.legacy.runsCompleted} Chronicle descent${restored.legacy.runsCompleted === 1 ? '' : 's'}${restored.run ? ` and ${restored.run.seed} at shift ${restored.run.shift}` : ''}.`;
   };
 
+  const installApp = async () => {
+    if (!installPrompt) return;
+    try {
+      await installPrompt.prompt();
+      const choice = await installPrompt.userChoice;
+      setInstallStatus(choice.outcome === 'accepted' ? 'accepted' : 'browser');
+    } catch {
+      setInstallStatus('browser');
+    }
+    setInstallPrompt(null);
+  };
+
   const shellClasses = ['app-root', settings.highContrast ? 'high-contrast' : '', settings.reducedMotion ? 'reduced-motion' : ''].filter(Boolean).join(' ');
-  if (surface === 'title') return <div className={shellClasses}><TitleScreen seed={seed} hasSave={hasSave} savePreview={savePreview} notice={notice} onSeed={setSeed} onNew={() => prepareLoadout()} onContinue={continueRun} onNavigate={openMenuPage} /></div>;
+  if (surface === 'title') return <div className={shellClasses}><TitleScreen seed={seed} hasSave={hasSave} savePreview={savePreview} notice={notice} onSeed={setSeed} onNew={() => prepareLoadout(seed, new URLSearchParams(window.location.search).get('mode') === 'black_descent' ? 'black_descent' : 'standard')} onContinue={continueRun} onNavigate={openMenuPage} /></div>;
   if (surface === 'loadout') return <div className={shellClasses}><LoadoutPage seed={seed} unlocked={legacy.relics} selected={selectedRelic} runMode={selectedRunMode} onSelect={setSelectedRelic} onMode={setSelectedRunMode} onBegin={() => startRun(seed, selectedRelic, selectedRunMode)} onBack={goBack} /></div>;
   if (surface === 'manual') return <div className={shellClasses}><ManualPage onBack={goBack} /></div>;
   if (surface === 'chronicle') return <div className={shellClasses}><Chronicle legacy={legacy} onRetry={prepareArchivedRun} onBack={goBack} /></div>;
-  if (surface === 'settings') return <div className={shellClasses}><SettingsPage settings={settings} onChange={setSettings} onCreateBackup={createProgressBackup} onRestoreBackup={restoreProgressBackup} onBack={goBack} /></div>;
+  if (surface === 'settings') return <div className={shellClasses}><SettingsPage settings={settings} installStatus={installStatus} onChange={setSettings} onInstall={installApp} onCreateBackup={createProgressBackup} onRestoreBackup={restoreProgressBackup} onBack={goBack} /></div>;
   if (surface === 'credits') return <div className={shellClasses}><MenuPage eyebrow="TRANSMISSION // AUTHORS" title="Credits" onBack={goBack}><div className="credits-copy"><p>Designed and built as an original game about care, extraction, and the cost of listening.</p><p>Rules, words, interface, vector marks, event tones, and the procedural moon-drone created for <em>Lode Choir</em>.</p><ToneMark active /></div></MenuPage></div>;
   if (!view) return null;
 

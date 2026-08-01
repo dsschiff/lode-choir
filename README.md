@@ -14,6 +14,7 @@ npm run typecheck
 npm run build
 npm run test:e2e
 npm run verify
+npm run audit:deep -- --seeds=10000
 npm run screenshots --workspace @lode-choir/game
 ```
 
@@ -35,11 +36,13 @@ After the first player gesture, a lightweight Web Audio moon-drone underlays the
 and yields to procedural room, route, story, damage, and ending tones; it pauses in
 menus, stops at completion, and obeys persistent mute and 0–100% volume settings without
 audio files.
-The Settings menu can create and validate a portable text backup containing the active
+The Settings menu exposes browser installation guidance or an available native install
+prompt, and can create and validate a portable text backup containing the active
 autosave, Chronicle progression, and accessibility/audio settings before restoring any
 local data.
-Append `?seed=SHARED-SIGNAL` to the local game URL to prepare the same deterministic
-expedition for another player or later playtest.
+Paste a seed directly on the title screen, or append
+`?seed=SHARED-SIGNAL&mode=black_descent` to prepare the same deterministic expedition
+and contract for another player or later playtest.
 Every Chronicle record can also reopen its exact seed and mode at loadout, carrying its
 relic when that heirloom remains recovered. Twelve unlockable lore fragments preserve
 the moon and crew discoveries surfaced by route-tagged events.
@@ -48,6 +51,7 @@ See `docs/VALIDATION.md` for the current balance, browser, accessibility, visual
 and dependency-audit evidence.
 `npm run verify` also enforces static-export budgets and full offline-cache coverage;
 the current uncompressed initial shell is under 1 MB.
+`docs/deep-audit.json` records the latest 10,000-seed, 480,000-run/replay balance soak.
 
 Current review captures: [desktop title](docs/screenshots/title-desktop.jpg),
 [phone title](docs/screenshots/title-phone.jpg),

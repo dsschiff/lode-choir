@@ -47,6 +47,9 @@ All randomness uses the persisted PRNG state. Commands contain intent, not outco
 Dates may appear only in app-level save metadata and never affect rules or replay.
 The optional `?seed=` URL parameter is app-level initialization only; it supplies the
 same bounded seed string that `createRun` already consumes and does not alter PRNG rules.
+The companion `mode=black_descent` query selects only the loadout contract; unknown mode
+values fail closed to Standard. The same seed may also be pasted into the bounded title
+input.
 
 ## Content growth
 
@@ -63,6 +66,9 @@ The small deferred registrar derives its scope from the manifest. Navigation rem
 network-first so a live host can advance to a fresh export, while the complete
 fingerprinted shell is available as the offline fallback. Activation deletes only older
 Lode Choir cache versions.
+The Settings surface captures `beforeinstallprompt` when the host exposes it, confirms
+the browser choice, observes `appinstalled`, and otherwise gives browser-menu guidance;
+it never claims installation merely because the cache exists.
 `audit-export.mjs` then rejects remote or missing shell references, incomplete service
 worker coverage, a non-standalone manifest, or regressions beyond locked total,
 JavaScript, image, CSS, initial-shell, and largest-file byte budgets.

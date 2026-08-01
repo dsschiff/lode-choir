@@ -21,8 +21,14 @@ class ChoirAudio {
 
   setVolume(volume: number) {
     this.volume = Math.max(0, Math.min(1, volume));
+    if (this.volume === 0) {
+      this.stopAmbience();
+      return;
+    }
     if (this.ambience && this.context) {
       this.ambience.master.gain.setValueAtTime(Math.max(0.0001, 0.012 * this.volume), this.context.currentTime);
+    } else if (this.ambienceRequested && this.enabled) {
+      this.setAmbience(true);
     }
   }
 
@@ -42,12 +48,12 @@ class ChoirAudio {
 
   setAmbience(active: boolean) {
     this.ambienceRequested = active;
-    if (!active || !this.enabled) {
+    if (!active || !this.enabled || this.volume === 0) {
       this.stopAmbience();
       return;
     }
     void this.wake().then(() => {
-      if (!this.ambienceRequested || !this.enabled || !this.context || this.context.state !== 'running' || this.ambience) return;
+      if (!this.ambienceRequested || !this.enabled || this.volume === 0 || !this.context || this.context.state !== 'running' || this.ambience) return;
       const now = this.context.currentTime;
       const master = this.context.createGain();
       master.gain.setValueAtTime(0.0001, now);
@@ -90,7 +96,7 @@ class ChoirAudio {
   }
 
   play(event: EngineEvent) {
-    if (!this.enabled) return;
+    if (!this.enabled || this.volume === 0) return;
     void this.wake().then(() => {
       if (!this.context || this.context.state !== 'running') return;
       const now = this.context.currentTime;

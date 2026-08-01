@@ -53,6 +53,7 @@ Any score below 4 produces a concrete fix before visual content expansion.
 Keep the final seed, creation options, and command trace for representative Standard
 and Black Descent wins and losses, simulation summary, screenshots of
 title/planning/event/finale, and browser-console results.
-Use **Copy expedition report** at completion to retain a concise score and replay URL.
+Use **Copy expedition report** at completion to retain a concise score and seed/mode
+replay URL. A tester can also paste the seed directly into the title instrument.
 For a completed Chronicle, also capture the loadout screen and one resumed relic run so
 the persistent loop is evidenced rather than inferred.

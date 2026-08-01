@@ -9,6 +9,7 @@
   "scripts": {
     "test": "node --test --experimental-strip-types --disable-warning=ExperimentalWarning \"test/**/*.test.ts\"",
     "test:sim": "node --test --experimental-strip-types --disable-warning=ExperimentalWarning \"test/simulation.test.ts\"",
+    "audit:deep": "node --experimental-strip-types --disable-warning=ExperimentalWarning scripts/deep-audit.ts",
     "typecheck": "tsc --noEmit"
   },
   "devDependencies": {
@@ -16,4 +17,3 @@
     "typescript": "5.9.3"
   }
 }
-
