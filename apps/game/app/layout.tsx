@@ -11,6 +11,6 @@ export const metadata: Metadata = {
 export const viewport: Viewport = { themeColor: '#07090c' };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
-  return <html lang="en"><body>{children}<div id="audio-portal" /></body></html>;
+  return <html lang="en"><body>{children}<div id="audio-portal" /><script src="/register-sw.js" defer /></body></html>;
 }
 

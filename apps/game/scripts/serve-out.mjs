@@ -5,7 +5,7 @@ import { extname, join, resolve } from 'node:path';
 const port = Number(process.argv[2] ?? 3321);
 const watchParent = process.argv.includes('--watch-parent');
 const root = resolve('out');
-const mime = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.json': 'application/json', '.png': 'image/png', '.webp': 'image/webp', '.svg': 'image/svg+xml' };
+const mime = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.json': 'application/json', '.webmanifest': 'application/manifest+json', '.txt': 'text/plain', '.png': 'image/png', '.webp': 'image/webp', '.svg': 'image/svg+xml' };
 
 const server = createServer((request, response) => {
   const pathname = decodeURIComponent((request.url ?? '/').split('?')[0] ?? '/');

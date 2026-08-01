@@ -7,6 +7,7 @@ const appRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const workspaceRoot = resolve(appRoot, '..', '..');
 const nextCli = resolve(workspaceRoot, 'node_modules', 'next', 'dist', 'bin', 'next');
 const playwrightCli = resolve(workspaceRoot, 'node_modules', '@playwright', 'test', 'cli.js');
+const finalizeExport = resolve(appRoot, 'scripts', 'finalize-export.mjs');
 
 function run(command, args, options = {}) {
   return new Promise((resolveRun, rejectRun) => {
@@ -42,6 +43,7 @@ async function waitForServer() {
 
 if (await portIsListening()) throw new Error('Port 3321 is already in use; refusing to test against an unknown server.');
 await run(process.execPath, [nextCli, 'build']);
+await run(process.execPath, [finalizeExport]);
 const server = spawn(process.execPath, ['scripts/serve-out.mjs', '3321'], { cwd: appRoot, stdio: 'inherit' });
 
 try {

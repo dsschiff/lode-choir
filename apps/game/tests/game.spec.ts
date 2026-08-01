@@ -2,7 +2,7 @@ import { expect, test, type Page } from '@playwright/test';
 import AxeBuilder from '@axe-core/playwright';
 
 test.beforeEach(async ({ page }) => {
-  await page.goto('/');
+  await page.goto('/?no-sw=1');
   await page.evaluate(() => localStorage.clear());
   await page.reload();
 });
@@ -110,12 +110,42 @@ test('deterministic hook can resolve a finale and begin the next inherited desce
 });
 
 test('a shared seed URL prepares the exact deterministic signal', async ({ page }) => {
-  await page.goto('/?seed=SHARED-SIGNAL');
+  await page.goto('/?seed=SHARED-SIGNAL&no-sw=1');
   await expect(page.locator('.seed-console')).toContainText('SHARED-SIGNAL');
   await page.getByTestId('new-run').click();
   await expect(page.locator('.loadout-footer')).toContainText('SHARED-SIGNAL');
   await page.getByTestId('begin-descent').click();
   expect(await page.evaluate(() => window.__LODE_CHOIR__?.getState()?.seed)).toBe('SHARED-SIGNAL');
+});
+
+test('the complete static export installs and reopens from its generated offline shell', async ({ page, request, context }) => {
+  const manifest = await request.get('/manifest.webmanifest');
+  expect(manifest.ok()).toBeTruthy();
+  expect(manifest.headers()['content-type']).toContain('application/manifest+json');
+  expect(await manifest.json()).toMatchObject({ display: 'standalone', orientation: 'portrait', start_url: './' });
+  const registrar = await request.get('/register-sw.js');
+  expect(registrar.ok()).toBeTruthy();
+  expect(await registrar.text()).toContain('serviceWorker.register');
+  const worker = await request.get('/sw.js');
+  expect(worker.ok()).toBeTruthy();
+  const workerText = await worker.text();
+  expect(workerText).toContain('art/orison-title.webp');
+  expect(workerText).toContain('art/crew-sable.webp');
+  expect(workerText).toContain('_next/static');
+
+  await page.goto('/?seed=OFFLINE-CHOIR');
+  await page.evaluate(() => navigator.serviceWorker.ready.then(() => undefined));
+  await page.reload();
+  await expect.poll(() => page.evaluate(() => Boolean(navigator.serviceWorker.controller))).toBe(true);
+  await context.setOffline(true);
+  try {
+    await page.reload({ waitUntil: 'domcontentloaded' });
+    await expect(page.getByRole('heading', { name: /Lode Choir/i })).toBeVisible();
+    await expect(page.locator('.seed-console')).toContainText('OFFLINE-CHOIR');
+    await expect.poll(() => page.locator('.title-art img').evaluate((image: HTMLImageElement) => image.complete && image.naturalWidth > 0)).toBe(true);
+  } finally {
+    await context.setOffline(false);
+  }
 });
 
 test('validated progress backups preserve the active signal, Chronicle, and settings', async ({ page }) => {

@@ -50,3 +50,13 @@ same bounded seed string that `createRun` already consumes and does not alter PR
 New content must have a real mechanical effect, an opportunity cost, and bounded
 frequency. A new definition should enrich an existing command before creating a new
 subsystem.
+
+## Static export and offline shell
+
+`finalize-export.mjs` runs after every production export. It inventories every emitted
+HTML, React payload, hashed chunk, stylesheet, manifest, icon, and art file; hashes their
+actual bytes into a cache version; and writes `out/sw.js` with that exact precache list.
+The small deferred registrar derives its scope from the manifest. Navigation remains
+network-first so a live host can advance to a fresh export, while the complete
+fingerprinted shell is available as the offline fallback. Activation deletes only older
+Lode Choir cache versions.

@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
+    "build": "next build && node scripts/finalize-export.mjs",
     "typecheck": "tsc --noEmit",
     "serve:out": "node scripts/serve-out.mjs 3321",
     "screenshots": "node scripts/capture-screenshots.mjs",

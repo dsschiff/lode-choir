@@ -9,6 +9,9 @@ Reversible decisions recorded during autonomous development. These do not block 
   only if a spatial surface clearly earns it.
 - **Publishing:** local repository and production build only; no remote or deployment
   without explicit authorization.
+- **PWA hosting:** retain the root-scoped manifest and generated offline shell for the
+  local review build. If publishing is later approved under a subpath, make the metadata
+  asset URLs base-aware before claiming that hosted install path is supported.
 - **Echo Shards:** retain the migrated counter internally, but keep it out of the visible
   Chronicle until it buys a real choice. Scores and run records carry replay value now.
 - **Expedition scale:** the vertical slice uses three chamber operators plus one

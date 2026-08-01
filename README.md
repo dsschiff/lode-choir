@@ -18,7 +18,9 @@ npm run screenshots --workspace @lode-choir/game
 ```
 
 The engine is deterministic and renderer-independent. The web app is phone-first and
-builds to a static export. Each shift combines a route choice, three chamber
+builds to an installable static export. Its generated service worker fingerprints and
+precaches the complete export, so an installed or previously opened build remains
+playable offline. Each shift combines a route choice, three chamber
 assignments, and an optional expedition leader, followed by story consequences and
 citadel development or emergency alloy plating. Distinct endings unlock canonical Chronicle relics that can be
 carried—one at a time—into later seeded expeditions. One lumen can also chart a declined

@@ -9,6 +9,7 @@ const appRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const workspaceRoot = resolve(appRoot, '..', '..');
 const outputRoot = resolve(workspaceRoot, 'docs', 'screenshots');
 const nextCli = resolve(workspaceRoot, 'node_modules', 'next', 'dist', 'bin', 'next');
+const finalizeExport = resolve(appRoot, 'scripts', 'finalize-export.mjs');
 
 function run(command, args) {
   return new Promise((resolveRun, rejectRun) => {
@@ -49,7 +50,7 @@ async function capture(browser, name, viewport, mobile = false) {
     await page.evaluate(() => window.scrollTo(0, 0));
     await page.screenshot({ path: resolve(outputRoot, `${surface}-${name}.jpg`), fullPage: true, type: 'jpeg', quality: 84 });
   };
-  await page.goto('http://127.0.0.1:3321/?seed=QA-ORISON');
+  await page.goto('http://127.0.0.1:3321/?seed=QA-ORISON&no-sw=1');
   await page.evaluate(() => localStorage.clear());
   await page.reload();
   await page.waitForLoadState('networkidle');
@@ -121,6 +122,7 @@ async function capture(browser, name, viewport, mobile = false) {
 if (await portIsListening()) throw new Error('Port 3321 is already in use; refusing to capture an unknown build.');
 mkdirSync(outputRoot, { recursive: true });
 await run(process.execPath, [nextCli, 'build']);
+await run(process.execPath, [finalizeExport]);
 const server = spawn(process.execPath, ['scripts/serve-out.mjs', '3321'], { cwd: appRoot, stdio: 'inherit' });
 
 try {

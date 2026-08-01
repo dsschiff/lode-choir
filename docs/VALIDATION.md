@@ -93,7 +93,7 @@ recomputed honestly.
 
 ## Interface and persistence
 
-- 26 Playwright checks pass in Pixel 5 and desktop Chromium projects. They cover title
+- 28 Playwright checks pass in Pixel 5 and desktop Chromium projects. They cover title
   navigation, settings, first choice, touch assignment, optional leadership, resolution,
   loadout locking and keyboard selection, all three relic effects, relic resume,
   exact route-cost forecasts, chart hold/swap/refund/reload/return behavior,
@@ -102,6 +102,11 @@ recomputed honestly.
   save/resume, completion, archive categorization and fresh-run reset, later phase
   surfaces, validated backup rejection/restore across run, Chronicle, and settings,
   shared-seed URL initialization, Chronicle rematch preparation, and test hooks.
+- The production finalizer generated a content-addressed service worker with 35
+  precached export files. Browser checks validate the standalone portrait manifest,
+  registrar, generated chunk/art coverage, active service-worker control, then force
+  the context offline and reload the full title, fixed seed, CSS, JavaScript, and title
+  art successfully in both viewport projects.
 - Axe scans report no detectable violations on the title, manual, loadout, planning,
   expanded charting, or resource-gated event surfaces in either browser project.
 - Production static export passes. The bounded E2E runner builds, serves, tests, closes
