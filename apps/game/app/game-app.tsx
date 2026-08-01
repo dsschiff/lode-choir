@@ -1,0 +1,636 @@
+'use client';
+
+import {
+  MODULES,
+  applyCommand,
+  createRun,
+  deserialize,
+  selectGameView,
+  serialize,
+  type Command,
+  type CrewId,
+  type EndingId,
+  type EngineEvent,
+  type GameState,
+  type GameView,
+  type LegacyState,
+  type ModuleId,
+} from '@lode-choir/engine';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { choirAudio } from './audio';
+
+const AUTOSAVE_KEY = 'lode_choir_autosave_v1';
+const LEGACY_KEY = 'lode_choir_legacy_v1';
+const SETTINGS_KEY = 'lode_choir_settings_v1';
+
+type Surface = 'title' | 'game' | 'chronicle' | 'settings' | 'credits';
+type Settings = { muted: boolean; highContrast: boolean; reducedMotion: boolean };
+
+const DEFAULT_SETTINGS: Settings = { muted: false, highContrast: false, reducedMotion: false };
+const DEFAULT_LEGACY: LegacyState = {
+  version: 1,
+  runsCompleted: 0,
+  echoShards: 0,
+  endings: [],
+  lore: [],
+  relics: [],
+};
+
+const ENDINGS: Record<EndingId, { title: string; description: string; cost: string }> = {
+  harvest: {
+    title: 'Harvest the Heart',
+    description: 'Cut the impossible chord from the moon and carry its power home.',
+    cost: 'The choir falls silent.',
+  },
+  harmonize: {
+    title: 'Join the Harmony',
+    description: 'Tune Orison to the Heart-Lode and let both living machines answer.',
+    cost: 'No one returns unchanged.',
+  },
+  seal: {
+    title: 'Seal the Deep',
+    description: 'Close the wound, abandon the claim, and leave the song beneath stone.',
+    cost: 'The expedition returns empty-handed.',
+  },
+};
+
+const RELIC_BY_ENDING: Record<EndingId, string> = {
+  harvest: 'Cantor Blade',
+  harmonize: 'Concordant Lens',
+  seal: 'Quiet Bell',
+};
+
+const MODULE_MARKS: Record<ModuleId, string> = {
+  heart_engine: 'HE',
+  deep_drill: 'DD',
+  ward_array: 'WA',
+  foundry: 'FO',
+  infirmary: 'IN',
+  resonance_chamber: 'RC',
+};
+
+declare global {
+  interface Window {
+    __LODE_CHOIR__?: {
+      getState: () => GameState | null;
+      command: (command: Command) => void;
+      newRun: (seed: string) => void;
+    };
+  }
+}
+
+function makeSeed() {
+  if (typeof crypto !== 'undefined' && 'getRandomValues' in crypto) {
+    const values = new Uint32Array(2);
+    crypto.getRandomValues(values);
+    return `CHOIR-${values[0].toString(36).slice(-4)}-${values[1].toString(36).slice(-4)}`.toUpperCase();
+  }
+  return 'CHOIR-ORISON';
+}
+
+function safeParse<T>(value: string | null, fallback: T): T {
+  if (!value) return fallback;
+  try {
+    return JSON.parse(value) as T;
+  } catch {
+    return fallback;
+  }
+}
+
+function ToneMark({ active = false }: { active?: boolean }) {
+  return (
+    <svg className={`tone-mark ${active ? 'is-active' : ''}`} viewBox="0 0 96 28" aria-hidden="true">
+      <path d="M2 14h12l5-9 8 18 8-13 7 8 8-16 8 23 8-15 7 8h21" />
+    </svg>
+  );
+}
+
+function ResourceRail({ state }: { state: GameState }) {
+  const items = [
+    ['PRO', state.resources.provisions],
+    ['ALY', state.resources.alloy],
+    ['LUM', state.resources.lumen],
+    ['HULL', `${state.integrity}/12`],
+    ['NOTE', `${state.heartNotes}/3`],
+  ];
+  return (
+    <section className="resource-rail" aria-label="Expedition resources">
+      {items.map(([label, value]) => (
+        <div className={label === 'HULL' && Number(state.integrity) <= 3 ? 'resource is-danger' : 'resource'} key={label}>
+          <span>{label}</span><strong>{value}</strong>
+        </div>
+      ))}
+    </section>
+  );
+}
+
+function CrewCard({ crew, selected, assigned, shift, onSelect, onUnassign }: {
+  crew: GameView['crew'][number];
+  selected: boolean;
+  assigned: boolean;
+  shift: number;
+  onSelect: () => void;
+  onUnassign: () => void;
+}) {
+  const unavailable = crew.incapacitatedUntil > shift;
+  return (
+    <article className={`crew-card ${selected ? 'is-selected' : ''} ${unavailable ? 'is-incapacitated' : ''}`}>
+      <button
+        type="button"
+        className="crew-select"
+        onClick={assigned ? onUnassign : onSelect}
+        disabled={unavailable}
+        aria-pressed={selected}
+        data-testid={`crew-${crew.id}`}
+      >
+        <span className="crew-monogram" style={{ '--crew-color': crew.color } as React.CSSProperties}>
+          {crew.name.split(' ').map((part) => part[0]).join('').slice(0, 2)}
+        </span>
+        <span className="crew-identity">
+          <strong>{crew.name}</strong>
+          <small>{unavailable ? `Incapacitated until shift ${crew.incapacitatedUntil + 1}` : assigned ? 'Assigned · tap to recall' : crew.role}</small>
+        </span>
+        <span className="crew-readout"><b>{crew.strain}</b>/6 STR</span>
+      </button>
+      <div className="crew-meter" aria-label={`${crew.name} strain ${crew.strain} of 6`}>
+        <i style={{ width: `${Math.min(100, (crew.strain / 6) * 100)}%` }} />
+      </div>
+      <details>
+        <summary>Vow · {crew.vowProgress}/3 <span>{crew.loyalty} loyalty</span></summary>
+        <p>{crew.vow}</p>
+        <p><em>{crew.signatureUnlocked ? `Awakened: ${crew.signature}` : `Talent: ${crew.talent}`}</em></p>
+        {crew.scar && <p className="scar">Scar: {crew.scar}</p>}
+      </details>
+    </article>
+  );
+}
+
+function Citadel({ view, selectedCrew, selectedBuildSlot, onRoom, onEmpty }: {
+  view: GameView;
+  selectedCrew: CrewId | null;
+  selectedBuildSlot: number | null;
+  onRoom: (slot: number) => void;
+  onEmpty: (slot: number) => void;
+}) {
+  const modulesBySlot = new Map(view.modules.map((module) => [module.slot, module]));
+  return (
+    <section className="citadel-panel" aria-labelledby="citadel-title">
+      <div className="section-heading">
+        <div><span className="kicker">LIVING CITADEL</span><h2 id="citadel-title">Orison</h2></div>
+        <span className="shift-seal">SHIFT <b>{view.state.shift}</b>/7</span>
+      </div>
+      <div className="citadel" data-testid="citadel-grid">
+        <div className="citadel-veins" aria-hidden="true" />
+        {Array.from({ length: 9 }, (_, slot) => {
+          const module = modulesBySlot.get(slot);
+          if (!module) {
+            return (
+              <button
+                type="button"
+                key={slot}
+                className={`room empty-room ${selectedBuildSlot === slot ? 'is-selected' : ''}`}
+                onClick={() => onEmpty(slot)}
+                disabled={view.state.phase !== 'development'}
+                data-testid={`room-${slot}`}
+                aria-label={`Empty chamber ${slot + 1}`}
+              >
+                <span>+</span><small>SEALED</small>
+              </button>
+            );
+          }
+          const assigned = view.crew.find((crew) => crew.id === module.assignedCrew);
+          return (
+            <button
+              type="button"
+              key={slot}
+              className={`room ${module.assignedCrew ? 'is-powered' : ''} ${selectedCrew ? 'can-assign' : ''}`}
+              onClick={() => onRoom(slot)}
+              data-testid={`room-${slot}`}
+              aria-label={`${module.name}${assigned ? `, assigned to ${assigned.name}` : ', unstaffed'}`}
+            >
+              <span className="room-level">{String(module.level).padStart(2, '0')}</span>
+              <b className="room-mark">{MODULE_MARKS[module.id]}</b>
+              <strong>{module.name}</strong>
+              <small>{assigned ? assigned.name : selectedCrew ? 'Tap to assign' : module.assignmentHint}</small>
+            </button>
+          );
+        })}
+      </div>
+      <div className="citadel-caption">
+        <ToneMark active={Boolean(selectedCrew)} />
+        <span>{selectedCrew ? 'Choose a chamber for the selected crew member.' : 'Tap a crew member, then a chamber. Adjoining rooms resonate.'}</span>
+      </div>
+    </section>
+  );
+}
+
+function RoutePanel({ view, onSelect, onResolve }: {
+  view: GameView;
+  onSelect: (instanceId: string) => void;
+  onResolve: () => void;
+}) {
+  return (
+    <section className="route-panel" aria-labelledby="route-title">
+      <div className="section-heading compact">
+        <div><span className="kicker">FORECAST ARRAY</span><h2 id="route-title">Choose a descent</h2></div>
+        <span className="phase-tag">PLANNING</span>
+      </div>
+      <p className="objective">{view.objective}</p>
+      <div className="route-list">
+        {view.routes.map((route, index) => {
+          const selected = view.state.selectedRoute === route.instanceId;
+          return (
+            <button
+              type="button"
+              className={`route-card kind-${route.definition.kind} ${selected ? 'is-selected' : ''}`}
+              key={route.instanceId}
+              onClick={() => onSelect(route.instanceId)}
+              aria-pressed={selected}
+              data-testid={`route-${index}`}
+            >
+              <span className="route-index">0{index + 1}</span>
+              <span className="route-copy">
+                <span className="route-kind">{route.definition.kind}</span>
+                <strong>{route.definition.title}</strong>
+                <small>{route.definition.description}</small>
+                {route.revealed && route.hiddenComplication && <em>Foreseen: {route.hiddenComplication}</em>}
+              </span>
+              <span className="route-risk"><b>{route.definition.hazard}</b><small>RISK</small></span>
+              <span className="route-reward">{route.definition.rewardText}</span>
+            </button>
+          );
+        })}
+      </div>
+      <button type="button" className="primary-action" onClick={onResolve} disabled={!view.canResolveShift} data-testid="resolve-shift">
+        <span>{view.canResolveShift ? 'Commit expedition' : 'Select route and assign three crew'}</span>
+        <b>DESCEND</b>
+      </button>
+    </section>
+  );
+}
+
+function EventPanel({ view, onChoose }: { view: GameView; onChoose: (choiceIndex: number) => void }) {
+  const event = view.activeStoryEvent;
+  if (!event) return <p className="empty-message">The choir is searching for a clear signal…</p>;
+  const speaker = view.crew.find((crew) => crew.id === event.speaker);
+  return (
+    <section className="event-panel" aria-labelledby="event-title" data-testid="event-panel">
+      <span className="kicker">INTERCEPTED // {speaker?.name ?? 'ORISON'}</span>
+      <ToneMark active />
+      <h2 id="event-title">{event.title}</h2>
+      <p className="event-body">{event.body}</p>
+      <div className="choice-list">
+        {event.choices.map((choice, index) => (
+          <button type="button" key={choice.label} onClick={() => onChoose(index)} data-testid={`event-choice-${index}`}>
+            <strong>{choice.label}</strong><span>{choice.consequence}</span>
+          </button>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function DevelopmentPanel({ view, slot, onSlot, onBuild, onUpgrade }: {
+  view: GameView;
+  slot: number | null;
+  onSlot: (slot: number) => void;
+  onBuild: (moduleId: ModuleId, slot: number) => void;
+  onUpgrade: (slot: number) => void;
+}) {
+  const choiceDefinitions = MODULES.filter((module) => view.state.developmentChoices.includes(module.id));
+  const emptySlots = Array.from({ length: 9 }, (_, index) => index).filter((index) => !view.modules.some((module) => module.slot === index));
+  return (
+    <section className="development-panel" aria-labelledby="development-title" data-testid="development-panel">
+      <span className="kicker">CITADEL GROWTH</span>
+      <h2 id="development-title">Wake a new chamber</h2>
+      <p>Spend alloy to deepen Orison. Select a sealed chamber on the grid or below.</p>
+      <div className="slot-picker" aria-label="Empty chamber selection">
+        {emptySlots.map((emptySlot) => (
+          <button type="button" key={emptySlot} onClick={() => onSlot(emptySlot)} className={slot === emptySlot ? 'is-selected' : ''}>
+            {emptySlot + 1}
+          </button>
+        ))}
+      </div>
+      <div className="module-choices">
+        {choiceDefinitions.map((module) => (
+          <article className="module-choice" key={module.id}>
+            <span className="module-sigil">{MODULE_MARKS[module.id]}</span>
+            <div><strong>{module.name}</strong><p>{module.description}</p><small>{module.buildCost} ALLOY</small></div>
+            <button type="button" onClick={() => slot !== null && onBuild(module.id, slot)} disabled={slot === null || view.state.resources.alloy < module.buildCost}>
+              BUILD
+            </button>
+          </article>
+        ))}
+      </div>
+      <div className="upgrade-row">
+        <span>Or reinforce an existing chamber</span>
+        <div>{view.modules.map((module) => <button key={module.slot} type="button" onClick={() => onUpgrade(module.slot)}>{module.name} · LV{module.level}</button>)}</div>
+      </div>
+    </section>
+  );
+}
+
+function FinalePanel({ view, onChoose }: { view: GameView; onChoose: (ending: EndingId) => void }) {
+  return (
+    <section className="finale-panel" aria-labelledby="finale-title" data-testid="finale-panel">
+      <span className="kicker">THE HEART-LODE // CONTACT</span>
+      <div className="heart-glyph" aria-hidden="true"><i /><i /><i /></div>
+      <h2 id="finale-title">The moon awaits your answer.</h2>
+      <p>Every chamber in Orison sings back. The crew look to you—not for orders, but for meaning.</p>
+      <div className="ending-choices">
+        {(Object.entries(ENDINGS) as [EndingId, (typeof ENDINGS)[EndingId]][]).map(([id, ending]) => (
+          <button type="button" key={id} onClick={() => onChoose(id)} data-testid={`ending-${id}`}>
+            <strong>{ending.title}</strong><span>{ending.description}</span><em>{ending.cost}</em>
+          </button>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function CompletionPanel({ view, onNewRun, onChronicle }: { view: GameView; onNewRun: () => void; onChronicle: () => void }) {
+  const won = view.state.status === 'won';
+  return (
+    <section className={`completion-panel ${won ? 'is-victory' : 'is-loss'}`} data-testid="completion-panel">
+      <span className="kicker">RUN // {won ? 'CONCORDANT' : 'SILENCED'}</span>
+      <ToneMark active={won} />
+      <h2>{won ? ENDINGS[view.state.ending ?? 'harmonize'].title : 'Orison goes dark.'}</h2>
+      <p>{view.state.endingText ?? (won ? 'The expedition leaves a mark in the moon—and the moon leaves one in them.' : 'The deep keeps what the surface could not protect.')}</p>
+      <div className="completion-stats">
+        <span><b>{view.state.shift}</b> shifts</span><span><b>{view.state.heartNotes}</b> Heart Notes</span><span><b>{view.state.integrity}</b> integrity</span>
+      </div>
+      <div className="completion-actions">
+        <button className="primary-action" type="button" onClick={onNewRun}>Begin another descent</button>
+        <button className="text-button" type="button" onClick={onChronicle}>Open Chronicle</button>
+      </div>
+    </section>
+  );
+}
+
+function Chronicle({ legacy, onBack }: { legacy: LegacyState; onBack: () => void }) {
+  return (
+    <MenuPage eyebrow="ARCHIVE // PERSISTENT MEMORY" title="The Chronicle" onBack={onBack}>
+      <div className="chronicle-summary"><span><b>{legacy.runsCompleted}</b> descents</span><span><b>{legacy.echoShards}</b> Echo Shards</span></div>
+      <h2>Resolved chords</h2>
+      <div className="archive-grid">
+        {(Object.keys(ENDINGS) as EndingId[]).map((id) => (
+          <article className={legacy.endings.includes(id) ? 'is-found' : ''} key={id}>
+            <span>{legacy.endings.includes(id) ? 'RECORDED' : 'UNKNOWN'}</span>
+            <strong>{legacy.endings.includes(id) ? ENDINGS[id].title : '•••••• ••• ••••'}</strong>
+            <small>{legacy.endings.includes(id) ? `Relic: ${RELIC_BY_ENDING[id]}` : 'Reach the Heart-Lode to reveal.'}</small>
+          </article>
+        ))}
+      </div>
+      <h2>Lore fragments</h2>
+      {legacy.lore.length ? <ul className="lore-list">{legacy.lore.map((lore) => <li key={lore}>{lore}</li>)}</ul> : <p className="empty-message">The archive is quiet. Descend to recover its first memory.</p>}
+    </MenuPage>
+  );
+}
+
+function MenuPage({ eyebrow, title, onBack, children }: { eyebrow: string; title: string; onBack: () => void; children: React.ReactNode }) {
+  return (
+    <main className="menu-page">
+      <button className="back-button" type="button" onClick={onBack}>← RETURN</button>
+      <div className="menu-page-content"><span className="kicker">{eyebrow}</span><h1>{title}</h1>{children}</div>
+    </main>
+  );
+}
+
+function SettingsPage({ settings, onChange, onBack }: { settings: Settings; onChange: (settings: Settings) => void; onBack: () => void }) {
+  const settingRows: { key: keyof Settings; title: string; body: string }[] = [
+    { key: 'muted', title: 'Mute the choir', body: 'Disable music and procedural interface tones.' },
+    { key: 'highContrast', title: 'High contrast', body: 'Brighten text and strengthen structural lines.' },
+    { key: 'reducedMotion', title: 'Reduce motion', body: 'Replace chamber, descent, and finale movement with still feedback.' },
+  ];
+  return (
+    <MenuPage eyebrow="ORISON // INSTRUMENT PANEL" title="Settings" onBack={onBack}>
+      <div className="settings-list">
+        {settingRows.map((row) => (
+          <label key={row.key}>
+            <span><strong>{row.title}</strong><small>{row.body}</small></span>
+            <input type="checkbox" checked={settings[row.key]} onChange={(event) => onChange({ ...settings, [row.key]: event.target.checked })} />
+            <i aria-hidden="true" />
+          </label>
+        ))}
+      </div>
+    </MenuPage>
+  );
+}
+
+function TitleScreen({ seed, hasSave, notice, onSeed, onNew, onContinue, onNavigate }: {
+  seed: string;
+  hasSave: boolean;
+  notice: string | null;
+  onSeed: (seed: string) => void;
+  onNew: () => void;
+  onContinue: () => void;
+  onNavigate: (surface: Surface) => void;
+}) {
+  const [copied, setCopied] = useState(false);
+  const copySeed = async () => {
+    try { await navigator.clipboard.writeText(seed); setCopied(true); setTimeout(() => setCopied(false), 1200); } catch { setCopied(false); }
+  };
+  return (
+    <main className="title-screen" data-testid="title-screen">
+      <div className="moon" aria-hidden="true"><div className="moon-veins"><i /><i /><i /></div><span>ORISON</span></div>
+      <section className="title-copy">
+        <span className="kicker">A ROGUELITE OF STONE &amp; SONG</span>
+        <h1>Lode<br /><em>Choir</em></h1>
+        <p>The moon is singing beneath us.<br />Choose who must answer.</p>
+        {notice && <div className="notice" role="status">{notice}</div>}
+        <div className="title-actions">
+          {hasSave && <button className="primary-action" type="button" onClick={onContinue} data-testid="continue-run"><span>Return to Orison</span><b>CONTINUE</b></button>}
+          <button className={hasSave ? 'secondary-action' : 'primary-action'} type="button" onClick={onNew} data-testid="new-run">
+            <span>{hasSave ? 'Abandon the current signal' : 'Wake the living citadel'}</span><b>NEW RUN</b>
+          </button>
+        </div>
+        <div className="seed-console">
+          <span>EXPEDITION SEED</span><b>{seed}</b>
+          <button type="button" onClick={() => onSeed(makeSeed())} aria-label="Reroll seed">↻</button>
+          <button type="button" onClick={copySeed} aria-label="Copy seed">{copied ? '✓' : '⧉'}</button>
+        </div>
+        <nav aria-label="Main menu">
+          <button type="button" onClick={() => onNavigate('chronicle')}>Chronicle</button>
+          <button type="button" onClick={() => onNavigate('settings')}>Settings</button>
+          <button type="button" onClick={() => onNavigate('credits')}>Credits</button>
+        </nav>
+      </section>
+      <span className="build-stamp">ORISON BUILD // 0.1</span>
+    </main>
+  );
+}
+
+export function GameApp() {
+  const [surface, setSurface] = useState<Surface>('title');
+  const [returnSurface, setReturnSurface] = useState<Surface>('title');
+  const [seed, setSeed] = useState('CHOIR-ORISON');
+  const [view, setView] = useState<GameView | null>(null);
+  const [selectedCrew, setSelectedCrew] = useState<CrewId | null>(null);
+  const [selectedBuildSlot, setSelectedBuildSlot] = useState<number | null>(null);
+  const [settings, setSettings] = useState<Settings>(DEFAULT_SETTINGS);
+  const [legacy, setLegacy] = useState<LegacyState>(DEFAULT_LEGACY);
+  const [hasSave, setHasSave] = useState(false);
+  const [notice, setNotice] = useState<string | null>(null);
+  const [feedback, setFeedback] = useState<EngineEvent[]>([]);
+  const stateRef = useRef<GameState | null>(null);
+  const recordedCompletion = useRef<string | null>(null);
+
+  useEffect(() => {
+    setSeed(makeSeed());
+    setHasSave(Boolean(localStorage.getItem(AUTOSAVE_KEY)));
+    const loadedSettings = safeParse(localStorage.getItem(SETTINGS_KEY), DEFAULT_SETTINGS);
+    setSettings(loadedSettings);
+    choirAudio.setEnabled(!loadedSettings.muted);
+    setLegacy(safeParse(localStorage.getItem(LEGACY_KEY), DEFAULT_LEGACY));
+  }, []);
+
+  useEffect(() => {
+    choirAudio.setEnabled(!settings.muted);
+    localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
+  }, [settings]);
+
+  useEffect(() => {
+    stateRef.current = view?.state as GameState | null;
+    if (!view) return;
+    if (view.state.phase !== 'complete') {
+      localStorage.setItem(AUTOSAVE_KEY, serialize(view.state as GameState));
+      setHasSave(true);
+      return;
+    }
+
+    localStorage.removeItem(AUTOSAVE_KEY);
+    setHasSave(false);
+    const completionKey = `${view.state.seed}:${view.state.ending ?? 'lost'}`;
+    if (recordedCompletion.current === completionKey) return;
+    recordedCompletion.current = completionKey;
+    const ending = view.state.ending;
+    const next: LegacyState = {
+      ...legacy,
+      runsCompleted: legacy.runsCompleted + 1,
+      echoShards: legacy.echoShards + Math.max(1, view.state.heartNotes),
+      endings: ending && !legacy.endings.includes(ending) ? [...legacy.endings, ending] : legacy.endings,
+      lore: [...new Set([...legacy.lore, ...view.state.storyFlags])],
+      relics: ending && !legacy.relics.includes(RELIC_BY_ENDING[ending]) ? [...legacy.relics, RELIC_BY_ENDING[ending]] : legacy.relics,
+    };
+    setLegacy(next);
+    localStorage.setItem(LEGACY_KEY, JSON.stringify(next));
+  }, [view]); // The completion guard deliberately keeps this tied to state transitions.
+
+  const startRun = useCallback((runSeed = seed) => {
+    const state = createRun({ seed: runSeed });
+    setSeed(runSeed);
+    setView(selectGameView(state));
+    setSelectedCrew(null);
+    setSelectedBuildSlot(null);
+    setFeedback([]);
+    setNotice(null);
+    setSurface('game');
+    void choirAudio.wake();
+  }, [seed]);
+
+  useEffect(() => {
+    if (feedback.length === 0) return;
+    const timeout = window.setTimeout(() => setFeedback([]), 4200);
+    return () => window.clearTimeout(timeout);
+  }, [feedback]);
+
+  const continueRun = () => {
+    const payload = localStorage.getItem(AUTOSAVE_KEY);
+    if (!payload) { setHasSave(false); setNotice('No recoverable signal was found.'); return; }
+    try {
+      const state = deserialize(payload);
+      setView(selectGameView(state));
+      setSurface('game');
+      setNotice(null);
+      void choirAudio.wake();
+    } catch {
+      localStorage.removeItem(AUTOSAVE_KEY);
+      setHasSave(false);
+      setNotice('The saved signal was damaged and has been safely cleared. Start a new descent.');
+    }
+  };
+
+  const dispatch = useCallback((command: Command) => {
+    const current = stateRef.current;
+    if (!current) return;
+    try {
+      const result = applyCommand(current, command);
+      setView(selectGameView(result.state));
+      setFeedback(result.events.slice(-3));
+      result.events.slice(-2).forEach((event) => choirAudio.play(event));
+      if (command.type === 'assign_crew' || command.type === 'unassign_crew') setSelectedCrew(null);
+      if (command.type === 'build_module') setSelectedBuildSlot(null);
+      setNotice(null);
+    } catch (error) {
+      setNotice(error instanceof Error ? error.message : 'Orison rejected that command.');
+    }
+  }, []);
+
+  useEffect(() => {
+    window.__LODE_CHOIR__ = { getState: () => stateRef.current, command: dispatch, newRun: startRun };
+    return () => { delete window.__LODE_CHOIR__; };
+  }, [dispatch, startRun]);
+
+  const assignedCrew = useMemo(() => new Set(view?.modules.map((module) => module.assignedCrew).filter(Boolean) ?? []), [view]);
+  const openMenuPage = (next: Surface) => { setReturnSurface(surface); setSurface(next); };
+  const goBack = () => setSurface(returnSurface === 'game' && !view ? 'title' : returnSurface);
+
+  const shellClasses = ['app-root', settings.highContrast ? 'high-contrast' : '', settings.reducedMotion ? 'reduced-motion' : ''].filter(Boolean).join(' ');
+  if (surface === 'title') return <div className={shellClasses}><TitleScreen seed={seed} hasSave={hasSave} notice={notice} onSeed={setSeed} onNew={() => startRun()} onContinue={continueRun} onNavigate={openMenuPage} /></div>;
+  if (surface === 'chronicle') return <div className={shellClasses}><Chronicle legacy={legacy} onBack={goBack} /></div>;
+  if (surface === 'settings') return <div className={shellClasses}><SettingsPage settings={settings} onChange={setSettings} onBack={goBack} /></div>;
+  if (surface === 'credits') return <div className={shellClasses}><MenuPage eyebrow="TRANSMISSION // AUTHORS" title="Credits" onBack={goBack}><div className="credits-copy"><p>Designed and built as an original game about care, extraction, and the cost of listening.</p><p>Rules, words, interface, vector marks, and procedural tones created for <em>Lode Choir</em>.</p><ToneMark active /></div></MenuPage></div>;
+  if (!view) return null;
+
+  const onRoom = (slot: number) => {
+    if (view.state.phase === 'development') { setSelectedBuildSlot(slot); return; }
+    if (selectedCrew) dispatch({ type: 'assign_crew', crewId: selectedCrew, slot });
+  };
+
+  return (
+    <div className={`${shellClasses} phase-${view.state.phase}`}>
+      <header className="game-header">
+        <button type="button" className="brand-button" onClick={() => { setReturnSurface('game'); setSurface('title'); }} aria-label="Return to title menu">
+          <span className="brand-glyph">LC</span><span><b>LODE CHOIR</b><small>{view.state.seed}</small></span>
+        </button>
+        <ResourceRail state={view.state as GameState} />
+        <div className="header-actions">
+          <button type="button" onClick={() => openMenuPage('settings')} aria-label="Open settings">⚙</button>
+          <button type="button" onClick={() => setSurface('title')}>MENU</button>
+        </div>
+      </header>
+      {notice && <div className="game-notice" role="status">{notice}<button onClick={() => setNotice(null)} aria-label="Dismiss">×</button></div>}
+      {feedback.length > 0 && <div className="feedback-stack" aria-live="polite">{feedback.map((event) => <span className={`feedback ${event.emphasis ?? ''}`} key={event.id}>{event.text}</span>)}</div>}
+      <main className="game-shell">
+        <Citadel view={view} selectedCrew={selectedCrew} selectedBuildSlot={selectedBuildSlot} onRoom={onRoom} onEmpty={setSelectedBuildSlot} />
+        <aside className="command-deck">
+          {view.state.phase === 'planning' && <RoutePanel view={view} onSelect={(instanceId) => dispatch({ type: 'select_route', instanceId })} onResolve={() => dispatch({ type: 'resolve_shift' })} />}
+          {view.state.phase === 'event' && <EventPanel view={view} onChoose={(choiceIndex) => dispatch({ type: 'choose_event', choiceIndex })} />}
+          {view.state.phase === 'development' && <DevelopmentPanel view={view} slot={selectedBuildSlot} onSlot={setSelectedBuildSlot} onBuild={(moduleId, slot) => dispatch({ type: 'build_module', moduleId, slot })} onUpgrade={(slot) => dispatch({ type: 'upgrade_module', slot })} />}
+          {view.state.phase === 'finale' && <FinalePanel view={view} onChoose={(endingId) => dispatch({ type: 'choose_ending', endingId })} />}
+          {view.state.phase === 'complete' && <CompletionPanel view={view} onNewRun={() => startRun(makeSeed())} onChronicle={() => openMenuPage('chronicle')} />}
+        </aside>
+        <section className="crew-roster" aria-labelledby="crew-title">
+          <div className="roster-heading"><span className="kicker">CREW // FOUR VOICES</span><h2 id="crew-title">Whom do you risk?</h2></div>
+          <div className="crew-list">
+            {view.crew.map((crew) => (
+              <CrewCard
+                key={crew.id}
+                crew={crew}
+                shift={view.state.shift}
+                selected={selectedCrew === crew.id}
+                assigned={assignedCrew.has(crew.id)}
+                onSelect={() => setSelectedCrew(selectedCrew === crew.id ? null : crew.id)}
+                onUnassign={() => dispatch({ type: 'unassign_crew', crewId: crew.id })}
+              />
+            ))}
+          </div>
+        </section>
+        <section className="signal-log" aria-labelledby="log-title">
+          <div><span className="kicker">ORISON // MEMORY</span><h2 id="log-title">Signal log</h2></div>
+          <ol>{view.state.log.slice(-6).reverse().map((entry) => <li className={`log-${entry.kind}`} key={entry.seq}><span>{String(entry.shift).padStart(2, '0')}.{String(entry.seq).padStart(2, '0')}</span>{entry.text}</li>)}</ol>
+        </section>
+      </main>
+    </div>
+  );
+}

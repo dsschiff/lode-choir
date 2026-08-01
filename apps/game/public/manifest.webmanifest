@@ -1,0 +1,10 @@
+{
+  "name": "Lode Choir",
+  "short_name": "Lode Choir",
+  "description": "Guide the living citadel Orison through a singing moon.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#07090c",
+  "theme_color": "#07090c",
+  "icons": [{ "src": "/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }]
+}
