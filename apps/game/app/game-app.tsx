@@ -10,6 +10,7 @@ import {
   createRun,
   deserialize,
   deserializeLegacy,
+  forecastRoomAssignment,
   legalCommands,
   recordLegacyRun,
   scoreBreakdown,
@@ -27,6 +28,7 @@ import {
   type LegacyState,
   type ModuleId,
   type RelicId,
+  type RoomAssignmentForecast,
   type RunMode,
   type RunRecord,
 } from '@lode-choir/engine';
@@ -52,16 +54,16 @@ const DEFAULT_SETTINGS: Settings = { muted: false, highContrast: false, reducedM
 
 const ENDING_DETAILS: Record<EndingId, { description: string; cost: string }> = {
   harvest: {
-    description: 'Cut the impossible chord from the moon and carry its power home.',
-    cost: 'The choir falls silent.',
+    description: 'Drill out the Heart-Lode and take the crystal home.',
+    cost: 'The moon dies.',
   },
   harmonize: {
-    description: 'Tune Orison to the Heart-Lode and let both living machines answer.',
-    cost: 'No one returns unchanged.',
+    description: 'Tune Orison to the Heart-Lode and open a two-way signal.',
+    cost: 'Orison and its crew will change.',
   },
   seal: {
-    description: 'Close the wound, abandon the claim, and leave the song beneath stone.',
-    cost: 'The expedition returns empty-handed.',
+    description: 'Collapse the mine entrances and leave the Heart-Lode intact.',
+    cost: 'You recover no Heart crystal.',
   },
 };
 
@@ -90,6 +92,35 @@ const LEADER_EFFECTS: Record<CrewId, string> = {
   orin: 'Spend 1 provision. Ease one strain from every chamber crew.',
   sable: 'Spend 1 provision. Reveal the chosen route complication.',
 };
+
+const RESOURCE_LABELS = { provisions: 'provision', alloy: 'alloy', lumen: 'lumen' } as const;
+
+function signed(value: number): string {
+  return `${value >= 0 ? '+' : '−'}${Math.abs(value)}`;
+}
+
+function roomForecastLabels(forecast: RoomAssignmentForecast): string[] {
+  const labels = Object.entries(forecast.resources).flatMap(([resource, value]) => {
+    if (!value) return [];
+    return [`${RESOURCE_LABELS[resource as keyof typeof RESOURCE_LABELS]} ${signed(value)}`];
+  });
+  if (forecast.alloyCost) labels.push(`alloy −${forecast.alloyCost}`);
+  if (forecast.integrityRepair) labels.push(`hull +${forecast.integrityRepair}`);
+  if (forecast.protection) labels.push(`protection ${forecast.protection}`);
+  if (forecast.crewStrain) labels.push(`operator strain ${signed(forecast.crewStrain)}`);
+  if (forecast.allCrewStrain) labels.push(`all crew strain ${signed(forecast.allCrewStrain)}`);
+  if (forecast.heartNotes) labels.push(`Heart Note +${forecast.heartNotes}`);
+  return labels;
+}
+
+function missionRewardLabels(rewards: Partial<Record<keyof typeof RESOURCE_LABELS, number>>, heartNotes: number): string[] {
+  const labels = Object.entries(rewards).flatMap(([resource, value]) => {
+    if (!value) return [];
+    return [`${RESOURCE_LABELS[resource as keyof typeof RESOURCE_LABELS]} +${value}`];
+  });
+  if (heartNotes) labels.push(`Heart Note +${heartNotes}`);
+  return labels;
+}
 
 declare global {
   interface Window {
@@ -237,6 +268,7 @@ function Citadel({ view, selectedCrew, selectedBuildSlot, onRoom, onEmpty }: {
             );
           }
           const assigned = view.crew.find((crew) => crew.id === module.assignedCrew);
+          const tileOutput = module.forecast ? roomForecastLabels(module.forecast)[0] : null;
           return (
             <button
               type="button"
@@ -249,14 +281,14 @@ function Citadel({ view, selectedCrew, selectedBuildSlot, onRoom, onEmpty }: {
               <span className="room-level">{String(module.level).padStart(2, '0')}</span>
               <b className="room-mark">{MODULE_MARKS[module.id]}</b>
               <strong>{module.name}</strong>
-              <small>{assigned ? assigned.name : selectedCrew ? 'Tap to assign' : module.assignmentHint}</small>
+              <small>{assigned ? `${assigned.name} · ${tileOutput ?? 'staffed'}` : selectedCrew ? 'Tap to assign' : 'Needs crew'}</small>
             </button>
           );
         })}
       </div>
       <div className="citadel-caption">
         <ToneMark active={Boolean(selectedCrew)} />
-        <span>{selectedCrew ? 'Choose a chamber for the selected crew member.' : 'Tap a crew member, then a chamber. Adjoining rooms resonate.'}</span>
+        <span>{selectedCrew ? 'Choose a room for the selected crew member.' : 'Staff rooms in the mission planner below. Adjacent rooms may improve output.'}</span>
       </div>
     </section>
   );
@@ -268,10 +300,10 @@ function RouteChartStrip({ view, status, onReserve, onClear }: {
   onReserve: (instanceId: string) => void;
   onClear: () => void;
 }) {
+  const held = view.state.reservedRoute;
   if (!view.state.selectedRoute || view.state.shift >= 7) return null;
   const legal = legalCommands(view.state as GameState);
   const canClear = legal.some((command) => command.type === 'clear_route_reservation');
-  const held = view.state.reservedRoute;
   const candidates = view.routes.filter((route) => route.instanceId !== view.state.selectedRoute);
   const helper = held
     ? `One route is held. Switch free, or release it to restore ${view.routeReservationCost} lumen.`
@@ -279,9 +311,10 @@ function RouteChartStrip({ view, status, onReserve, onClear }: {
       ? `${view.routeReservationCost} lumen required to chart a route.`
       : `Spend ${view.routeReservationCost} lumen to carry one unchosen route into the next forecast.`;
   return (
-    <section className="route-chart" data-testid="route-chart" aria-labelledby="route-chart-title" aria-describedby="route-chart-help">
-      <div><strong id="route-chart-title">CHART A RETURN // {view.routeReservationCost} LUMEN</strong><small id="route-chart-help">{helper}</small></div>
-      <div className="route-chart-actions">
+    <section className="route-chart" data-testid="route-chart" aria-labelledby="route-chart-title">
+      <div className="route-chart-summary"><strong id="route-chart-title">OPTIONAL // RESERVE A MISSION</strong><small>{view.routeReservationCost} LUMEN</small></div>
+      <div className="route-chart-body"><p id="route-chart-help">{helper}</p>
+        <div className="route-chart-actions">
         {candidates.map((route) => {
           const isHeld = held === route.instanceId;
           const canReserve = legal.some((command) => command.type === 'reserve_route' && command.instanceId === route.instanceId);
@@ -301,8 +334,9 @@ function RouteChartStrip({ view, status, onReserve, onClear }: {
             </button>
           );
         })}
+        </div>
+        <span className="route-chart-status" role="status" aria-live="polite">{status}</span>
       </div>
-      <span className="route-chart-status" role="status" aria-live="polite">{status}</span>
     </section>
   );
 }
@@ -349,32 +383,52 @@ function parseProgressBackup(serialized: string): { run: GameState | null; legac
   };
 }
 
-function RoutePanel({ view, selectedCrew, chartStatus, onSelect, onReserve, onClearReservation, onLeader, onUnassignLeader, onResolve }: {
+function RoutePanel({ view, chartStatus, onSelect, onReserve, onClearReservation, onAssign, onUnassign, onLeader, onUnassignLeader, onResolve }: {
   view: GameView;
-  selectedCrew: CrewId | null;
   chartStatus: string | null;
   onSelect: (instanceId: string) => void;
   onReserve: (instanceId: string) => void;
   onClearReservation: () => void;
+  onAssign: (crewId: CrewId, slot: number) => void;
+  onUnassign: (crewId: CrewId) => void;
   onLeader: (crewId: CrewId) => void;
   onUnassignLeader: (crewId: CrewId) => void;
   onResolve: () => void;
 }) {
+  const [plannerStatus, setPlannerStatus] = useState('');
+  const legal = legalCommands(view.state as GameState);
   const leader = view.crew.find((crew) => crew.id === view.state.routeLeader);
-  const candidate = view.crew.find((crew) => crew.id === selectedCrew);
-  const canAppoint = Boolean(selectedCrew && legalCommands(view.state as GameState).some(
-    (command) => command.type === 'assign_route_leader' && command.crewId === selectedCrew,
-  ));
+  const availableCrew = view.crew.filter((crew) => crew.incapacitatedUntil <= view.state.shift);
+  const requiredRooms = Math.min(3, availableCrew.length, view.modules.length);
+  const staffedRooms = view.modules.filter((module) => module.assignedCrew).length;
+  const missionReady = Boolean(view.state.selectedRoute);
+  const staffingReady = staffedRooms === requiredRooms;
+  const firstUnstaffed = view.modules.find((module) => !module.assignedCrew);
   const carriedRelic = view.state.startingRelic ? RELICS.find((relic) => relic.id === view.state.startingRelic) : null;
+  const handleMissionAction = () => {
+    if (!missionReady) {
+      document.getElementById('mission-options')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      setPlannerStatus('Choose one mission before deployment.');
+      return;
+    }
+    if (!staffingReady) {
+      document.getElementById(`staff-room-${firstUnstaffed?.slot ?? 0}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      setPlannerStatus(`Staff ${requiredRooms - staffedRooms} more room${requiredRooms - staffedRooms === 1 ? '' : 's'}.`);
+      return;
+    }
+    setPlannerStatus('Mission deployed.');
+    onResolve();
+  };
   return (
-    <section className="route-panel" aria-labelledby="route-title">
+    <section className="route-panel mission-planner" aria-labelledby="route-title">
       <div className="section-heading compact">
-        <div><span className="kicker">FORECAST ARRAY</span><h2 id="route-title">Choose a descent</h2></div>
+        <div><span className="kicker">MISSION PLANNER</span><h2 id="route-title">Prepare this shift</h2></div>
         <span className="phase-tag">PLANNING</span>
       </div>
       <p className="objective">{view.objective}</p>
       {carriedRelic && <details className="run-relic"><summary>RELIC // {carriedRelic.name}</summary><p>{carriedRelic.startingEffect}</p></details>}
-      <div className="route-list">
+      <div className="planner-step-heading"><span>1</span><div><strong>Choose a mission</strong>{view.state.shift === 1 && <small>Compare the reward with the hull, ration, and strain forecast.</small>}</div><b>{missionReady ? 'SELECTED' : 'REQUIRED'}</b></div>
+      <div className="route-list" id="mission-options">
         {view.routes.map((route, index) => {
           const selected = view.state.selectedRoute === route.instanceId;
           return (
@@ -394,7 +448,7 @@ function RoutePanel({ view, selectedCrew, chartStatus, onSelect, onReserve, onCl
                 {route.revealed && route.hiddenComplication && <em>Foreseen: {route.hiddenComplication}</em>}
               </span>
               <span className="route-risk"><b>{route.definition.hazard}</b><small>RISK</small></span>
-              <span className="route-reward">{route.definition.rewardText}</span>
+              <span className="route-reward">MISSION REWARD · {missionRewardLabels(route.forecast.rewards, route.forecast.heartNotes).join(' · ') || 'no resources'}</span>
               <span className="route-forecast" aria-label="Projected expedition cost">
                 <small>FORECAST</small>
                 <b>HULL −{route.forecast.hullDamageMin}{route.forecast.hullDamageMax !== route.forecast.hullDamageMin ? `–${route.forecast.hullDamageMax}` : ''}</b>
@@ -406,28 +460,80 @@ function RoutePanel({ view, selectedCrew, chartStatus, onSelect, onReserve, onCl
         })}
       </div>
       <RouteChartStrip view={view} status={chartStatus} onReserve={onReserve} onClear={onClearReservation} />
+      <div className="planner-step-heading"><span>2</span><div><strong>Staff {requiredRooms} rooms</strong>{view.state.shift === 1 && <small>Each room lists its exact output. A crew member can staff only one room.</small>}</div><b>{staffedRooms}/{requiredRooms}</b></div>
+      <div className="staffing-list" data-testid="staffing-list">
+        {view.modules.map((module) => {
+          const assigned = view.crew.find((crew) => crew.id === module.assignedCrew);
+          const output = module.forecast ? roomForecastLabels(module.forecast) : [];
+          return (
+            <article className={`staffing-room ${assigned ? 'is-staffed' : ''}`} id={`staff-room-${module.slot}`} key={module.slot} data-testid={`staff-room-${module.slot}`}>
+              <div className="staffing-room-heading">
+                <span className="module-sigil">{MODULE_MARKS[module.id]}</span>
+                <div><strong>{module.name}</strong><small>LEVEL {module.level} · {module.assignmentHint}</small></div>
+                <b>{assigned?.name ?? 'OPEN'}</b>
+              </div>
+              <div className="staffing-crew-options" role="group" aria-label={`Crew for ${module.name}`}>
+                {view.crew.map((crew) => {
+                  const isCurrent = module.assignedCrew === crew.id;
+                  const canAssign = legal.some((command) => command.type === 'assign_crew' && command.crewId === crew.id && command.slot === module.slot);
+                  const forecast = forecastRoomAssignment(view.state as GameState, module.slot, crew.id);
+                  const preview = roomForecastLabels(forecast)[0] ?? 'no immediate output';
+                  return (
+                    <button
+                      type="button"
+                      className={isCurrent ? 'is-selected' : ''}
+                      key={crew.id}
+                      data-testid={`staff-${module.slot}-${crew.id}`}
+                      aria-pressed={isCurrent}
+                      disabled={!isCurrent && !canAssign}
+                      onClick={() => isCurrent ? onUnassign(crew.id) : onAssign(crew.id, module.slot)}
+                    >
+                      <strong>{crew.name.split(' ')[0]}</strong><small>{crew.incapacitatedUntil > view.state.shift ? `back shift ${crew.incapacitatedUntil + 1}` : preview}</small>
+                    </button>
+                  );
+                })}
+              </div>
+              <div className="staffing-output" aria-live="polite">
+                {assigned
+                  ? <><strong>This shift</strong>{output.map((label) => <span key={label}>{label}</span>)}{module.forecast?.conditions.map((condition) => <em key={condition}>{condition}</em>)}</>
+                  : <span>Choose a crew member.</span>}
+              </div>
+            </article>
+          );
+        })}
+      </div>
+      <div className="planner-step-heading"><span>3</span><div><strong>Rest or lead</strong>{view.state.shift === 1 && <small>The unassigned crew member rests by default. Leading costs 1 extra provision.</small>}</div><b>OPTIONAL</b></div>
       <div className={`leader-post ${leader ? 'is-staffed' : ''}`} data-testid="leader-post">
         <span className="leader-mark">IV</span>
         <span className="leader-copy">
-          <small>OPTIONAL // EXPEDITION LEADER</small>
-          <strong>{leader?.name ?? candidate?.name ?? 'The fourth voice can lead'}</strong>
-          <em>{leader ? LEADER_EFFECTS[leader.id] : candidate ? LEADER_EFFECTS[candidate.id] : 'Rest is automatic. After staffing three chambers, select the fourth voice to lead.'}</em>
+          <small>{leader ? 'MISSION LEADER' : 'DEFAULT // REST'}</small>
+          <strong>{leader?.name ?? 'Unassigned crew rests'}</strong>
+          <em>{leader ? LEADER_EFFECTS[leader.id] : 'Rest removes 2 strain and costs no provisions.'}</em>
         </span>
-        {leader
-          ? <button type="button" onClick={() => onUnassignLeader(leader.id)} aria-label={`Recall ${leader.name} from expedition leadership`}>RECALL</button>
-          : <button type="button" onClick={() => selectedCrew && onLeader(selectedCrew)} disabled={!canAppoint}>APPOINT</button>}
+        {leader && <button type="button" onClick={() => onUnassignLeader(leader.id)} aria-label={`Recall ${leader.name} from expedition leadership`}>REST</button>}
       </div>
-      <button type="button" className="primary-action" onClick={onResolve} disabled={!view.canResolveShift} data-testid="resolve-shift">
-        <span>{view.canResolveShift ? 'Commit expedition' : 'Select route and assign three crew'}</span>
-        <b>DESCEND</b>
-      </button>
+      {!leader && staffingReady && <div className="leader-options" role="group" aria-label="Optional mission leader">
+        {view.crew.map((crew) => {
+          const canLead = legal.some((command) => command.type === 'assign_route_leader' && command.crewId === crew.id);
+          const alreadyWorking = view.modules.some((module) => module.assignedCrew === crew.id);
+          return <button type="button" key={crew.id} disabled={!canLead} onClick={() => onLeader(crew.id)}><strong>{crew.name}</strong><small>{alreadyWorking ? 'Staffing a room' : canLead ? LEADER_EFFECTS[crew.id] : 'Needs 2 provisions available'}</small></button>;
+        })}
+      </div>}
+      <div className="mission-action-bar">
+        <div className="mission-checklist" aria-label="Deployment checklist"><span className={missionReady ? 'is-complete' : ''}>MISSION {missionReady ? '✓' : '○'}</span><span className={staffingReady ? 'is-complete' : ''}>ROOMS {staffedRooms}/{requiredRooms}</span></div>
+        <button type="button" className="primary-action" onClick={handleMissionAction} data-testid="resolve-shift">
+          <span>{view.canResolveShift ? 'All required crew and equipment are ready.' : !missionReady ? 'One mission must be selected.' : `${requiredRooms - staffedRooms} room${requiredRooms - staffedRooms === 1 ? '' : 's'} still need crew.`}</span>
+          <b>{view.canResolveShift ? 'DEPLOY MISSION' : !missionReady ? 'CHOOSE MISSION' : `STAFF ${requiredRooms - staffedRooms}`}</b>
+        </button>
+        <span className="planner-status" role="status" aria-live="polite">{plannerStatus}</span>
+      </div>
     </section>
   );
 }
 
 function EventPanel({ view, onChoose }: { view: GameView; onChoose: (choiceIndex: number) => void }) {
   const event = view.activeStoryEvent;
-  if (!event) return <p className="empty-message">The choir is searching for a clear signal…</p>;
+  if (!event) return <p className="empty-message">No event signal was received.</p>;
   const speaker = view.crew.find((crew) => crew.id === event.speaker);
   const legalChoices = new Set(legalCommands(view.state as GameState)
     .filter((command) => command.type === 'choose_event')
@@ -447,7 +553,7 @@ function EventPanel({ view, onChoose }: { view: GameView; onChoose: (choiceIndex
   };
   return (
     <section className="event-panel" aria-labelledby="event-title" data-testid="event-panel">
-      <span className="kicker">INTERCEPTED // {speaker?.name ?? 'ORISON'}</span>
+      <span className="kicker">MISSION EVENT // {speaker?.name ?? 'ORISON'}</span>
       <ToneMark active />
       <h2 id="event-title">{event.title}</h2>
       <p className="event-body">{event.body}</p>
@@ -483,9 +589,9 @@ function DevelopmentPanel({ view, slot, onSlot, onBuild, onUpgrade, onRepair, on
   const repairAmount = Math.min(2, view.maxIntegrity - view.state.integrity);
   return (
     <section className="development-panel" aria-labelledby="development-title" data-testid="development-panel">
-      <span className="kicker">CITADEL GROWTH</span>
-      <h2 id="development-title">Wake a new chamber</h2>
-      <p>Spend alloy to deepen Orison. Select a sealed chamber on the grid or below.</p>
+      <span className="kicker">CITADEL WORKSHOP</span>
+      <h2 id="development-title">Build, upgrade, or repair</h2>
+      <p>Select an empty room, then spend alloy on one improvement. Any choice ends this workshop phase.</p>
       <div className="slot-picker" aria-label="Empty chamber selection">
         {emptySlots.map((emptySlot) => (
           <button type="button" key={emptySlot} onClick={() => onSlot(emptySlot)} className={slot === emptySlot ? 'is-selected' : ''}>
@@ -505,14 +611,14 @@ function DevelopmentPanel({ view, slot, onSlot, onBuild, onUpgrade, onRepair, on
         ))}
       </div>
       <div className="upgrade-row">
-        <span>Or reinforce an existing chamber</span>
+        <span>Upgrade an existing room</span>
         <div>{view.modules.map((module) => <button key={module.slot} type="button" disabled={!canUpgrade(module.slot)} onClick={() => onUpgrade(module.slot)}>{module.name} · LV{module.level}</button>)}</div>
       </div>
       <div className="repair-row">
-        <span><strong>Plate the living hull</strong><small>{repairAmount > 0 ? `Restore ${repairAmount} integrity and end development.` : 'Orison is already at full integrity.'}</small></span>
+        <span><strong>Repair the hull</strong><small>{repairAmount > 0 ? `Restore ${repairAmount} hull and end this workshop phase.` : 'Hull is already full.'}</small></span>
         <button type="button" onClick={onRepair} disabled={!canRepair} data-testid="repair-citadel">REPAIR · {view.repairCost} ALLOY</button>
       </div>
-      <button className="text-button" type="button" onClick={onSkip}>Conserve alloy and continue</button>
+      <button className="text-button" type="button" onClick={onSkip}>SAVE ALLOY AND CONTINUE</button>
     </section>
   );
 }
@@ -520,10 +626,10 @@ function DevelopmentPanel({ view, slot, onSlot, onBuild, onUpgrade, onRepair, on
 function FinalePanel({ view, onChoose }: { view: GameView; onChoose: (ending: EndingId) => void }) {
   return (
     <section className="finale-panel" aria-labelledby="finale-title" data-testid="finale-panel">
-      <span className="kicker">THE HEART-LODE // CONTACT</span>
+      <span className="kicker">HEART-LODE // FINAL DECISION</span>
       <div className="heart-glyph" aria-hidden="true"><i /><i /><i /></div>
-      <h2 id="finale-title">The moon awaits your answer.</h2>
-      <p>Every chamber in Orison sings back. The crew look to you—not for orders, but for meaning.</p>
+      <h2 id="finale-title">Decide what happens to the Heart-Lode</h2>
+      <p>The mine is open and the moon is responding. Choose the expedition's final order.</p>
       <div className="ending-choices">
         {(Object.entries(ENDINGS) as [EndingId, (typeof ENDINGS)[EndingId]][]).map(([id, ending]) => (
           <button type="button" key={id} onClick={() => onChoose(id)} data-testid={`ending-${id}`}>
@@ -586,7 +692,7 @@ function CompletionPanel({ view, onNewRun, onChronicle }: { view: GameView; onNe
       <span className="kicker">RUN // {won ? 'CONCORDANT' : 'SILENCED'} // {modeLabel}</span>
       <ToneMark active={won} />
       <h2 ref={heading} tabIndex={-1}>{won ? ENDINGS[view.state.ending ?? 'harmonize'].title : 'Orison goes dark.'}</h2>
-      <p>{view.state.endingText ?? (won ? 'The expedition leaves a mark in the moon—and the moon leaves one in them.' : 'The deep keeps what the surface could not protect.')}</p>
+      <p>{view.state.endingText ?? (won ? 'The expedition is complete.' : 'The Orison cannot continue.')}</p>
       <div className="completion-stats">
         <span><b>{scoreRun(view.state as GameState)}</b> echo score</span><span><b>{view.state.shift}</b> shifts</span><span><b>{view.state.heartNotes}</b> Heart Notes</span><span><b>{view.state.integrity}</b> integrity</span>
       </div>
@@ -598,7 +704,7 @@ function CompletionPanel({ view, onNewRun, onChronicle }: { view: GameView; onNe
         </dl>
       </details>
       <div className="completion-actions">
-        <button className="primary-action" type="button" onClick={onNewRun}>Begin another descent</button>
+        <button className="primary-action" type="button" onClick={onNewRun}>Start another expedition</button>
         <button className="text-button" type="button" onClick={copyReport}>{reportCopied ? 'Report copied' : 'Copy expedition report'}</button>
         <button className="text-button" type="button" onClick={onChronicle}>Open Chronicle</button>
       </div>
@@ -610,15 +716,15 @@ function Chronicle({ legacy, onRetry, onBack }: { legacy: LegacyState; onRetry: 
   const standardScores = legacy.records.filter((record) => record.runMode === 'standard' && record.scoreVersion === 2).map((record) => record.score);
   const blackScores = legacy.records.filter((record) => record.runMode === 'black_descent' && record.scoreVersion === 2).map((record) => record.score);
   return (
-    <MenuPage eyebrow="ARCHIVE // PERSISTENT MEMORY" title="The Chronicle" onBack={onBack}>
+    <MenuPage eyebrow="EXPEDITION ARCHIVE" title="The Chronicle" onBack={onBack}>
       <div className="chronicle-summary">
-        <span><b>{legacy.runsCompleted}</b> descents</span>
+        <span><b>{legacy.runsCompleted}</b> expeditions</span>
         <span><b>{standardScores.length ? Math.max(...standardScores) : '—'}</b> best standard</span>
         <span><b>{blackScores.length ? Math.max(...blackScores) : '—'}</b> best Black Descent</span>
-        <span><b>{legacy.endings.length}/3</b> resolved chords</span>
+        <span><b>{legacy.endings.length}/3</b> recorded endings</span>
         <span><b>{legacy.lore.length}/{LORE.length}</b> lore fragments</span>
       </div>
-      <h2>Recent descents</h2>
+      <h2>Recent expeditions</h2>
       {legacy.records.length ? <ol className="run-history">{legacy.records.map((record, index) => {
         const relic = record.startingRelic ? RELICS.find((candidate) => candidate.id === record.startingRelic) : null;
         const outcome = record.outcome === 'won' && record.ending ? ENDINGS[record.ending].title : 'Orison went dark';
@@ -628,8 +734,8 @@ function Chronicle({ legacy, onRetry, onBack }: { legacy: LegacyState; onRetry: 
           <small>{record.seed} · SHIFT {record.shift}/7 · {record.heartNotes} NOTES · {record.scars} SCARS{relic ? ` · ${relic.name}` : ''}{record.scoreVersion === 1 ? ' · ARCHIVED FORMULA' : record.runMode === 'black_descent' ? ` · BASE ${record.baseScore} × ${record.scoreMultiplier}` : ''}</small>
           <button type="button" onClick={() => onRetry(record)}>PREPARE SAME SIGNAL</button>
         </li>;
-      })}</ol> : <p className="empty-message">No expedition has yet returned to the archive.</p>}
-      <h2>Resolved chords</h2>
+      })}</ol> : <p className="empty-message">No completed expeditions yet.</p>}
+      <h2>Recorded endings</h2>
       <div className="archive-grid">
         {(Object.keys(ENDINGS) as EndingId[]).map((id) => (
           <article className={legacy.endings.includes(id) ? 'is-found' : ''} key={id}>
@@ -647,7 +753,7 @@ function Chronicle({ legacy, onRetry, onBack }: { legacy: LegacyState; onRetry: 
             <article className={`relic-card is-readonly ${found ? 'is-found' : 'is-locked'}`} key={relic.id}>
               <span>{found ? 'AVAILABLE' : 'UNRECOVERED'}</span>
               <strong>{found ? relic.name : 'Unknown heirloom'}</strong>
-              <p>{found ? relic.description : 'Another answer waits at the Heart-Lode.'}</p>
+              <p>{found ? relic.description : 'Complete the expedition with a different ending to unlock this relic.'}</p>
               <small>{found ? relic.startingEffect : 'Effect unavailable.'}</small>
             </article>
           );
@@ -657,7 +763,7 @@ function Chronicle({ legacy, onRetry, onBack }: { legacy: LegacyState; onRetry: 
       {legacy.lore.length ? <ul className="lore-list">{legacy.lore.map((loreId) => {
         const lore = LORE.find((candidate) => candidate.id === loreId);
         return lore ? <li key={lore.id}><strong>{lore.title}</strong><span>{lore.text}</span></li> : null;
-      })}</ul> : <p className="empty-message">The archive is quiet. Descend to recover its first memory.</p>}
+      })}</ul> : <p className="empty-message">Complete a mission to recover the first record.</p>}
     </MenuPage>
   );
 }
@@ -768,16 +874,16 @@ function resetDocumentScroll(): void {
 
 function ManualPage({ onBack }: { onBack: () => void }) {
   return (
-    <MenuPage eyebrow="ORISON // FIELD MANUAL" title="How to descend" onBack={onBack}>
+    <MenuPage eyebrow="ORISON // FIELD MANUAL" title="How an expedition works" onBack={onBack}>
       <div className="manual-grid">
-        <article><span>01 // FORECAST</span><h2>Choose or chart</h2><p>Risk damages Orison unless the Ward Array and Mara absorb it. Spend one lumen to carry an unchosen route into the next forecast; switching is free and releasing refunds it.</p></article>
-        <article><span>02 // CHAMBERS</span><h2>Staff three rooms</h2><p>Tap a crew portrait, then a chamber. Its level, specialist, and neighboring Heart Engine determine what it produces, repairs, or prevents.</p></article>
-        <article><span>03 // FOURTH VOICE</span><h2>Rest or lead</h2><p>The fourth available crew member rests for two strain by default. After all rooms are staffed, they may lead for a unique benefit, one ration, and expedition strain.</p></article>
-        <article><span>04 // DESCENT</span><h2>Carry the cost</h2><p>Every route consumes a ration. High strain creates a lasting scar and removes that person from the following shift. Vows and story choices build loyalty.</p></article>
-        <article><span>05 // CITADEL</span><h2>Wake or mend</h2><p>After shifts two and four, spend alloy to build or improve Orison, plate two points of damaged hull, or conserve it. Every option ends development.</p></article>
-        <article><span>06 // HEART-LODE</span><h2>Find three Notes</h2><p>Reach shift seven with three Heart Notes and a living citadel. Then choose what the crew does with the moon-song; each answer leaves a different legacy.</p></article>
-        <article><span>07 // CHRONICLE</span><h2>Leave a record</h2><p>Every ending unlocks an heirloom for later expeditions. The Chronicle keeps twelve deterministic scores and can prepare any recorded seed, mode, and recovered relic for a rematch.</p></article>
-        <article><span>08 // BLACK DESCENT</span><h2>Travel light</h2><p>Choose this optional contract at loadout for 1.25× score: 11 hull, three provisions, four alloy, one lumen, dearer plating, and twice the hidden fault on high-risk routes.</p></article>
+        <article><span>01 // GOAL</span><h2>Recover three Heart Notes</h2><p>Finish shift seven with at least three Heart Notes and more than zero hull. Missions marked with Notes advance this goal.</p></article>
+        <article><span>02 // MISSION</span><h2>Choose one destination</h2><p>Each mission card shows rewards, hull damage, ration cost, and total crew strain. Risk is already included in the forecast.</p></article>
+        <article><span>03 // ROOMS</span><h2>Staff three rooms</h2><p>Choose one crew member for each room. The planner shows the exact output before you deploy.</p></article>
+        <article><span>04 // FOURTH CREW</span><h2>Rest or lead</h2><p>The unassigned crew member rests and removes two strain. A leader provides a listed bonus but costs one extra provision.</p></article>
+        <article><span>05 // COSTS</span><h2>Watch hull and strain</h2><p>Every mission costs one provision. Six strain causes a scar and makes that crew member unavailable for the next shift.</p></article>
+        <article><span>06 // WORKSHOP</span><h2>Improve Orison</h2><p>After shifts two and four, spend alloy to build one room, upgrade one room, or repair two hull. You may also save the alloy.</p></article>
+        <article><span>07 // CHRONICLE</span><h2>Keep the results</h2><p>Each ending unlocks one relic. The Chronicle stores your twelve most recent scores and can restart any recorded seed.</p></article>
+        <article><span>08 // BLACK DESCENT</span><h2>Optional hard mode</h2><p>Start with 11 hull, 3 provisions, 4 alloy, and 1 lumen for a 1.25× score. Hidden high-risk faults deal twice their normal damage.</p></article>
       </div>
     </MenuPage>
   );
@@ -804,9 +910,9 @@ function LoadoutPage({ seed, unlocked, selected, runMode, onSelect, onMode, onBe
   const tamsinStrain = preview.crew.find((crew) => crew.id === 'tamsin')?.strain ?? 0;
   if (tamsinStrain > 0) previewParts.push(`TAMSIN +${tamsinStrain} STR`);
   return (
-    <MenuPage eyebrow="CHRONICLE // EXPEDITION LOADOUT" title="Choose what returns" onBack={onBack}>
+    <MenuPage eyebrow="EXPEDITION SETUP" title="Choose starting equipment" onBack={onBack}>
       <div className="loadout-setup">
-        <p className="loadout-intro">One heirloom may cross the threshold. Every gift arrives with a cost; carrying nothing remains a valid choice.</p>
+        <p className="loadout-intro">Choose a difficulty and up to one unlocked relic. The exact starting resources appear beside the options.</p>
         <fieldset className="descent-mode" data-testid="descent-mode">
           <legend>DESCENT CONDITIONS</legend>
           <div className="descent-mode-options">
@@ -822,7 +928,7 @@ function LoadoutPage({ seed, unlocked, selected, runMode, onSelect, onMode, onBe
           <p id="descent-mode-description" aria-live="polite">
             {runMode === 'black_descent'
               ? 'Orison descends light: 11 hull, 3 provisions, 4 alloy, 1 lumen. Unread high-risk faults strike twice as hard. Plating costs 3 alloy.'
-              : 'The intended expedition balance: 12 hull, 4 provisions, 5 alloy, 2 lumen; standard faults, plating, and score.'}
+              : 'Start with 12 hull, 4 provisions, 5 alloy, and 2 lumen. Hull repair costs 2 alloy.'}
           </p>
           <output className="loadout-preview" aria-label="Starting condition preview">{previewParts.join(' · ')}</output>
         </fieldset>
@@ -830,7 +936,7 @@ function LoadoutPage({ seed, unlocked, selected, runMode, onSelect, onMode, onBe
       <div className="loadout-grid" role="radiogroup" aria-label="Starting relic">
         <label className={`relic-card none-card ${selected === null ? 'is-selected' : ''}`}>
           <input type="radio" name="relic" checked={selected === null} onChange={() => onSelect(null)} />
-          <span>UNBURDENED</span><strong>No relic</strong><p>Begin without an inherited modifier; the chosen descent conditions set Orison’s stores.</p><small>No inherited advantage or cost.</small>
+          <span>STANDARD LOADOUT</span><strong>No relic</strong><p>Use only the resources supplied by the selected difficulty.</p><small>No bonus and no penalty.</small>
         </label>
         {RELICS.map((relic) => {
           const unlockedRelic = unlocked.includes(relic.id);
@@ -838,13 +944,13 @@ function LoadoutPage({ seed, unlocked, selected, runMode, onSelect, onMode, onBe
             <label className={`relic-card ${selected === relic.id ? 'is-selected' : ''} ${unlockedRelic ? '' : 'is-locked'}`} key={relic.id}>
               <input type="radio" name="relic" value={relic.id} checked={selected === relic.id} disabled={!unlockedRelic} onChange={() => onSelect(relic.id)} />
               <span>{unlockedRelic ? 'RECOVERED' : 'LOCKED'}</span><strong>{unlockedRelic ? relic.name : 'Unknown heirloom'}</strong>
-              <p>{unlockedRelic ? relic.description : 'Resolve another chord at the Heart-Lode to reveal this relic.'}</p>
+              <p>{unlockedRelic ? relic.description : 'Complete the expedition with another ending to unlock this relic.'}</p>
               <small>{unlockedRelic ? relic.startingEffect : 'Effect unavailable.'}</small>
             </label>
           );
         })}
       </div>
-      <div className="loadout-footer"><span>SEED // {seed}</span><button className="primary-action" type="button" onClick={onBegin} data-testid="begin-descent"><span>{runMode === 'black_descent' ? 'Commit relic and Black Descent conditions' : 'Commit this inheritance'}</span><b>{runMode === 'black_descent' ? 'BEGIN BLACK DESCENT' : 'BEGIN DESCENT'}</b></button></div>
+      <div className="loadout-footer"><span>SEED // {seed}</span><button className="primary-action" type="button" onClick={onBegin} data-testid="begin-descent"><span>{runMode === 'black_descent' ? 'Start with Black Descent resources and scoring.' : 'Start with the selected equipment.'}</span><b>{runMode === 'black_descent' ? 'START BLACK DESCENT' : 'START EXPEDITION'}</b></button></div>
     </MenuPage>
   );
 }
@@ -877,14 +983,14 @@ function TitleScreen({ seed, hasSave, savePreview, notice, onSeed, onNew, onCont
         <span aria-hidden="true">ORISON</span>
       </div>
       <section className="title-copy">
-        <span className="kicker">A ROGUELITE OF STONE &amp; SONG</span>
+        <span className="kicker">A SEVEN-SHIFT MINING ROGUELITE</span>
         <h1>Lode<br /><em>Choir</em></h1>
-        <p>The moon is singing beneath us.<br />Choose who must answer.</p>
+        <p>Run seven missions inside a living moon. Staff Orison, manage damage and strain, and recover three Heart Notes.</p>
         {notice && <div className="notice" role="status">{notice}</div>}
         <div className="title-actions">
           {hasSave && <button className="primary-action" type="button" onClick={onContinue} data-testid="continue-run"><span>{savePreview ? `SHIFT ${savePreview.shift}/7 · ${savePreview.seed}${savePreview.runMode === 'black_descent' ? ' · BLACK DESCENT' : ''}${savePreview.relicName ? ` · ${savePreview.relicName}` : ''}` : 'Return to Orison'}</span><b>CONTINUE</b></button>}
           <button className={hasSave ? 'secondary-action' : 'primary-action'} type="button" onClick={onNew} data-testid="new-run">
-            <span>{hasSave ? 'Abandon the current signal' : 'Wake the living citadel'}</span><b>NEW RUN</b>
+            <span>{hasSave ? 'Replace the current autosave' : 'Choose difficulty and equipment'}</span><b>NEW EXPEDITION</b>
           </button>
         </div>
         <div className="seed-console">
@@ -1144,7 +1250,7 @@ export function GameApp() {
   if (surface === 'manual') return <div className={shellClasses}><ManualPage onBack={goBack} /></div>;
   if (surface === 'chronicle') return <div className={shellClasses}><Chronicle legacy={legacy} onRetry={prepareArchivedRun} onBack={goBack} /></div>;
   if (surface === 'settings') return <div className={shellClasses}><SettingsPage settings={settings} installStatus={installStatus} onChange={setSettings} onInstall={installApp} onCreateBackup={createProgressBackup} onRestoreBackup={restoreProgressBackup} onBack={goBack} /></div>;
-  if (surface === 'credits') return <div className={shellClasses}><MenuPage eyebrow="TRANSMISSION // AUTHORS" title="Credits" onBack={goBack}><div className="credits-copy"><p>Designed and built as an original game about care, extraction, and the cost of listening.</p><p>Rules, words, interface, vector marks, event tones, and the procedural moon-drone created for <em>Lode Choir</em>.</p><ToneMark active /></div></MenuPage></div>;
+  if (surface === 'credits') return <div className={shellClasses}><MenuPage eyebrow="CREDITS" title="Lode Choir" onBack={goBack}><div className="credits-copy"><p>An original mining roguelite about a four-person crew and the living moon beneath their claim.</p><p>Game design, writing, interface, artwork, sound, and deterministic engine were created for <em>Lode Choir</em>.</p><ToneMark active /></div></MenuPage></div>;
   if (!view) return null;
 
   const onRoom = (slot: number) => {
@@ -1171,14 +1277,14 @@ export function GameApp() {
         <h1 className="sr-only">Lode Choir expedition</h1>
         <Citadel view={view} selectedCrew={selectedCrew} selectedBuildSlot={selectedBuildSlot} onRoom={onRoom} onEmpty={setSelectedBuildSlot} />
         <aside className="command-deck">
-          {view.state.phase === 'planning' && <RoutePanel view={view} selectedCrew={selectedCrew} chartStatus={chartStatus} onSelect={(instanceId) => dispatch({ type: 'select_route', instanceId })} onReserve={(instanceId) => dispatch({ type: 'reserve_route', instanceId })} onClearReservation={() => dispatch({ type: 'clear_route_reservation' })} onLeader={(crewId) => dispatch({ type: 'assign_route_leader', crewId })} onUnassignLeader={(crewId) => dispatch({ type: 'unassign_crew', crewId })} onResolve={() => dispatch({ type: 'resolve_shift' })} />}
+          {view.state.phase === 'planning' && <RoutePanel view={view} chartStatus={chartStatus} onSelect={(instanceId) => dispatch({ type: 'select_route', instanceId })} onReserve={(instanceId) => dispatch({ type: 'reserve_route', instanceId })} onClearReservation={() => dispatch({ type: 'clear_route_reservation' })} onAssign={(crewId, slot) => dispatch({ type: 'assign_crew', crewId, slot })} onUnassign={(crewId) => dispatch({ type: 'unassign_crew', crewId })} onLeader={(crewId) => dispatch({ type: 'assign_route_leader', crewId })} onUnassignLeader={(crewId) => dispatch({ type: 'unassign_crew', crewId })} onResolve={() => dispatch({ type: 'resolve_shift' })} />}
           {view.state.phase === 'event' && <EventPanel view={view} onChoose={(choiceIndex) => dispatch({ type: 'choose_event', choiceIndex })} />}
           {view.state.phase === 'development' && <DevelopmentPanel view={view} slot={selectedBuildSlot} onSlot={setSelectedBuildSlot} onBuild={(moduleId, slot) => dispatch({ type: 'build_module', moduleId, slot })} onUpgrade={(slot) => dispatch({ type: 'upgrade_module', slot })} onRepair={() => dispatch({ type: 'repair_citadel' })} onSkip={() => dispatch({ type: 'skip_development' })} />}
           {view.state.phase === 'finale' && <FinalePanel view={view} onChoose={(endingId) => dispatch({ type: 'choose_ending', endingId })} />}
           {view.state.phase === 'complete' && <CompletionPanel view={view} onNewRun={() => prepareLoadout(makeSeed())} onChronicle={() => openMenuPage('chronicle')} />}
         </aside>
         <section className="crew-roster" aria-labelledby="crew-title">
-          <div className="roster-heading"><span className="kicker">CREW // FOUR VOICES</span><h2 id="crew-title">Whom do you risk?</h2></div>
+          <div className="roster-heading"><span className="kicker">CREW STATUS</span><h2 id="crew-title">Records and strain</h2></div>
           <div className="crew-list">
             {view.crew.map((crew) => (
               <CrewCard

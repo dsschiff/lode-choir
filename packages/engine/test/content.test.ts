@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { createHash } from 'node:crypto';
 import test from 'node:test';
 
 import { CREW, ENDINGS, LORE, MODULES, RELICS, ROUTES, STORY_EVENTS } from '../src/index.ts';
@@ -74,4 +75,29 @@ test('every ending unlocks a defined relic', () => {
   for (const ending of ENDINGS) {
     assert.ok(relicIds.has(ending.unlockRelicId), `${ending.id} must unlock a real relic`);
   }
+});
+
+test('editorial changes do not alter content IDs, unlocks, or mechanical values', () => {
+  const mechanicalContent = {
+    crew: CREW.map(({ id }) => id),
+    modules: MODULES.map(({ id, buildCost }) => ({ id, buildCost })),
+    routes: ROUTES.map(({ id, kind, baseRewards, hazard, noteProgress, storyTag }) => ({ id, kind, baseRewards, hazard, noteProgress, storyTag })),
+    events: STORY_EVENTS.map(({ id, tags, choices }) => ({
+      id,
+      tags,
+      choices: choices.map(({ resourceDelta, integrityDelta, crewId, loyaltyDelta, strainDelta, noteDelta }) => ({
+        resourceDelta,
+        integrityDelta,
+        crewId,
+        loyaltyDelta,
+        strainDelta,
+        noteDelta,
+      })),
+    })),
+    endings: ENDINGS.map(({ id, unlockRelicId }) => ({ id, unlockRelicId })),
+    relics: RELICS.map(({ id }) => id),
+    lore: LORE.map(({ id, unlockTag }) => ({ id, unlockTag })),
+  };
+  const digest = createHash('sha256').update(JSON.stringify(mechanicalContent)).digest('hex');
+  assert.equal(digest, '43961b63fab53e74eedf934202e71f91c8bd9d3460431a16a2326d0c2128fd32');
 });

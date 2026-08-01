@@ -68,10 +68,23 @@ export interface RouteOffer {
 }
 
 export interface RouteForecast {
+  rewards: Partial<Record<ResourceId, number>>;
+  heartNotes: number;
   hullDamageMin: number;
   hullDamageMax: number;
   provisionCost: number;
   netCrewStrain: number;
+}
+
+export interface RoomAssignmentForecast {
+  resources: Partial<Record<ResourceId, number>>;
+  integrityRepair: number;
+  protection: number;
+  crewStrain: number;
+  allCrewStrain: number;
+  heartNotes: number;
+  alloyCost: number;
+  conditions: readonly string[];
 }
 
 export interface EventChoice {
@@ -199,7 +212,7 @@ export interface TransitionResult {
 export interface GameView {
   state: Readonly<GameState>;
   crew: ReadonlyArray<CrewState & CrewDefinition>;
-  modules: ReadonlyArray<ModuleState & ModuleDefinition>;
+  modules: ReadonlyArray<ModuleState & ModuleDefinition & { forecast: RoomAssignmentForecast | null }>;
   routes: ReadonlyArray<RouteOffer & { definition: RouteDefinition; forecast: RouteForecast }>;
   activeStoryEvent: StoryEventDefinition | null;
   canResolveShift: boolean;

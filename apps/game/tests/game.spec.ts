@@ -14,7 +14,7 @@ test('title menu exposes seed, archive, settings, and credits', async ({ page })
   await expect(page.getByText('EXPEDITION SEED')).toBeVisible();
 
   await page.getByRole('button', { name: 'Manual' }).click();
-  await expect(page.getByRole('heading', { name: 'How to descend' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'How an expedition works' })).toBeVisible();
   await page.getByRole('button', { name: /RETURN/ }).click();
 
   await page.evaluate(() => {
@@ -61,7 +61,7 @@ test('legacy accessibility settings migrate with the default choir volume', asyn
 test('new run reaches the first consequential choice immediately', async ({ page }) => {
   await beginRun(page);
   await expect(page.getByTestId('citadel-grid')).toBeVisible();
-  await expect(page.getByRole('heading', { name: 'Choose a descent' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Prepare this shift' })).toBeVisible();
   await expect(page.locator('[data-testid^="route-"]')).toHaveCount(3);
   await expect(page.locator('.route-forecast')).toHaveCount(3);
   await expect(page.locator('.route-forecast').first()).toContainText('RATION −1');
@@ -70,6 +70,30 @@ test('new run reaches the first consequential choice immediately', async ({ page
   const routeBox = await page.locator('.route-panel').boundingBox();
   const crewBox = await page.locator('.crew-roster').boundingBox();
   expect(routeBox?.y).toBeLessThan(crewBox?.y ?? Number.POSITIVE_INFINITY);
+});
+
+test('guided planner explains missing steps and deploys with inline staffing', async ({ page }) => {
+  await beginRun(page);
+  const action = page.getByTestId('resolve-shift');
+  await expect(action).toBeEnabled();
+  await expect(action).toContainText('CHOOSE MISSION');
+  await action.click();
+  await expect(page.locator('.planner-status')).toHaveText('Choose one mission before deployment.');
+
+  await page.getByTestId('route-0').click();
+  await expect(action).toContainText('STAFF 3');
+  await page.getByTestId('staff-0-mara').click();
+  await expect(page.getByTestId('staff-room-0')).toContainText('provision +1');
+  await page.getByTestId('staff-1-tamsin').click();
+  await expect(page.getByTestId('staff-room-1')).toContainText('alloy +5');
+  await page.getByTestId('staff-2-orin').click();
+  await expect(page.locator('.mission-checklist')).toContainText('ROOMS 3/3');
+  await expect(action).toContainText('DEPLOY MISSION');
+  await action.click();
+  await expect(page.getByTestId('event-panel')).toBeVisible();
+  await page.locator('[data-testid^="event-choice-"]:enabled').first().click();
+  await expect(page.getByRole('heading', { name: 'Prepare this shift' })).toBeVisible();
+  await expect(page.locator('.planner-step-heading small')).toHaveCount(0);
 });
 
 test('a pasted expedition seed starts the matching signal', async ({ page }) => {
@@ -116,7 +140,7 @@ test('visible controls carry a complete expedition through all seven shifts', as
     } else if (state.phase === 'event') {
       await page.locator('[data-testid^="event-choice-"]:enabled').first().click();
     } else if (state.phase === 'development') {
-      await page.getByRole('button', { name: 'Conserve alloy and continue' }).click();
+      await page.getByRole('button', { name: 'SAVE ALLOY AND CONTINUE' }).click();
     } else if (state.phase === 'finale') {
       await page.getByTestId('ending-seal').click();
     }
@@ -141,18 +165,18 @@ test('tap assignment, route selection, and shift resolution work on phone', asyn
     await availableRooms.nth(roomIndex).click();
   }
   await page.getByTestId('crew-sable').click();
-  await page.getByRole('button', { name: 'APPOINT' }).click();
+  await page.locator('.leader-options').getByRole('button', { name: /Sable-9/ }).click();
   await expect(page.getByTestId('leader-post')).toContainText('Sable-9');
   await expect(page.locator('.route-card.is-selected')).toContainText('Foreseen:');
   await expect(page.locator('.route-card.is-selected .route-forecast')).toContainText('RATION −2');
   await page.getByRole('button', { name: /Recall Sable-9/i }).click();
   await expect(page.locator('.route-card.is-selected')).not.toContainText('Foreseen:');
   await page.getByTestId('crew-sable').click();
-  await page.getByRole('button', { name: 'APPOINT' }).click();
+  await page.locator('.leader-options').getByRole('button', { name: /Sable-9/ }).click();
 
   await expect(page.getByTestId('resolve-shift')).toBeEnabled();
   await page.getByTestId('resolve-shift').click();
-  await expect(page.getByTestId('event-panel').or(page.getByTestId('development-panel')).or(page.getByTestId('finale-panel')).or(page.getByRole('heading', { name: 'Choose a descent' }))).toBeVisible();
+  await expect(page.getByTestId('event-panel').or(page.getByTestId('development-panel')).or(page.getByTestId('finale-panel')).or(page.getByRole('heading', { name: 'Prepare this shift' }))).toBeVisible();
 });
 
 test('autosave can resume and corrupted saves fail safely', async ({ page }) => {
@@ -200,14 +224,14 @@ test('deterministic hook can resolve a finale and begin the next inherited desce
   await expect(page.locator('.feedback-stack .feedback')).toHaveCount(0);
   const completedSeed = await page.evaluate(() => window.__LODE_CHOIR__?.getState()?.seed);
   await page.getByRole('button', { name: 'Open Chronicle' }).click();
-  await expect(page.getByRole('heading', { name: 'Recent descents' })).toBeVisible();
-  await expect(page.locator('.chronicle-summary')).toContainText('1/3 resolved chords');
+  await expect(page.getByRole('heading', { name: 'Recent expeditions' })).toBeVisible();
+  await expect(page.locator('.chronicle-summary')).toContainText('1/3 recorded endings');
   await expect(page.locator('.chronicle-summary')).toContainText('1/12 lore fragments');
   await expect(page.locator('.run-history').first()).toContainText(completedSeed!);
   await expect(page.locator('.run-history').first()).toContainText('CONCORDANT');
   await page.getByRole('button', { name: /RETURN/ }).click();
-  await page.getByRole('button', { name: 'Begin another descent' }).click();
-  await expect(page.getByRole('heading', { name: 'Choose what returns' })).toBeVisible();
+  await page.getByRole('button', { name: 'Start another expedition' }).click();
+  await expect(page.getByRole('heading', { name: 'Choose starting equipment' })).toBeVisible();
   await expect(page.getByRole('radio', { name: /Vesper Tuning Fork/i })).toBeEnabled();
 });
 
@@ -373,7 +397,7 @@ test('Black Descent previews exact conditions, resumes, scores, archives, and re
   await page.keyboard.press('ArrowRight');
   await expect(black).toBeChecked();
   await expect(page.locator('.loadout-preview')).toHaveText('11 HULL · 3 PRO · 4 ALY · 1 LUM');
-  await expect(page.getByTestId('begin-descent')).toContainText('BEGIN BLACK DESCENT');
+  await expect(page.getByTestId('begin-descent')).toContainText('START BLACK DESCENT');
   const loadoutScan = await new AxeBuilder({ page }).analyze();
   expect(loadoutScan.violations, JSON.stringify(loadoutScan.violations, null, 2)).toEqual([]);
   await page.getByTestId('begin-descent').click();
@@ -411,7 +435,7 @@ test('Black Descent previews exact conditions, resumes, scores, archives, and re
   await expect(page.locator('.loadout-footer')).toContainText(completedSeed);
   await expect(page.getByRole('radio', { name: /Black Descent/i })).toBeChecked();
   await page.getByRole('button', { name: /RETURN/ }).click();
-  await page.getByRole('button', { name: 'Begin another descent' }).click();
+  await page.getByRole('button', { name: 'Start another expedition' }).click();
   await expect(page.getByRole('radio', { name: /^STANDARD DESCENT Standard$/i })).toBeChecked();
 });
 
@@ -436,7 +460,7 @@ test('story choices expose unaffordable costs before the player commits', async 
   const scan = await new AxeBuilder({ page }).analyze();
   expect(scan.violations, JSON.stringify(scan.violations, null, 2)).toEqual([]);
   await page.getByTestId('event-choice-0').click();
-  await expect(page.getByRole('heading', { name: 'Choose a descent' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Prepare this shift' })).toBeVisible();
 });
 
 test('damaged Orison can spend alloy on emergency plating at development', async ({ page }) => {
@@ -527,7 +551,7 @@ test('charted routes hold, swap, refund, survive reload, and return next shift',
 
 async function beginRun(page: Page) {
   await page.getByTestId('new-run').click();
-  await expect(page.getByRole('heading', { name: 'Choose what returns' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Choose starting equipment' })).toBeVisible();
   await expect(page.locator('.relic-card.is-locked input')).toHaveCount(3);
   await expect(page.locator('.relic-card.is-locked input:not(:disabled)')).toHaveCount(0);
   await page.getByTestId('begin-descent').click();
@@ -548,6 +572,25 @@ test('title, manual, and planning surfaces have no detectable accessibility viol
   await page.getByTestId('begin-descent').click();
   const planningScan = await new AxeBuilder({ page }).analyze();
   expect(planningScan.violations, JSON.stringify(planningScan.violations, null, 2)).toEqual([]);
+});
+
+test('decision text remains visible without horizontal overflow at supported widths', async ({ page }) => {
+  await beginRun(page);
+  await page.getByTestId('route-0').click();
+  for (const width of [320, 390, 768, 1280]) {
+    await page.setViewportSize({ width, height: width < 800 ? 844 : 900 });
+    const report = await page.evaluate(() => ({
+      horizontalOverflow: document.documentElement.scrollWidth - window.innerWidth,
+      clipped: [...document.querySelectorAll<HTMLElement>('body *')].flatMap((element) => {
+        const text = element.textContent?.trim();
+        if (!text || element.children.length > 0 || element.classList.contains('sr-only') || element.getClientRects().length === 0) return [];
+        const clipped = element.scrollWidth > element.clientWidth + 1 || element.scrollHeight > element.clientHeight + 1;
+        return clipped ? [{ tag: element.tagName, className: element.className, text: text.slice(0, 100) }] : [];
+      }),
+    }));
+    expect(report.horizontalOverflow, `horizontal overflow at ${width}px`).toBeLessThanOrEqual(0);
+    expect(report.clipped, `clipped text at ${width}px: ${JSON.stringify(report.clipped)}`).toEqual([]);
+  }
 });
 
 test('unlocked Chronicle relics apply canonical starting effects', async ({ page }) => {

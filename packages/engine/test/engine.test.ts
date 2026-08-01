@@ -7,6 +7,7 @@ import {
   createRun,
   deserialize,
   deserializeLegacy,
+  forecastRoomAssignment,
   legalCommands,
   recordLegacyRun,
   replay,
@@ -66,6 +67,56 @@ test('assignments move crew, displace occupants, and Sable reveals complications
   assert.ok(state.routeOffers.every((offer) => offer.revealed));
   state = applyCommand(state, { type: 'assign_crew', crewId: 'sable', slot: 0 }).state;
   assert.ok(state.routeOffers.every((offer) => !offer.revealed));
+});
+
+test('room forecasts expose exact specialist output without mutating the run', () => {
+  const state = createRun({ seed: 'room-forecast' });
+  const before = structuredClone(state);
+
+  assert.deepEqual(forecastRoomAssignment(state, 0, 'orin'), {
+    resources: { provisions: 1 },
+    integrityRepair: 1,
+    protection: 0,
+    crewStrain: -1,
+    allCrewStrain: 0,
+    heartNotes: 0,
+    alloyCost: 0,
+    conditions: [],
+  });
+  assert.equal(forecastRoomAssignment(state, 1, 'tamsin').resources.alloy, 5);
+  assert.equal(forecastRoomAssignment(state, 2, 'mara').protection, 1);
+  assert.deepEqual(state, before);
+
+  const assigned = applyCommand(state, { type: 'assign_crew', crewId: 'orin', slot: 0 }).state;
+  assert.deepEqual(selectGameView(assigned).modules[0]!.forecast, forecastRoomAssignment(assigned, 0, 'orin'));
+});
+
+test('combined room and mission forecasts match the resolved resource and hull totals', () => {
+  let state = createRun({ seed: 'forecast-resolution' });
+  state = applyCommand(state, { type: 'select_route', instanceId: state.routeOffers[0]!.instanceId }).state;
+  state = applyCommand(state, { type: 'assign_crew', crewId: 'orin', slot: 0 }).state;
+  state = applyCommand(state, { type: 'assign_crew', crewId: 'tamsin', slot: 1 }).state;
+  state = applyCommand(state, { type: 'assign_crew', crewId: 'mara', slot: 2 }).state;
+
+  const view = selectGameView(state);
+  const selected = view.routes.find((route) => route.instanceId === state.selectedRoute)!;
+  const roomForecasts = view.modules.map((module) => module.forecast!);
+  const roomResource = (resource: 'provisions' | 'alloy' | 'lumen') => roomForecasts.reduce(
+    (total, forecast) => total + (forecast.resources[resource] ?? 0) - (resource === 'alloy' ? forecast.alloyCost : 0),
+    0,
+  );
+  const roomRepair = roomForecasts.reduce((total, forecast) => total + forecast.integrityRepair, 0);
+  const resolved = applyCommand(state, { type: 'resolve_shift' }).state;
+
+  for (const resource of ['provisions', 'alloy', 'lumen'] as const) {
+    const missionReward = selected.forecast.rewards[resource] ?? 0;
+    const missionCost = resource === 'provisions' ? selected.forecast.provisionCost : 0;
+    assert.equal(resolved.resources[resource], state.resources[resource] + roomResource(resource) + missionReward - missionCost);
+  }
+  assert.equal(
+    resolved.integrity,
+    Math.max(0, Math.min(view.maxIntegrity, state.integrity + roomRepair) - selected.forecast.hullDamageMax),
+  );
 });
 
 test('a fourth crew member can replace an assignment but cannot overstaff the citadel', () => {
@@ -370,7 +421,7 @@ test('save round trips exactly, corrupted saves fail safely, and replay is exact
   assert.equal(relicRun.startingRelic, 'heart_splinter');
   assert.equal(relicRun.resources.alloy, 7);
   assert.equal(relicRun.crew.find((crew) => crew.id === 'tamsin')!.strain, 1);
-  assert.match(relicRun.log.at(-1)!.text, /Heart Splinter crosses the threshold/);
+  assert.match(relicRun.log.at(-1)!.text, /Heart Splinter equipped/);
   assert.deepEqual(replay({ seed: relicRun.seed, relicId: 'heart_splinter' }, relicRun.commandTrace), relicRun);
   const latchRun = createRun({ seed: 'latch-view', relicId: 'oathkeepers_latch' });
   assert.equal(latchRun.integrity, 13);
@@ -546,7 +597,7 @@ test('integrity collapse is an explicit terminal loss', () => {
   const result = applyCommand(state, { type: 'resolve_shift' }).state;
   assert.equal(result.status, 'lost');
   assert.equal(result.phase, 'complete');
-  assert.match(result.endingText!, /folds inward/);
+  assert.match(result.endingText!, /zero hull/);
   assert.deepEqual(legalCommands(result), []);
 });
 
@@ -591,5 +642,5 @@ test('shift seven opens all three endings with enough Notes and otherwise loses'
   }
   const deadline = prepare(0);
   assert.equal(deadline.status, 'lost');
-  assert.match(deadline.endingText!, /Seven shifts/);
+  assert.match(deadline.endingText!, /Shift seven/);
 });
