@@ -1,4 +1,4 @@
-import { CREW, MODULES, ROUTES, STORY_EVENTS } from './data/content.ts';
+import { CREW, ENDINGS as ENDING_CONTENT, MODULES, ROUTES, STORY_EVENTS } from './data/content.ts';
 import {
   FALLBACK_CREW,
   FALLBACK_EVENTS,
@@ -33,7 +33,6 @@ const MAX_STRAIN = 6;
 const DEVELOPMENT_SHIFTS = new Set([2, 4]);
 const STARTER_MODULES: readonly ModuleId[] = ['heart_engine', 'deep_drill', 'ward_array'];
 const CREW_IDS: readonly CrewId[] = ['mara', 'tamsin', 'orin', 'sable'];
-const ENDINGS: readonly EndingId[] = ['harvest', 'harmonize', 'seal'];
 
 function effectiveCrew(): readonly CrewDefinition[] {
   return CREW.length >= CREW_IDS.length ? CREW : FALLBACK_CREW;
@@ -113,6 +112,22 @@ function applyRelic(state: GameState, relicId: string | undefined): void {
   if (relicId === 'brass-seed') state.resources.alloy += 2;
   if (relicId === 'quiet-bell') state.resources.lumen += 1;
   if (relicId === 'pilgrim-thread') state.resources.provisions += 2;
+  if (relicId === 'heart_splinter') {
+    state.resources.alloy += 2;
+    state.crew.find((crew) => crew.id === 'tamsin')!.strain += 1;
+  }
+  if (relicId === 'vesper_tuning_fork') {
+    state.heartNotes += 1;
+    state.resources.lumen = Math.max(0, state.resources.lumen - 1);
+  }
+  if (relicId === 'oathkeepers_latch') {
+    state.integrity += 2;
+    state.resources.alloy = Math.max(0, state.resources.alloy - 1);
+  }
+}
+
+function maximumIntegrity(state: GameState): number {
+  return state.storyFlags.includes('relic:oathkeepers_latch') ? MAX_INTEGRITY + 2 : MAX_INTEGRITY;
 }
 
 export function createRun(options: CreateRunOptions | string): GameState {
@@ -206,7 +221,7 @@ export function legalCommands(state: GameState): Command[] {
       .map(({ choiceIndex }) => ({ type: 'choose_event' as const, choiceIndex }));
   }
   if (state.phase === 'development') return developmentCommands(state);
-  if (state.phase === 'finale') return ENDINGS.map((endingId) => ({ type: 'choose_ending', endingId }));
+  if (state.phase === 'finale') return ENDING_CONTENT.map(({ id: endingId }) => ({ type: 'choose_ending' as const, endingId }));
   return [];
 }
 
@@ -322,7 +337,7 @@ function resolveRooms(state: GameState, events: EngineEvent[]): RoomResolution {
     }
     increaseLoyalty(state, crewId, 1, events);
   }
-  if (repair > 0) state.integrity = Math.min(MAX_INTEGRITY, state.integrity + repair);
+  if (repair > 0) state.integrity = Math.min(maximumIntegrity(state), state.integrity + repair);
   return { ward, repair };
 }
 
@@ -364,6 +379,7 @@ function resolveRoute(state: GameState, room: RoomResolution, events: EngineEven
   if (offer.revealed) progressVow(state, 'sable', events);
 
   state.storyFlags.push(`route:${route.id}`);
+  if (!state.storyFlags.includes(`tag:${route.storyTag}`)) state.storyFlags.push(`tag:${route.storyTag}`);
   appendLog(state, 'route', `${route.title}: ${route.rewardText}${damage > 0 ? ` The citadel loses ${damage} integrity.` : ' The wards hold.'}`);
   emit(state, events, 'route', `${route.title} yields its secret.`, noteProgress > 0 ? 'mystic' : 'positive');
   if (damage > 0) emit(state, events, 'damage', `The citadel loses ${damage} integrity.`, 'negative');
@@ -388,6 +404,9 @@ function selectNextEvent(state: GameState, events: EngineEvent[]): void {
   state.rngState = rng.state;
   state.activeEvent = definition.id;
   state.storyFlags.push(`event:${definition.id}`);
+  for (const eventTag of definition.tags) {
+    if (!state.storyFlags.includes(`tag:${eventTag}`)) state.storyFlags.push(`tag:${eventTag}`);
+  }
   state.phase = 'event';
   emit(state, events, 'story', definition.title, 'mystic');
 }
@@ -464,7 +483,7 @@ function applyChoice(state: GameState, choice: EventChoice, events: EngineEvent[
   if (choice.resourceDelta) {
     for (const [id, amount] of Object.entries(choice.resourceDelta) as [ResourceId, number][]) addResource(state, id, amount);
   }
-  if (choice.integrityDelta) state.integrity = Math.max(0, Math.min(MAX_INTEGRITY, state.integrity + choice.integrityDelta));
+  if (choice.integrityDelta) state.integrity = Math.max(0, Math.min(maximumIntegrity(state), state.integrity + choice.integrityDelta));
   if (choice.noteDelta) state.heartNotes += choice.noteDelta;
   if (choice.crewId && choice.loyaltyDelta) increaseLoyalty(state, choice.crewId, choice.loyaltyDelta, events);
   if (choice.crewId && choice.strainDelta) adjustStrain(state, choice.crewId, choice.strainDelta, events);
@@ -481,9 +500,8 @@ function endingText(state: GameState, endingId: EndingId): string {
   const scarred = state.crew.filter((crew) => crew.scar).length;
   const coda = fulfilled > 0 ? `${fulfilled} vow${fulfilled === 1 ? '' : 's'} ring true in the final chord.` : 'Their unfinished vows remain in the stone.';
   const scars = scarred > 0 ? ` The moon keeps ${scarred} scar${scarred === 1 ? '' : 's'} as proof.` : '';
-  if (endingId === 'harvest') return `They harvest the Heart-Lode. Orison rises rich, loud, and forever changed. ${coda}${scars}`;
-  if (endingId === 'harmonize') return `They join Orison to the Heart-Lode’s choir, neither masters nor sacrifices. ${coda}${scars}`;
-  return `They seal the Heart-Lode and carry its three Notes into the quiet. ${coda}${scars}`;
+  const authored = ENDING_CONTENT.find((ending) => ending.id === endingId)?.epilogue;
+  return `${authored ?? 'The Heart-Lode answers, and the crew carry that answer into the dark.'} ${coda}${scars}`;
 }
 
 export function applyCommand(input: GameState, command: Command): TransitionResult {

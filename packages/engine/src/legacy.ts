@@ -1,10 +1,5 @@
+import { ENDINGS, LORE } from './data/content.ts';
 import type { GameState, LegacyState } from './types.ts';
-
-const RELICS_BY_ENDING = {
-  harvest: 'brass-seed',
-  harmonize: 'quiet-bell',
-  seal: 'pilgrim-thread',
-} as const;
 
 export function createLegacyState(): LegacyState {
   return { version: 1, runsCompleted: 0, echoShards: 0, endings: [], lore: [], relics: [] };
@@ -16,10 +11,11 @@ export function recordLegacyRun(legacy: LegacyState, run: GameState): LegacyStat
   next.runsCompleted += 1;
   next.echoShards += Math.max(1, run.heartNotes + run.crew.filter((crew) => crew.vowProgress >= 3).length);
   if (!next.endings.includes(run.ending)) next.endings.push(run.ending);
-  const relic = RELICS_BY_ENDING[run.ending];
-  if (!next.relics.includes(relic)) next.relics.push(relic);
-  for (const flag of run.storyFlags) {
-    if (flag.startsWith('event:') && !next.lore.includes(flag.slice(6))) next.lore.push(flag.slice(6));
+  const relic = ENDINGS.find((ending) => ending.id === run.ending)?.unlockRelicId;
+  if (relic && !next.relics.includes(relic)) next.relics.push(relic);
+  const unlockTags = new Set(['first_run', ...run.storyFlags.filter((flag) => flag.startsWith('tag:')).map((flag) => flag.slice(4))]);
+  for (const lore of LORE) {
+    if (unlockTags.has(lore.unlockTag) && !next.lore.includes(lore.id)) next.lore.push(lore.id);
   }
   return next;
 }

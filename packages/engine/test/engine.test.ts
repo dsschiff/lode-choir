@@ -97,8 +97,10 @@ test('save round trips exactly, corrupted saves fail safely, and replay is exact
   assert.throws(() => deserialize('{broken'), /valid JSON/);
   assert.throws(() => deserialize('{}'), /supported/);
   assert.deepEqual(replay(state.seed, state.commandTrace), state);
-  const relicRun = createRun({ seed: 'relic-replay', relicId: 'brass-seed' });
-  assert.deepEqual(replay({ seed: relicRun.seed, relicId: 'brass-seed' }, relicRun.commandTrace), relicRun);
+  const relicRun = createRun({ seed: 'relic-replay', relicId: 'heart_splinter' });
+  assert.equal(relicRun.resources.alloy, 7);
+  assert.equal(relicRun.crew.find((crew) => crew.id === 'tamsin')!.strain, 1);
+  assert.deepEqual(replay({ seed: relicRun.seed, relicId: 'heart_splinter' }, relicRun.commandTrace), relicRun);
 });
 
 test('event choices cannot spend resources the run does not have', () => {
@@ -139,6 +141,8 @@ test('full runs terminate and winning runs update legacy without mutating it', (
   assert.equal(updated.runsCompleted, 1);
   assert.equal(updated.endings.length, 1);
   assert.equal(updated.relics.length, 1);
+  assert.ok(['heart_splinter', 'vesper_tuning_fork', 'oathkeepers_latch'].includes(updated.relics[0]!));
+  assert.ok(updated.lore.includes('orison_manifest'));
   assert.deepEqual(deserializeLegacy(serializeLegacy(updated)), updated);
 });
 
