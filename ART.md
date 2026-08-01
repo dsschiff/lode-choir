@@ -38,3 +38,11 @@ figures, no glossy spaceship surfaces, no Earth skyline
 Character portraits will be prompted separately from the accepted title asset so each
 is a distinct deliverable, while repeating the final medium, palette, costume materials,
 lighting, and portrait framing to maintain continuity.
+
+## Accepted title asset
+
+- Method: built-in image generation, then local Sharp resize/WebP optimization.
+- Final asset: `apps/game/public/art/orison-title.webp` (1536x1024, 197 KB).
+- Review: accepted. The Orison reads as a sacred heavy mining machine; the crew windows,
+  cyan geology, restrained palette, and upper-right title space match the prompt. No
+  generated text, watermark, weapons, foreground figure, or glossy spacecraft styling.
