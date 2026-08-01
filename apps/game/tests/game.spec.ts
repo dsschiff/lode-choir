@@ -99,6 +99,27 @@ test('deterministic hook can resolve a finale and begin the next inherited desce
   await expect(page.getByRole('radio', { name: /Vesper Tuning Fork/i })).toBeEnabled();
 });
 
+test('damaged Orison can spend alloy on emergency plating at development', async ({ page }) => {
+  await beginRun(page);
+  await page.evaluate(() => {
+    const state = window.__LODE_CHOIR__?.getState();
+    if (!state) throw new Error('Test hook unavailable.');
+    state.phase = 'event';
+    state.shift = 2;
+    state.activeEvent = 'glass_bell';
+    state.integrity = 8;
+    state.resources.alloy = 4;
+    window.__LODE_CHOIR__?.command({ type: 'choose_event', choiceIndex: 0 });
+  });
+  await expect(page.getByTestId('development-panel')).toBeVisible();
+  await expect(page.getByTestId('repair-citadel')).toBeEnabled();
+  await page.getByTestId('repair-citadel').click();
+  const state = await page.evaluate(() => window.__LODE_CHOIR__?.getState());
+  expect(state?.integrity).toBe(10);
+  expect(state?.resources.alloy).toBe(4);
+  expect(state?.shift).toBe(3);
+});
+
 async function beginRun(page: Page) {
   await page.getByTestId('new-run').click();
   await expect(page.getByRole('heading', { name: 'Choose what returns' })).toBeVisible();
@@ -173,7 +194,7 @@ test('unlocked Chronicle relics apply canonical starting effects', async ({ page
   await beginWith("Oathkeeper's Latch");
   state = await page.evaluate(() => window.__LODE_CHOIR__?.getState());
   expect(state?.startingRelic).toBe('oathkeepers_latch');
-  expect(state?.integrity).toBe(14);
+  expect(state?.integrity).toBe(13);
   expect(state?.resources.alloy).toBe(4);
-  await expect(page.locator('.resource-rail')).toContainText('14/14');
+  await expect(page.locator('.resource-rail')).toContainText('13/13');
 });

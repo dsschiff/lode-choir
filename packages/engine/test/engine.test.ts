@@ -183,6 +183,24 @@ test('development may be deferred without spending alloy', () => {
   assert.equal(state.shift, 3);
 });
 
+test('development can spend alloy on bounded emergency hull repair', () => {
+  let state = createRun({ seed: 'emergency-plating' });
+  state.phase = 'development';
+  state.integrity = 9;
+  state.resources.alloy = 2;
+  assert.ok(legalCommands(state).some((command) => command.type === 'repair_citadel'));
+  state = applyCommand(state, { type: 'repair_citadel' }).state;
+  assert.equal(state.integrity, 11);
+  assert.equal(state.resources.alloy, 0);
+  assert.equal(state.phase, 'planning');
+  assert.equal(state.shift, 2);
+
+  state.phase = 'development';
+  state.integrity = selectGameView(state).maxIntegrity;
+  state.resources.alloy = 10;
+  assert.equal(legalCommands(state).some((command) => command.type === 'repair_citadel'), false);
+});
+
 test('save round trips exactly, corrupted saves fail safely, and replay is exact', () => {
   const state = readyFirstShift('save-replay');
   assert.deepEqual(deserialize(serialize(state)), state);
@@ -196,8 +214,8 @@ test('save round trips exactly, corrupted saves fail safely, and replay is exact
   assert.match(relicRun.log.at(-1)!.text, /Heart Splinter crosses the threshold/);
   assert.deepEqual(replay({ seed: relicRun.seed, relicId: 'heart_splinter' }, relicRun.commandTrace), relicRun);
   const latchRun = createRun({ seed: 'latch-view', relicId: 'oathkeepers_latch' });
-  assert.equal(latchRun.integrity, 14);
-  assert.equal(selectGameView(latchRun).maxIntegrity, 14);
+  assert.equal(latchRun.integrity, 13);
+  assert.equal(selectGameView(latchRun).maxIntegrity, 13);
   assert.equal(createRun({ seed: 'no-relic' }).startingRelic, null);
   assert.throws(() => createRun({ seed: 'unknown-relic', relicId: 'counterfeit' as never }), /Unknown relic/);
 });

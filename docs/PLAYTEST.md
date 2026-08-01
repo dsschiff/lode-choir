@@ -9,7 +9,8 @@ Observe without coaching:
    the expedition for a character-specific benefit?
 3. Can they predict the main benefit and danger of the selected route?
 4. Does citadel construction change a later assignment decision?
-5. Can they explain why the run ended?
+5. Does emergency plating feel like a tense survival trade rather than an automatic tax?
+6. Can they explain why the run ended?
 
 ## Strategy passes
 

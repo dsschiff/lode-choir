@@ -136,13 +136,13 @@ function applyRelic(state: GameState, relicId: RelicId | undefined): void {
     state.resources.lumen = Math.max(0, state.resources.lumen - 1);
   }
   if (relicId === 'oathkeepers_latch') {
-    state.integrity += 2;
+    state.integrity += 1;
     state.resources.alloy = Math.max(0, state.resources.alloy - 1);
   }
 }
 
 function maximumIntegrity(state: GameState): number {
-  return state.startingRelic === 'oathkeepers_latch' ? MAX_INTEGRITY + 2 : MAX_INTEGRITY;
+  return state.startingRelic === 'oathkeepers_latch' ? MAX_INTEGRITY + 1 : MAX_INTEGRITY;
 }
 
 export function createRun(options: CreateRunOptions | string): GameState {
@@ -268,7 +268,11 @@ export function legalCommands(state: GameState): Command[] {
       .filter(({ choice }) => choiceAffordable(state, choice))
       .map(({ choiceIndex }) => ({ type: 'choose_event' as const, choiceIndex }));
   }
-  if (state.phase === 'development') return [...developmentCommands(state), { type: 'skip_development' }];
+  if (state.phase === 'development') {
+    const commands = developmentCommands(state);
+    if (state.resources.alloy >= 2 && state.integrity < maximumIntegrity(state)) commands.push({ type: 'repair_citadel' });
+    return [...commands, { type: 'skip_development' }];
+  }
   if (state.phase === 'finale') return ENDING_CONTENT.map(({ id: endingId }) => ({ type: 'choose_ending' as const, endingId }));
   return [];
 }
@@ -775,6 +779,13 @@ export function applyCommand(input: GameState, command: Command): TransitionResu
     if (module.id === 'resonance_chamber') progressVow(state, 'orin', events);
     appendLog(state, 'system', `${moduleDefinition(module.id).name} reaches level ${module.level}.`);
     emit(state, events, 'progress', `${moduleDefinition(module.id).name} is upgraded.`, 'positive');
+    beginNextShift(state);
+  } else if (command.type === 'repair_citadel') {
+    state.resources.alloy -= 2;
+    const restored = Math.min(2, maximumIntegrity(state) - state.integrity);
+    state.integrity += restored;
+    appendLog(state, 'system', `The crew plates Orison's living hull and restores ${restored} integrity.`);
+    emit(state, events, 'progress', `Emergency plating restores ${restored} integrity.`, 'positive');
     beginNextShift(state);
   } else if (command.type === 'skip_development') {
     appendLog(state, 'system', 'The crew banks its alloy and leaves the sleeping chambers sealed.');

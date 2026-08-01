@@ -678,7 +678,7 @@ export const RELICS = [
     id: 'oathkeepers_latch',
     name: 'Oathkeeper\'s Latch',
     description: 'A brass catch from the last door Mara sealed behind her crew.',
-    startingEffect: 'Begin with two additional integrity and one less alloy.',
+    startingEffect: 'Begin with one additional integrity and one less alloy.',
   },
 ] as const;
 

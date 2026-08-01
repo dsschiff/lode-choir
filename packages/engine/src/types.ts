@@ -153,6 +153,7 @@ export type Command =
   | { type: 'choose_event'; choiceIndex: number }
   | { type: 'build_module'; moduleId: ModuleId; slot: number }
   | { type: 'upgrade_module'; slot: number }
+  | { type: 'repair_citadel' }
   | { type: 'skip_development' }
   | { type: 'choose_ending'; endingId: EndingId };
 

@@ -99,6 +99,10 @@ function chooseEvent(state: GameState, policy: PolicyName): GameState {
 
 function develop(state: GameState, policy: PolicyName): GameState {
   const commands = legalCommands(state);
+  const repair = commands.find((command) => command.type === 'repair_citadel');
+  const repairThreshold = policy === 'conservative' ? 8 : policy === 'balanced' ? 5 : 0;
+  if (repair && state.integrity <= repairThreshold) return transition(state, repair);
+  const expansionCommands = commands.filter((command) => command.type !== 'repair_citadel');
   const priorities = policy === 'conservative'
     ? ['infirmary', 'ward_array', 'resonance_chamber', 'heart_engine', 'deep_drill', 'foundry']
     : ['resonance_chamber', 'deep_drill', 'ward_array', 'foundry', 'heart_engine', 'infirmary'];
@@ -107,7 +111,7 @@ function develop(state: GameState, policy: PolicyName): GameState {
     if (command.type === 'upgrade_module') return state.modules.find((module) => module.slot === command.slot)?.id;
     return undefined;
   };
-  const ranked = [...commands].sort((left, right) => {
+  const ranked = [...expansionCommands].sort((left, right) => {
     if (left.type === 'skip_development') return 1;
     if (right.type === 'skip_development') return -1;
     const leftId = commandModuleId(left);

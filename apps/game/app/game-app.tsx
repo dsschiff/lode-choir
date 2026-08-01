@@ -341,12 +341,13 @@ function EventPanel({ view, onChoose }: { view: GameView; onChoose: (choiceIndex
   );
 }
 
-function DevelopmentPanel({ view, slot, onSlot, onBuild, onUpgrade, onSkip }: {
+function DevelopmentPanel({ view, slot, onSlot, onBuild, onUpgrade, onRepair, onSkip }: {
   view: GameView;
   slot: number | null;
   onSlot: (slot: number) => void;
   onBuild: (moduleId: ModuleId, slot: number) => void;
   onUpgrade: (slot: number) => void;
+  onRepair: () => void;
   onSkip: () => void;
 }) {
   const choiceDefinitions = MODULES.filter((module) => view.state.developmentChoices.includes(module.id));
@@ -354,6 +355,8 @@ function DevelopmentPanel({ view, slot, onSlot, onBuild, onUpgrade, onSkip }: {
   const legal = legalCommands(view.state);
   const canBuild = (moduleId: ModuleId, targetSlot: number | null) => targetSlot !== null && legal.some((command) => command.type === 'build_module' && command.moduleId === moduleId && command.slot === targetSlot);
   const canUpgrade = (targetSlot: number) => legal.some((command) => command.type === 'upgrade_module' && command.slot === targetSlot);
+  const canRepair = legal.some((command) => command.type === 'repair_citadel');
+  const repairAmount = Math.min(2, view.maxIntegrity - view.state.integrity);
   return (
     <section className="development-panel" aria-labelledby="development-title" data-testid="development-panel">
       <span className="kicker">CITADEL GROWTH</span>
@@ -380,6 +383,10 @@ function DevelopmentPanel({ view, slot, onSlot, onBuild, onUpgrade, onSkip }: {
       <div className="upgrade-row">
         <span>Or reinforce an existing chamber</span>
         <div>{view.modules.map((module) => <button key={module.slot} type="button" disabled={!canUpgrade(module.slot)} onClick={() => onUpgrade(module.slot)}>{module.name} · LV{module.level}</button>)}</div>
+      </div>
+      <div className="repair-row">
+        <span><strong>Plate the living hull</strong><small>{repairAmount > 0 ? `Restore ${repairAmount} integrity and end development.` : 'Orison is already at full integrity.'}</small></span>
+        <button type="button" onClick={onRepair} disabled={!canRepair} data-testid="repair-citadel">REPAIR · 2 ALLOY</button>
       </div>
       <button className="text-button" type="button" onClick={onSkip}>Conserve alloy and continue</button>
     </section>
@@ -513,7 +520,7 @@ function ManualPage({ onBack }: { onBack: () => void }) {
         <article><span>02 // CHAMBERS</span><h2>Staff three rooms</h2><p>Tap a crew portrait, then a chamber. Its level, specialist, and neighboring Heart Engine determine what it produces, repairs, or prevents.</p></article>
         <article><span>03 // FOURTH VOICE</span><h2>Rest or lead</h2><p>The fourth available crew member rests for two strain by default. After all rooms are staffed, they may lead for a unique benefit, one ration, and expedition strain.</p></article>
         <article><span>04 // DESCENT</span><h2>Carry the cost</h2><p>Every route consumes a ration. High strain creates a lasting scar and removes that person from the following shift. Vows and story choices build loyalty.</p></article>
-        <article><span>05 // CITADEL</span><h2>Wake chambers</h2><p>After shifts two and four, spend alloy to build or improve Orison—or conserve it. New chamber placement changes future adjacency and assignment choices.</p></article>
+        <article><span>05 // CITADEL</span><h2>Wake or mend</h2><p>After shifts two and four, spend alloy to build or improve Orison, plate two points of damaged hull, or conserve it. Every option ends development.</p></article>
         <article><span>06 // HEART-LODE</span><h2>Find three Notes</h2><p>Reach shift seven with three Heart Notes and a living citadel. Then choose what the crew does with the moon-song; each answer leaves a different legacy.</p></article>
         <article><span>07 // CHRONICLE</span><h2>Carry one relic</h2><p>Each distinct answer at the Heart-Lode unlocks an heirloom. A later expedition may carry one relic—or none—and its starting cost as part of the seed.</p></article>
       </div>
@@ -769,7 +776,7 @@ export function GameApp() {
         <aside className="command-deck">
           {view.state.phase === 'planning' && <RoutePanel view={view} selectedCrew={selectedCrew} onSelect={(instanceId) => dispatch({ type: 'select_route', instanceId })} onLeader={(crewId) => dispatch({ type: 'assign_route_leader', crewId })} onUnassignLeader={(crewId) => dispatch({ type: 'unassign_crew', crewId })} onResolve={() => dispatch({ type: 'resolve_shift' })} />}
           {view.state.phase === 'event' && <EventPanel view={view} onChoose={(choiceIndex) => dispatch({ type: 'choose_event', choiceIndex })} />}
-          {view.state.phase === 'development' && <DevelopmentPanel view={view} slot={selectedBuildSlot} onSlot={setSelectedBuildSlot} onBuild={(moduleId, slot) => dispatch({ type: 'build_module', moduleId, slot })} onUpgrade={(slot) => dispatch({ type: 'upgrade_module', slot })} onSkip={() => dispatch({ type: 'skip_development' })} />}
+          {view.state.phase === 'development' && <DevelopmentPanel view={view} slot={selectedBuildSlot} onSlot={setSelectedBuildSlot} onBuild={(moduleId, slot) => dispatch({ type: 'build_module', moduleId, slot })} onUpgrade={(slot) => dispatch({ type: 'upgrade_module', slot })} onRepair={() => dispatch({ type: 'repair_citadel' })} onSkip={() => dispatch({ type: 'skip_development' })} />}
           {view.state.phase === 'finale' && <FinalePanel view={view} onChoose={(endingId) => dispatch({ type: 'choose_ending', endingId })} />}
           {view.state.phase === 'complete' && <CompletionPanel view={view} onNewRun={() => prepareLoadout(makeSeed())} onChronicle={() => openMenuPage('chronicle')} />}
         </aside>

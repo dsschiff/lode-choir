@@ -5,9 +5,9 @@ Validated against the local `main` branch on 2026-07-31 with Node 24.14 and npm
 
 ## Rules and balance
 
-- 24 deterministic engine and content tests pass, including immutability, legal-command
+- 25 deterministic engine and content tests pass, including immutability, legal-command
   enforcement, save migration, exact replay, scars, loyalty, all endings, development
-  deferral, route leadership, and short-handed runs.
+  deferral, emergency repair, route leadership, and short-handed runs.
 - The simulation regression covers 500 seeds under conservative, balanced, and
   aggressive policies, both with adaptive leadership and with every fourth crew member
   resting, plus all four relic loadouts under every policy: 9,000 full runs per test
@@ -29,19 +29,23 @@ The 500-seed relic audit stayed inside its separate balance gates. Win counts we
 
 | Policy | None | Heart Splinter | Vesper Tuning Fork | Oathkeeper's Latch |
 | --- | ---: | ---: | ---: | ---: |
-| Conservative | 414 | 414 | 446 | 414 |
-| Balanced | 63 | 51 | 63 | 114 |
-| Aggressive | 1 | 5 | 1 | 11 |
+| Conservative | 423 | 423 | 457 | 423 |
+| Balanced | 99 | 93 | 99 | 123 |
+| Aggressive | 7 | 10 | 7 | 8 |
 
-No relic improved a policy by more than 10.2 percentage points over carrying nothing,
-and the largest within-policy relic spread was 12.6 points. The Oathkeeper's Latch is
-the strongest survival option for balanced/aggressive play; the Tuning Fork most helps
-conservative Note timing; the Heart Splinter's extra alloy is offset by Tamsin's
-starting strain.
+No relic improved a policy by more than 6.8 percentage points over carrying nothing,
+and the largest within-policy relic spread was 6.8 points. The one-integrity
+Oathkeeper's Latch remains the strongest balanced survival option without dominating;
+the Tuning Fork most helps conservative Note timing; the Heart Splinter's extra alloy
+is offset by Tamsin's starting strain.
+
+Balanced policies used emergency plating on 95.8–96.2% of ordinary/Heart/Fork runs.
+That new two-alloy sink raised no-relic balanced wins from 63 to 99 of 500 matched
+seeds while remaining optional for conservative and aggressive policies.
 
 ## Interface and persistence
 
-- 14 Playwright checks pass in Pixel 5 and desktop Chromium projects. They cover title
+- 16 Playwright checks pass in Pixel 5 and desktop Chromium projects. They cover title
   navigation, settings, first choice, touch assignment, optional leadership, resolution,
   loadout locking and keyboard selection, all three relic effects, relic resume,
   exact route-cost forecasts, autosave/resume, corrupt-save recovery, later phase
@@ -49,7 +53,7 @@ starting strain.
 - Axe scans report no detectable violations on the title, manual, loadout, or planning
   screens in either browser project.
 - Production static export passes. The bounded E2E runner builds, serves, tests, closes
-  its exact child server, and returns in roughly 19 seconds on this host.
+  its exact child server, and returns in under 35 seconds on this host.
 - Visual inspection at 1440x960 and 390x844 confirmed title composition, portrait crops,
   touch targets, sticky resource rail, citadel grid, engine-derived route forecasts,
   leader preview, mobile action-before-roster order, and long scrolling with no

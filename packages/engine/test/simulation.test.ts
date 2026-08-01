@@ -48,8 +48,8 @@ test('500 seeds keep all four relic loadouts bounded under every policy', () => 
   const loadouts: readonly (RelicId | null)[] = [null, 'heart_splinter', 'vesper_tuning_fork', 'oathkeepers_latch'];
 
   for (const policy of policies) {
-    const results = new Map<string, { wins: number; integrity: number; notes: number; scars: number }>();
-    for (const relicId of loadouts) results.set(relicId ?? 'none', { wins: 0, integrity: 0, notes: 0, scars: 0 });
+    const results = new Map<string, { wins: number; integrity: number; notes: number; scars: number; repairs: number }>();
+    for (const relicId of loadouts) results.set(relicId ?? 'none', { wins: 0, integrity: 0, notes: 0, scars: 0, repairs: 0 });
 
     for (let seedIndex = 0; seedIndex < 500; seedIndex += 1) {
       const seed = `relic-simulation-${seedIndex}`;
@@ -61,6 +61,7 @@ test('500 seeds keep all four relic loadouts bounded under every policy', () => 
         totals.integrity += run.integrity;
         totals.notes += run.heartNotes;
         totals.scars += run.crew.filter((crew) => crew.scar).length;
+        totals.repairs += run.commandTrace.filter((command) => command.type === 'repair_citadel').length;
         assert.notEqual(run.status, 'playing');
         assert.deepEqual(replay(options, run.commandTrace), run);
       }
@@ -71,7 +72,9 @@ test('500 seeds keep all four relic loadouts bounded under every policy', () => 
       meanIntegrity: result.integrity / 500,
       meanNotes: result.notes / 500,
       meanScars: result.scars / 500,
+      meanRepairs: result.repairs / 500,
     }]));
+    console.info(`relic-audit:${policy}`, JSON.stringify(summary));
     const wins = [...results.values()].map((result) => result.wins);
     const noRelicWins = results.get('none')!.wins;
     assert.ok(Math.max(...wins) - Math.min(...wins) <= 100, `Relic spread exceeded twenty points for ${policy}: ${JSON.stringify(summary)}`);

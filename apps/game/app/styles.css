@@ -262,6 +262,11 @@ h1, h2 { font-family: var(--serif); font-weight: 500; }
 .upgrade-row { margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--quiet-line); color: var(--bone-300); font-size: .55rem; }
 .upgrade-row div { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 7px; }
 .upgrade-row button { border-color: var(--quiet-line); padding: 0 10px; }
+.repair-row { min-height: 62px; margin-top: 8px; display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 9px 10px; border: 1px solid rgba(200,155,85,.35); background: rgba(200,155,85,.06); }
+.repair-row > span { display: grid; gap: 4px; }
+.repair-row strong { font: .8rem var(--serif); color: var(--bone-100); }
+.repair-row small { color: var(--bone-300); font-size: .49rem; }
+.repair-row button { min-height: 44px; padding: 0 10px; border: 1px solid var(--brass-400); background: rgba(200,155,85,.08); cursor: pointer; color: var(--brass-400); font-size: .52rem; }
 .heart-glyph { width: 120px; height: 120px; position: relative; margin: 28px auto; border: 1px solid var(--vein-400); transform: rotate(45deg); box-shadow: 0 0 50px rgba(88,225,220,.15), inset 0 0 30px rgba(88,225,220,.1); animation: heart-pulse 2.5s ease-in-out infinite; }
 .heart-glyph::before, .heart-glyph::after { position: absolute; inset: 16%; border: 1px solid rgba(88,225,220,.45); content: ""; }
 .heart-glyph::after { inset: 32%; background: var(--vein-400); box-shadow: 0 0 16px var(--vein-400); }
