@@ -291,7 +291,7 @@ export const STORY_EVENTS: readonly StoryEventDefinition[] = [
   {
     id: 'glass_bell',
     title: 'The Glass Bell',
-    body: 'A severed rib of ore rings inside the cargo lock. Each toll opens another hairline crack in the hull.',
+    body: 'A severed rib of ore rings inside the cargo lock. Each toll opens another hairline crack in the hull. Tamsin bares her teeth. “If it wanted silence, it should not have let a miner hear it.”',
     speaker: 'tamsin',
     tags: ['glass', 'vein'],
     choices: [
@@ -320,7 +320,7 @@ export const STORY_EVENTS: readonly StoryEventDefinition[] = [
   {
     id: 'names_at_lantern_camp',
     title: 'Eight Names, Seven Berths',
-    body: 'Mara counts the survivors twice. The last is mineralizing from the fingertips inward and refuses to leave without the others.',
+    body: 'Mara counts the survivors twice. The last is mineralizing from the fingertips inward and refuses to leave without the others. “Names first,” Mara says. “Numbers after.”',
     speaker: 'mara',
     tags: ['survivors', 'refuge'],
     choices: [
@@ -349,7 +349,7 @@ export const STORY_EVENTS: readonly StoryEventDefinition[] = [
   {
     id: 'song_without_ancestor',
     title: 'A Song Without Ancestors',
-    body: 'The Orison repeats Orin\'s new melody, then adds a closing phrase no human throat could shape.',
+    body: 'The Orison repeats Orin\'s new melody, then adds a closing phrase no human throat could shape. Orin stops conducting. “That cadence is not mine. It knows where I meant to go.”',
     speaker: 'orin',
     tags: ['new_song', 'choir'],
     choices: [
@@ -407,7 +407,7 @@ export const STORY_EVENTS: readonly StoryEventDefinition[] = [
   {
     id: 'faultline_roll_call',
     title: 'Roll Call Below',
-    body: 'The drill channel carries six voices giving Tamsin the old crew response. The last voice is hers.',
+    body: 'The drill channel carries seven voices giving Tamsin the old crew response. The last voice is hers. “Bad ground remembers every boot,” she says, and checks the descent cable twice.',
     speaker: 'tamsin',
     tags: ['lost_crew', 'depth'],
     choices: [
@@ -438,7 +438,7 @@ export const STORY_EVENTS: readonly StoryEventDefinition[] = [
   {
     id: 'market_of_promises',
     title: 'Market of Promises',
-    body: 'A pilgrim offers a ward spindle in exchange for “one true promise, spoken where the moon can hear.”',
+    body: 'A pilgrim offers a ward spindle in exchange for “one true promise, spoken where the moon can hear.” Mara recites the eight people currently under her protection before she answers.',
     speaker: 'mara',
     tags: ['pilgrims', 'refuge'],
     choices: [
@@ -484,7 +484,7 @@ export const STORY_EVENTS: readonly StoryEventDefinition[] = [
       },
       {
         label: 'Drop alloy ballast',
-        consequence: 'Sacrifice the haul to rise above the worst of it.',
+        consequence: 'The lighter citadel rises; freed braces realign one buckled hull plate.',
         resourceDelta: { alloy: -3 },
         integrityDelta: 1,
       },
@@ -493,7 +493,7 @@ export const STORY_EVENTS: readonly StoryEventDefinition[] = [
   {
     id: 'tomorrows_distress_call',
     title: 'Tomorrow\'s Distress Call',
-    body: 'The receiver plays Mara ordering an evacuation six hours from now. Behind her, one crew member is screaming—but the echo will not say who.',
+    body: 'The receiver plays Mara ordering an evacuation six hours from now. Behind her, one crew member is screaming—but the echo will not say who. Sable says, “Prediction confidence: low. Emotional certainty: regrettably high.”',
     speaker: 'sable',
     tags: ['prophecy', 'rift'],
     choices: [
@@ -512,7 +512,7 @@ export const STORY_EVENTS: readonly StoryEventDefinition[] = [
       },
       {
         label: 'Erase the recording',
-        consequence: 'The crew sleeps; Mara does not forgive being kept ignorant.',
+        consequence: 'Spend lumen burning the echo from every receiver; Mara does not forgive being kept ignorant.',
         resourceDelta: { lumen: -1 },
         crewId: 'mara',
         loyaltyDelta: -1,
@@ -522,7 +522,7 @@ export const STORY_EVENTS: readonly StoryEventDefinition[] = [
   {
     id: 'garden_with_teeth',
     title: 'The Garden Has Teeth',
-    body: 'The greenhouse fruit contains tiny brass incisors arranged around a seed of blue fire.',
+    body: 'The greenhouse fruit contains tiny brass incisors arranged around a seed of blue fire. Orin turns it in his palm. “Root, tooth, spark. It is trying three instruments at once.”',
     speaker: 'orin',
     tags: ['garden', 'refuge'],
     choices: [
@@ -563,7 +563,7 @@ export const STORY_EVENTS: readonly StoryEventDefinition[] = [
       },
       {
         label: 'Exploit the old authority',
-        consequence: 'Command the Archive to surrender its remaining stores.',
+        consequence: 'Command the Archive to surrender its stores by treating Sable as the same replaceable machinery named on the plate.',
         resourceDelta: { alloy: 2, lumen: 2 },
         crewId: 'sable',
         loyaltyDelta: -1,
@@ -579,7 +579,7 @@ export const STORY_EVENTS: readonly StoryEventDefinition[] = [
   {
     id: 'silence_in_the_walls',
     title: 'Silence in the Walls',
-    body: 'After the Red Quiet, the citadel\'s song returns with one voice missing. The empty interval moves from room to room.',
+    body: 'After the Red Quiet, the citadel\'s song returns with one voice missing. The empty interval moves from room to room. “Do not fill it yet,” Orin says. “Absence has pitch too.”',
     speaker: 'orin',
     tags: ['silence', 'rift'],
     choices: [
@@ -628,7 +628,7 @@ export const STORY_EVENTS: readonly StoryEventDefinition[] = [
       },
       {
         label: 'Refuse to name what can name itself',
-        consequence: 'Spend lumen holding the channel open until the moon answers: “Vesper.”',
+        consequence: 'Mara refuses ownership, spending lumen to hold the channel open until the moon answers for itself: “Vesper.”',
         resourceDelta: { lumen: -2 },
         crewId: 'mara',
         loyaltyDelta: 1,
