@@ -118,6 +118,12 @@ carried selections, mean score, and mean command length, is in `docs/deep-audit.
 A regression test validates its schema, run/replay totals, per-cell completeness, mode
 aggregates, score boundary, rates, and physical ranges before the evidence can pass CI.
 
+A disjoint no-write confirmation over 4,500 `confirmation-*` seeds then completed
+216,000 additional runs and exact replays without replacing the canonical artifact.
+Standard won 43,046/108,000; Black Descent won 35,492/108,000; its weakest win was
+2,665 and strongest loss 1,656. Across the two deep passes, 696,000 full expeditions
+and 696,000 reconstructed replays passed.
+
 ## Interface and persistence
 
 - 36 Playwright checks pass in Pixel 5 and desktop Chromium projects. They cover title
