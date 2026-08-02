@@ -48,12 +48,17 @@ async function capture(browser, name, viewport, mobile = false) {
   await page.emulateMedia({ reducedMotion: 'reduce' });
   const screenshot = async (surface) => {
     await page.evaluate(() => window.scrollTo(0, 0));
+    await page.evaluate(async () => {
+      await document.fonts.ready;
+      await new Promise((resolveFrame) => requestAnimationFrame(() => requestAnimationFrame(resolveFrame)));
+    });
     await page.screenshot({ path: resolve(outputRoot, `${surface}-${name}.jpg`), fullPage: true, type: 'jpeg', quality: 84 });
   };
   await page.goto('http://127.0.0.1:3321/?seed=QA-ORISON&no-sw=1');
   await page.evaluate(() => localStorage.clear());
   await page.reload();
   await page.waitForLoadState('networkidle');
+  await page.addStyleTag({ content: '*, *::before, *::after { animation: none !important; transition: none !important; caret-color: transparent !important; } .feedback-stack { display: none !important; }' });
   await screenshot('title');
 
   await page.getByRole('button', { name: 'Settings' }).click();

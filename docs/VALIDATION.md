@@ -175,21 +175,22 @@ and 696,000 reconstructed replays passed.
 - Automated clipping checks inspect the title, loadout, prologue, and selected-mission
   planner at 320, 390, 768, and 1280 pixels. They reject document overflow and any text
   clipped by an element with hidden or clipped overflow.
-- The 26-image review suite uses the fixed `QA-ORISON` URL seed and reduced-motion
-  media. Two consecutive full captures produced identical SHA-256 hashes for every
-  JPEG, so visual evidence no longer drifts with random title seeds or animation frames.
+- The 26-image review suite uses the fixed `QA-ORISON` URL seed, waits for fonts and
+  settled frames, disables animation, and excludes transient feedback to capture the
+  reviewable game state. Two consecutive full captures produced identical SHA-256
+  hashes for every JPEG, so evidence no longer drifts with random seeds or frame timing.
 
 ## Asset and dependency checks
 
-- The production export currently contains 36 files and 1,175,302 uncompressed bytes.
-  The directly referenced initial shell is 1,045,505 bytes; JavaScript totals 780,847
-  bytes, imagery 280,709 bytes, and CSS 61,998 bytes. The largest individual file is a
-  227,538-byte framework chunk. At gzip level 9, JavaScript is 229,860 bytes and the
-  referenced initial shell is 441,731 bytes. All remain below committed build-breaking
+- The production export currently contains 36 files and 1,102,369 uncompressed bytes.
+  The directly referenced initial shell is 972,572 bytes; JavaScript totals 780,845
+  bytes, imagery 207,779 bytes, and CSS 61,998 bytes. The largest individual file is a
+  227,538-byte framework chunk. At gzip level 9, JavaScript is 229,862 bytes and the
+  referenced initial shell is 368,801 bytes. All remain below committed build-breaking
   uncompressed and transfer budgets.
 - The export audit found no remote runtime asset references, no missing shell files,
   and no emitted file omitted from the generated service-worker cache.
-- The title art and four 384px crew portraits were inspected after WebP conversion.
+- The 1280px title art and four 384px crew portraits were inspected after WebP conversion.
   The portraits retain more than five source pixels per largest CSS display pixel while
   reducing their combined transfer from 291 KB to 83 KB; all imagery totals about 281 KB.
 - The app uses generated WebP imagery, CSS/SVG structure, and procedural Web Audio for

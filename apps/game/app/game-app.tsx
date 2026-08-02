@@ -1081,7 +1081,7 @@ function ProloguePage({ view, onEnter, onAbort }: { view: GameView; onEnter: () 
   return (
     <main className="prologue-screen" data-testid="prologue-screen">
       <section className="prologue-art" aria-label="Orison crossing the moon Vesper">
-        <img src={`${BASE_PATH}/art/orison-title.webp`} width="1536" height="1024" alt="Orison, a six-legged mining citadel, walking through the black caverns of Vesper." />
+        <img src={`${BASE_PATH}/art/orison-title.webp`} width="1280" height="853" alt="Orison, a six-legged mining citadel, walking through the black caverns of Vesper." />
         <div><span>VESPER // DESCENT CONTRACT</span><strong>Seven shifts remain</strong></div>
       </section>
       <section className="prologue-copy">
@@ -1253,8 +1253,8 @@ function TitleScreen({ seed, hasSave, savePreview, notice, onSeed, onNew, onCont
       <div className="title-art">
         <img
           src={`${BASE_PATH}/art/orison-title.webp`}
-          width="1536"
-          height="1024"
+          width="1280"
+          height="853"
           fetchPriority="high"
           alt="The six-legged living citadel Orison crossing a moon cavern lit by cyan mineral veins."
         />
