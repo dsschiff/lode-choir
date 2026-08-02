@@ -124,6 +124,17 @@ test('starter rooms present tradeoffs instead of a strictly dominant crew assign
   }
 });
 
+test('high strain can make a rested generalist outperform the nominal room specialist', () => {
+  const state = createRun({ seed: 'pressure-tradeoff' });
+  const tamsin = state.crew.find((crew) => crew.id === 'tamsin')!;
+  tamsin.strain = 4;
+  const tiredSpecialist = forecastRoomAssignment(state, 1, 'tamsin');
+  const restedSurveyor = forecastRoomAssignment(state, 1, 'sable');
+  assert.equal(tiredSpecialist.resources.alloy, restedSurveyor.resources.alloy);
+  assert.equal(restedSurveyor.resources.lumen, 1);
+  assert.ok(tiredSpecialist.conditions.some((condition) => condition.startsWith('PRESSURED:')));
+});
+
 test('combined room and mission forecasts match the resolved resource and hull totals', () => {
   let state = createRun({ seed: 'forecast-resolution' });
   state = applyCommand(state, { type: 'select_route', instanceId: state.routeOffers[0]!.instanceId }).state;
@@ -168,6 +179,15 @@ test('a personal mission advances its focus vow exactly once', () => {
   const result = applyCommand(state, { type: 'resolve_shift' });
   assert.equal(result.state.crew.find((crew) => crew.id === 'mara')!.vowProgress, 1);
   assert.equal(result.events.filter((event) => event.text === 'Mara Vey advances a vow to 1/3.').length, 1);
+
+  let rested = createRun({ seed: state.seed });
+  rested = applyCommand(rested, { type: 'select_route', instanceId }).state;
+  rested = applyCommand(rested, { type: 'assign_crew', crewId: 'tamsin', slot: 0 }).state;
+  rested = applyCommand(rested, { type: 'assign_crew', crewId: 'orin', slot: 1 }).state;
+  rested = applyCommand(rested, { type: 'assign_crew', crewId: 'sable', slot: 2 }).state;
+  const missed = applyCommand(rested, { type: 'resolve_shift' });
+  assert.equal(missed.state.crew.find((crew) => crew.id === 'mara')!.vowProgress, 0);
+  assert.ok(missed.events.some((event) => event.text === 'Mara Vey rested through this personal mission; no vow progress.'));
 });
 
 test('every starter-room crew permutation resolves to its displayed forecast', () => {
@@ -734,8 +754,14 @@ test('shift seven opens all three endings with enough Notes and otherwise loses'
     assert.match(ended.endingText, /Tamsin/);
     assert.match(ended.endingText, /Orin/);
     assert.match(ended.endingText, /Sable/);
+    const narrative = selectGameView(ended).endingNarrative!;
+    assert.ok(narrative.opening.length > 40);
+    assert.deepEqual(narrative.crew.map((crew) => crew.crewId), ['mara', 'tamsin', 'orin', 'sable']);
+    assert.ok(narrative.crew.every((crew) => crew.text.length > 30));
+    assert.match(narrative.closing, /vow/);
   }
   const deadline = prepare(0);
   assert.equal(deadline.status, 'lost');
   assert.match(deadline.endingText!, /Shift seven/);
+  assert.equal(selectGameView(deadline).endingNarrative, null);
 });

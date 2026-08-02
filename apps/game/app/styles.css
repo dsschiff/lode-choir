@@ -347,6 +347,11 @@ h1, h2 { font-family: var(--serif); font-weight: 500; }
 .mission-story p { margin: 7px 0 9px; font: .82rem/1.5 var(--serif); }
 .mission-story > small { display: block; padding-top: 8px; border-top: 1px solid var(--quiet-line); color: var(--bone-300); font-size: .6rem; line-height: 1.4; }
 .mission-story > small b { color: var(--danger-400); }
+.tactical-read { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin: 7px 0; }
+.tactical-read > span { min-height: 72px; display: grid; align-content: center; gap: 3px; padding: 8px; border: 1px solid var(--quiet-line); background: rgba(13,18,22,.62); }
+.tactical-read small { color: var(--vein-400); font-size: .44rem; letter-spacing: .06em; }
+.tactical-read b { font: .72rem var(--serif); }
+.tactical-read em { color: var(--bone-300); font-size: .5rem; line-height: 1.35; }
 .route-chart { margin-top: 9px; display: grid; gap: 7px; padding: 10px; border: 1px solid rgba(200,155,85,.32); background: rgba(200,155,85,.05); }
 .route-chart-summary { width: 100%; min-height: 38px; display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 0; color: var(--brass-400); }
 .route-chart-summary strong { font-size: .62rem; letter-spacing: .08em; }
@@ -387,6 +392,7 @@ h1, h2 { font-family: var(--serif); font-weight: 500; }
 .staffing-crew-options button { min-height: 52px; padding: 7px; display: grid; align-content: center; gap: 3px; border: 1px solid var(--quiet-line); background: rgba(7,9,12,.55); cursor: pointer; text-align: left; }
 .staffing-crew-options button.is-selected { border: 2px solid var(--vein-400); padding: 6px; background: rgba(88,225,220,.1); }
 .staffing-crew-options strong { font: .74rem var(--serif); }
+.vow-duty { margin-left: 5px; padding: 1px 3px; border: 1px solid rgba(200,155,85,.4); color: var(--brass-400); font: 400 .38rem var(--mono); letter-spacing: .08em; vertical-align: middle; }
 .staffing-crew-options small { color: var(--bone-300); font-size: .58rem; line-height: 1.25; }
 .staffing-output { min-height: 30px; margin-top: 8px; padding-top: 8px; border-top: 1px solid rgba(184,173,150,.12); display: flex; flex-wrap: wrap; align-items: center; gap: 5px 10px; color: var(--bone-300); font-size: .66rem; line-height: 1.35; }
 .staffing-output strong { color: var(--vein-400); }
@@ -398,6 +404,7 @@ h1, h2 { font-family: var(--serif); font-weight: 500; }
 .mission-action-bar { margin-top: 14px; display: grid; gap: 7px; }
 .mission-checklist { display: flex; gap: 14px; color: var(--bone-300); font-size: .62rem; letter-spacing: .06em; }
 .mission-checklist .is-complete { color: var(--vein-400); }
+.mission-checklist .is-warning { color: var(--brass-400); }
 .planner-status { min-height: 1em; color: var(--brass-400); font-size: .66rem; }
 
 .crew-roster { padding-top: 6px; }
@@ -406,14 +413,16 @@ h1, h2 { font-family: var(--serif); font-weight: 500; }
 .crew-card { border: 1px solid var(--quiet-line); background: rgba(13,18,22,.72); }
 .crew-card.is-selected { border-color: var(--vein-400); background: rgba(88,225,220,.06); }
 .crew-card.is-incapacitated { border-color: rgba(229,111,102,.35); }
+.crew-card.is-pressured { border-color: rgba(200,155,85,.38); }
 .crew-select { width: 100%; min-height: 68px; display: grid; grid-template-columns: 48px 1fr auto; align-items: center; gap: 9px; padding: 8px; border: 0; background: none; cursor: pointer; text-align: left; }
 .crew-portrait { width: 44px; height: 48px; display: block; overflow: hidden; border: 1px solid var(--crew-color, var(--vein-400)); border-radius: 22px 22px 4px 4px; background: var(--ink-950); box-shadow: inset 0 0 0 1px rgba(7,9,12,.7); }
 .crew-portrait img { width: 100%; height: 100%; display: block; object-fit: cover; object-position: center 24%; filter: saturate(.84) contrast(1.04); }
 .crew-identity { min-width: 0; display: grid; gap: 2px; }
 .crew-identity strong { font: .75rem var(--serif); }
 .crew-identity small { color: var(--bone-300); font-size: .58rem; line-height: 1.3; }
-.crew-readout { color: var(--bone-300); font-size: .44rem; }
+.crew-readout { display: grid; justify-items: end; gap: 2px; color: var(--bone-300); font-size: .44rem; }
 .crew-readout b { color: var(--bone-100); font-size: .75rem; }
+.crew-readout em { max-width: 86px; color: var(--brass-400); font-size: .38rem; line-height: 1.2; text-align: right; }
 .crew-meter { height: 2px; background: rgba(184,173,150,.1); }
 .crew-meter i { height: 100%; display: block; background: var(--danger-400); }
 .crew-arc { min-height: 36px; display: grid; grid-template-columns: auto auto 1fr; align-items: center; gap: 10px; padding: 6px 9px; border-top: 1px solid rgba(184,173,150,.08); color: var(--bone-300); }
@@ -491,9 +500,14 @@ h1, h2 { font-family: var(--serif); font-weight: 500; }
 .slot-picker button b { font: .72rem var(--serif); }
 .slot-picker button.is-selected { border: 2px solid var(--vein-400); color: var(--vein-400); }
 .module-choices { display: grid; gap: 7px; }
+.workshop-section-heading { display: flex; justify-content: space-between; margin: 15px 0 7px; padding-bottom: 6px; border-bottom: 1px solid var(--quiet-line); }
+.workshop-section-heading span { color: var(--vein-400); font-size: .5rem; letter-spacing: .08em; }
+.workshop-section-heading b { color: var(--bone-300); font-size: .52rem; font-weight: 400; }
 .module-choice { display: grid; grid-template-columns: 42px 1fr minmax(118px, auto); align-items: center; gap: 10px; padding: 12px; border: 1px solid var(--quiet-line); background: rgba(24,32,39,.62); }
 .module-choice.is-affordable { border-color: rgba(88,225,220,.4); }
 .module-sigil { width: 32px; height: 32px; display: grid; place-items: center; border: 1px solid var(--vein-400); color: var(--vein-400); font: .6rem var(--serif); transform: rotate(45deg); }
+.module-blueprint { width: 42px; height: 48px; min-height: 0; display: grid; place-items: center; padding: 0; border: 1px solid rgba(88,225,220,.25); background: radial-gradient(circle, rgba(88,225,220,.08), transparent 70%); }
+.module-blueprint .room-machine { width: 34px; height: 34px; margin: 0; }
 .module-choice div { display: grid; gap: 4px; }
 .module-choice strong { font: .9rem var(--serif); }
 .module-choice p, .module-choice em { margin: 0; color: var(--bone-300); font-size: .6rem; line-height: 1.4; font-style: normal; }
@@ -525,6 +539,16 @@ h1, h2 { font-family: var(--serif); font-weight: 500; }
 .ending-choices em { margin-top: auto; color: var(--brass-400); font-size: .49rem; font-style: normal; }
 .completion-panel .tone-mark { width: 180px; }
 .completion-panel.is-loss .kicker, .completion-panel.is-loss h2 { color: var(--danger-400); }
+.ending-story { display: grid; gap: 14px; }
+.ending-story > p { margin: 0; color: var(--bone-300); font: .92rem/1.55 var(--serif); }
+.ending-crew-codas { display: grid; grid-template-columns: 1fr 1fr; gap: 7px; }
+.ending-crew-codas article { display: grid; grid-template-columns: 48px 1fr; gap: 9px; padding: 9px; border: 1px solid var(--quiet-line); border-left: 2px solid var(--crew-color); background: rgba(13,18,22,.7); }
+.ending-crew-codas .crew-portrait { width: 44px; height: 48px; }
+.ending-crew-codas article > span:last-child { display: grid; align-content: center; gap: 2px; }
+.ending-crew-codas strong { font: .76rem var(--serif); }
+.ending-crew-codas small { color: var(--brass-400); font-size: .43rem; }
+.ending-crew-codas p { margin: 3px 0 0; color: var(--bone-300); font: .62rem/1.4 var(--serif); }
+.ending-story .ending-close { padding-left: 10px; border-left: 2px solid var(--vein-400); color: var(--bone-100); }
 .completion-stats { display: flex; gap: 20px; padding: 18px 0; border-block: 1px solid var(--quiet-line); }
 .completion-stats span { color: var(--bone-300); font-size: .52rem; text-transform: uppercase; }
 .completion-stats b { display: block; color: var(--bone-100); font: 1.5rem var(--serif); }
@@ -587,6 +611,7 @@ h1, h2 { font-family: var(--serif); font-weight: 500; }
   .menu-page-content { margin-top: 28px; }
   .archive-grid { grid-template-columns: 1fr; }
   .chronicle-crew { grid-template-columns: 1fr; }
+  .ending-crew-codas { grid-template-columns: 1fr; }
   .run-history li { grid-template-columns: 102px 1fr auto; padding-inline: 10px; }
   .run-crew-line { grid-column: 1 / -1; grid-template-columns: 1fr; }
   .manual-grid { grid-template-columns: 1fr; }
@@ -662,6 +687,7 @@ h1, h2 { font-family: var(--serif); font-weight: 500; }
   .ending-choices button { min-height: 110px; }
   .heart-glyph { width: 88px; height: 88px; margin-block: 20px; }
   .module-choice { grid-template-columns: 36px 1fr; }
+  .tactical-read { grid-template-columns: 1fr; }
   .module-choice button { grid-column: 1 / -1; width: 100%; }
   .workshop-state { grid-template-columns: auto auto; }
   .workshop-state small { grid-column: 1 / -1; justify-self: start; }

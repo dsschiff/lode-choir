@@ -36,6 +36,14 @@ contract composes with every relic: it starts Orison light, makes unread high-ri
 faults and emergency plating more punishing, archives the mode separately, and awards
 a transparent 1.25× score. The completion ledger exposes every score component and can
 copy a seed-linked expedition report for playtest comparison.
+Personal missions now require their named crewmember to staff a chamber or lead the
+expedition: resting prevents strain but forfeits that vow step. The planner updates its
+hull, vow, and post-room ration forecast as assignments change. Victories close with a
+structured four-character coda whose text responds to each crew arc instead of one
+undifferentiated epilogue paragraph.
+At four strain, pressure suppresses a crewmember's extra room-output bonus, so a rested
+generalist can outperform the nominal specialist before the six-strain incapacitation
+threshold. Every affected room preview calls out the penalty before deployment.
 After the first player gesture, a lightweight Web Audio moon-drone underlays the run
 and yields to procedural room, route, story, damage, and ending tones; it pauses in
 menus, stops at completion, and obeys persistent mute and 0–100% volume settings without

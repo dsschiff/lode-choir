@@ -7,7 +7,7 @@
     ".": "./src/index.ts"
   },
   "scripts": {
-    "test": "node --test --experimental-strip-types --disable-warning=ExperimentalWarning \"test/**/*.test.ts\"",
+    "test": "node --test --experimental-strip-types --disable-warning=ExperimentalWarning \"test/audit-report.test.ts\" \"test/content.test.ts\" \"test/engine.test.ts\"",
     "test:sim": "node --test --experimental-strip-types --disable-warning=ExperimentalWarning \"test/simulation.test.ts\"",
     "audit:deep": "node --experimental-strip-types --disable-warning=ExperimentalWarning scripts/deep-audit.ts",
     "typecheck": "tsc --noEmit"

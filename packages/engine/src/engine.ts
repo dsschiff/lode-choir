@@ -12,6 +12,7 @@ import type {
   CrewDefinition,
   CrewId,
   EndingId,
+  EndingNarrative,
   EngineEvent,
   EventChoice,
   GameState,
@@ -384,7 +385,7 @@ interface RoomResolution {
 function roomStrength(state: GameState, module: ModuleState, crewId: CrewId): number {
   const crew = state.crew.find((candidate) => candidate.id === crewId)!;
   const heartAdjacency = module.id !== 'heart_engine' && hasAdjacentModule(state, module, 'heart_engine') ? 1 : 0;
-  const orinBonus = crewId === 'orin' && crew.signatureUnlocked ? 1 : 0;
+  const orinBonus = crewId === 'orin' && crew.signatureUnlocked && crew.strain < 4 ? 1 : 0;
   return module.level + heartAdjacency + orinBonus;
 }
 
@@ -405,45 +406,47 @@ export function forecastRoomAssignment(state: GameState, slot: number, crewId: C
     alloyCost: 0,
     conditions: [],
   };
+  const talentActive = crew.strain < 4;
+  if (!talentActive) forecast.conditions = ['PRESSURED: extra room-output bonuses are suppressed at 4+ strain.'];
 
   if (module.id === 'heart_engine') {
-    forecast.resources.provisions = strength + (crewId === 'mara' ? 1 : 0);
-    if (crewId === 'sable') forecast.resources.lumen = 1;
-    forecast.integrityRepair = crewId === 'orin' ? 1 : 0;
+    forecast.resources.provisions = strength + (crewId === 'mara' && talentActive ? 1 : 0);
+    if (crewId === 'sable' && talentActive) forecast.resources.lumen = 1;
+    forecast.integrityRepair = crewId === 'orin' && talentActive ? 1 : 0;
     forecast.crewStrain = crewId === 'tamsin' ? -2 : crewId === 'sable' ? 0 : -1;
-    if (crewId === 'mara') forecast.conditions = ['Mara stretches the ration yield.'];
-    if (crewId === 'tamsin') forecast.conditions = ['Tamsin takes the quiet shift and recovers more strain.'];
-    if (crewId === 'orin') forecast.conditions = ['Orin repairs 1 hull while the Heart runs.'];
-    if (crewId === 'sable') forecast.conditions = ['Produces 1 lumen; Sable cannot rest here.'];
+    if (crewId === 'mara') forecast.conditions = [...forecast.conditions, 'Mara stretches the ration yield.'];
+    if (crewId === 'tamsin') forecast.conditions = [...forecast.conditions, 'Tamsin takes the quiet shift and recovers more strain.'];
+    if (crewId === 'orin') forecast.conditions = [...forecast.conditions, 'Orin repairs 1 hull while the Heart runs.'];
+    if (crewId === 'sable') forecast.conditions = [...forecast.conditions, 'Produces 1 lumen; Sable cannot rest here.'];
   } else if (module.id === 'deep_drill') {
     const orinPenalty = crewId === 'orin' ? 1 : 0;
-    const tamsinBonus = crewId === 'tamsin' ? (crew.signatureUnlocked ? 2 : 1) : 0;
+    const tamsinBonus = crewId === 'tamsin' && talentActive ? (crew.signatureUnlocked ? 2 : 1) : 0;
     forecast.resources.alloy = Math.max(1, strength * 2 - orinPenalty + tamsinBonus);
-    if (crewId === 'sable') forecast.resources.lumen = 1;
-    forecast.integrityRepair = crewId === 'orin' ? 1 : 0;
+    if (crewId === 'sable' && talentActive) forecast.resources.lumen = 1;
+    forecast.integrityRepair = crewId === 'orin' && talentActive ? 1 : 0;
     forecast.crewStrain = crewId === 'mara' ? 0 : crewId === 'tamsin' ? 2 : 1;
-    if (crewId === 'mara') forecast.conditions = ['Mara runs a safe cut: no drill strain.'];
-    if (crewId === 'tamsin') forecast.conditions = ['Redline yields extra alloy but adds 2 drill strain.'];
-    if (crewId === 'orin') forecast.conditions = ['Orin trades 1 alloy for 1 hull repair.'];
-    if (crewId === 'sable') forecast.conditions = ['Maps the mission signal for 1 lumen.'];
+    if (crewId === 'mara') forecast.conditions = [...forecast.conditions, 'Mara runs a safe cut: no drill strain.'];
+    if (crewId === 'tamsin') forecast.conditions = [...forecast.conditions, 'Redline yields extra alloy but adds 2 drill strain.'];
+    if (crewId === 'orin') forecast.conditions = [...forecast.conditions, 'Orin trades 1 alloy for 1 hull repair.'];
+    if (crewId === 'sable') forecast.conditions = [...forecast.conditions, 'Maps the mission signal for 1 lumen.'];
   } else if (module.id === 'ward_array') {
-    const maraBonus = crewId === 'mara' ? (crew.signatureUnlocked ? 2 : 1) : 0;
+    const maraBonus = crewId === 'mara' && talentActive ? (crew.signatureUnlocked ? 2 : 1) : 0;
     forecast.protection = strength + maraBonus;
-    forecast.integrityRepair = Math.ceil(module.level / 2) + (crewId === 'orin' ? 1 : 0);
+    forecast.integrityRepair = Math.ceil(module.level / 2) + (crewId === 'orin' && talentActive ? 1 : 0);
     if (crewId === 'tamsin') {
       forecast.resources.alloy = module.level + 1;
       forecast.crewStrain = 1;
-      forecast.conditions = ['Tamsin strips stressed braces for alloy.'];
+      forecast.conditions = [...forecast.conditions, 'Tamsin strips stressed braces for alloy.'];
     }
-    if (crewId === 'mara') forecast.conditions = ['Mara adds extra mission protection.'];
-    if (crewId === 'orin') forecast.conditions = ['Orin adds 1 hull repair.'];
-    if (crewId === 'sable') forecast.conditions = ['Reveals the chosen mission fault.'];
+    if (crewId === 'mara') forecast.conditions = [...forecast.conditions, 'Mara adds extra mission protection.'];
+    if (crewId === 'orin') forecast.conditions = [...forecast.conditions, 'Orin adds 1 hull repair.'];
+    if (crewId === 'sable') forecast.conditions = [...forecast.conditions, 'Reveals the chosen mission fault.'];
   } else if (module.id === 'foundry') {
     forecast.alloyCost = 1;
     forecast.integrityRepair = state.resources.alloy > 0
       ? strength + (hasAdjacentModule(state, module, 'deep_drill') ? 1 : 0)
       : 0;
-    if (state.resources.alloy === 0) forecast.conditions = ['Needs 1 alloy to operate.'];
+    if (state.resources.alloy === 0) forecast.conditions = [...forecast.conditions, 'Needs 1 alloy to operate.'];
   } else if (module.id === 'infirmary') {
     forecast.allCrewStrain = -strength;
   } else if (module.id === 'resonance_chamber') {
@@ -454,7 +457,7 @@ export function forecastRoomAssignment(state: GameState, slot: number, crewId: C
     if (canDecode) {
       forecast.resources.lumen -= 3;
       forecast.heartNotes = 1;
-      forecast.conditions = ['First level-2 activation spends 3 lumen for 1 Heart Note.'];
+      forecast.conditions = [...forecast.conditions, 'First level-2 activation spends 3 lumen for 1 Heart Note.'];
     }
   }
 
@@ -468,28 +471,29 @@ function resolveRooms(state: GameState, events: EngineEvent[]): RoomResolution {
     const crewId = module.assignedCrew;
     if (!crewId) continue;
     const crew = state.crew.find((candidate) => candidate.id === crewId)!;
+    const talentActive = crew.strain < 4;
     const strength = roomStrength(state, module, crewId);
     if (module.id === 'heart_engine') {
-      const provisions = strength + (crewId === 'mara' ? 1 : 0);
+      const provisions = strength + (crewId === 'mara' && talentActive ? 1 : 0);
       addResource(state, 'provisions', provisions);
-      if (crewId === 'sable') addResource(state, 'lumen', 1);
-      if (crewId === 'orin') repair += 1;
+      if (crewId === 'sable' && talentActive) addResource(state, 'lumen', 1);
+      if (crewId === 'orin' && talentActive) repair += 1;
       if (crewId !== 'sable') adjustStrain(state, crewId, crewId === 'tamsin' ? -2 : -1, events);
-      emit(state, events, 'room', `Heart Engine: +${provisions} provisions${crewId === 'sable' ? ', +1 lumen' : ''}${crewId === 'orin' ? ', +1 hull' : ''}.`, 'positive');
+      emit(state, events, 'room', `Heart Engine: +${provisions} provisions${crewId === 'sable' && talentActive ? ', +1 lumen' : ''}${crewId === 'orin' && talentActive ? ', +1 hull' : ''}.`, 'positive');
     } else if (module.id === 'deep_drill') {
       const penalty = crewId === 'orin' ? 1 : 0;
-      const bonus = crewId === 'tamsin' ? (crew.signatureUnlocked ? 2 : 1) : 0;
+      const bonus = crewId === 'tamsin' && talentActive ? (crew.signatureUnlocked ? 2 : 1) : 0;
       const output = Math.max(1, strength * 2 - penalty + bonus);
       addResource(state, 'alloy', output);
-      if (crewId === 'sable') addResource(state, 'lumen', 1);
-      if (crewId === 'orin') repair += 1;
+      if (crewId === 'sable' && talentActive) addResource(state, 'lumen', 1);
+      if (crewId === 'orin' && talentActive) repair += 1;
       adjustStrain(state, crewId, crewId === 'mara' ? 0 : crewId === 'tamsin' ? 2 : 1, events);
-      emit(state, events, 'room', `Deep Drill: +${output} alloy${crewId === 'sable' ? ', +1 lumen' : ''}${crewId === 'orin' ? ', +1 hull' : ''}.`, 'positive');
+      emit(state, events, 'room', `Deep Drill: +${output} alloy${crewId === 'sable' && talentActive ? ', +1 lumen' : ''}${crewId === 'orin' && talentActive ? ', +1 hull' : ''}.`, 'positive');
     } else if (module.id === 'ward_array') {
-      const maraBonus = crewId === 'mara' ? (crew.signatureUnlocked ? 2 : 1) : 0;
+      const maraBonus = crewId === 'mara' && talentActive ? (crew.signatureUnlocked ? 2 : 1) : 0;
       const protection = strength + maraBonus;
       ward += protection;
-      repair += Math.ceil(module.level / 2) + (crewId === 'orin' ? 1 : 0);
+      repair += Math.ceil(module.level / 2) + (crewId === 'orin' && talentActive ? 1 : 0);
       if (crewId === 'tamsin') {
         const salvage = module.level + 1;
         addResource(state, 'alloy', salvage);
@@ -545,15 +549,16 @@ function projectedRepair(state: GameState): number {
     const crewId = module.assignedCrew;
     if (!crewId) continue;
     const crew = state.crew.find((candidate) => candidate.id === crewId)!;
+    const talentActive = crew.strain < 4;
     const strength = roomStrength(state, module, crewId);
-    if (module.id === 'heart_engine' && crewId === 'orin') repair += 1;
+    if (module.id === 'heart_engine' && crewId === 'orin' && talentActive) repair += 1;
     if (module.id === 'deep_drill') {
       const penalty = crewId === 'orin' ? 1 : 0;
-      const bonus = crewId === 'tamsin' ? (crew.signatureUnlocked ? 2 : 1) : 0;
+      const bonus = crewId === 'tamsin' && talentActive ? (crew.signatureUnlocked ? 2 : 1) : 0;
       alloy += Math.max(1, strength * 2 - penalty + bonus);
-      if (crewId === 'orin') repair += 1;
+      if (crewId === 'orin' && talentActive) repair += 1;
     }
-    if (module.id === 'ward_array') repair += Math.ceil(module.level / 2) + (crewId === 'orin' ? 1 : 0);
+    if (module.id === 'ward_array') repair += Math.ceil(module.level / 2) + (crewId === 'orin' && talentActive ? 1 : 0);
     if (module.id === 'foundry' && alloy > 0) {
       alloy -= 1;
       repair += strength + (hasAdjacentModule(state, module, 'deep_drill') ? 1 : 0);
@@ -613,6 +618,12 @@ function resolveRoute(state: GameState, room: RoomResolution, events: EngineEven
   const offer = state.routeOffers.find((candidate) => candidate.instanceId === state.selectedRoute)!;
   const route = routeDefinition(offer.routeId);
   const leader = state.routeLeader;
+  const onDuty = (crewId: CrewId) => leader === crewId || state.modules.some((module) => module.assignedCrew === crewId);
+  const orinModule = state.modules.find((module) => module.assignedCrew === 'orin');
+  const orinWorkedVow = leader === 'orin' || Boolean(orinModule && (
+    ['heart_engine', 'deep_drill', 'ward_array', 'resonance_chamber'].includes(orinModule.id)
+    || (orinModule.id === 'foundry' && room.repair > 0)
+  ));
   const focusProgressBefore = state.crew.find((crew) => crew.id === route.focusCrew)!.vowProgress;
   for (const [id, amount] of Object.entries(projectedRouteRewards(state, offer, leader)) as [ResourceId, number][]) addResource(state, id, amount);
   const noteProgress = projectedRouteHeartNotes(state, offer);
@@ -659,12 +670,18 @@ function resolveRoute(state: GameState, room: RoomResolution, events: EngineEven
   }
   if (state.integrity < maximumIntegrity(state) / 2) adjustStrain(state, 'orin', 1, events);
 
-  if (damage === 0) progressVow(state, 'mara', events);
-  if (route.hazard >= 3 && (leader === 'tamsin' || state.modules.some((module) => module.assignedCrew === 'tamsin'))) progressVow(state, 'tamsin', events);
-  if (leader === 'orin' || room.repair > 0 || state.modules.some((module) => module.id === 'resonance_chamber' && module.assignedCrew === 'orin')) progressVow(state, 'orin', events);
-  if (offer.revealed) progressVow(state, 'sable', events);
+  if (damage === 0 && onDuty('mara')) progressVow(state, 'mara', events);
+  if (route.hazard >= 3 && onDuty('tamsin')) progressVow(state, 'tamsin', events);
+  if (orinWorkedVow) progressVow(state, 'orin', events);
+  if (offer.revealed && onDuty('sable')) progressVow(state, 'sable', events);
   const focusCrew = state.crew.find((crew) => crew.id === route.focusCrew)!;
-  if (focusCrew.vowProgress === focusProgressBefore) progressVow(state, route.focusCrew, events);
+  const focusOnDuty = leader === route.focusCrew || state.modules.some((module) => module.assignedCrew === route.focusCrew);
+  if (focusOnDuty && focusCrew.vowProgress === focusProgressBefore) progressVow(state, route.focusCrew, events);
+  if (!focusOnDuty) {
+    const name = effectiveCrew().find((crew) => crew.id === route.focusCrew)?.name ?? route.focusCrew;
+    appendLog(state, 'crew', `${name} was off duty for a personal mission. The vow did not advance.`);
+    emit(state, events, 'crew', `${name} rested through this personal mission; no vow progress.`);
+  }
 
   state.storyFlags.push(`route:${route.id}`);
   if (!state.storyFlags.includes(`tag:${route.storyTag}`)) state.storyFlags.push(`tag:${route.storyTag}`);
@@ -839,7 +856,7 @@ function upgradeCost(module: ModuleState): number {
   return base + module.level * 2;
 }
 
-function endingText(state: GameState, endingId: EndingId): string {
+function endingNarrative(state: GameState, endingId: EndingId): EndingNarrative {
   const fulfilled = state.crew.filter((crew) => crew.vowProgress >= 3).length;
   const scarred = state.crew.filter((crew) => crew.scar).length;
   const coda = fulfilled > 0 ? `${fulfilled} vow${fulfilled === 1 ? '' : 's'} ring true in the final chord.` : 'Their unfinished vows remain in the stone.';
@@ -867,7 +884,16 @@ function endingText(state: GameState, endingId: EndingId): string {
           proven('orin') ? 'Orin writes a rest seven shifts long into the unfinished hymn.' : 'Orin hears the absent interval long after the moon falls quiet.',
           proven('sable') ? 'Sable deletes the makers’ commandment and keeps the memory of refusing it.' : 'Sable archives the sealed coordinates under a name no instrument can query.',
         ];
-  return `${authored ?? 'The Heart-Lode answers, and the crew carry that answer into the dark.'} ${personal.join(' ')} ${coda}${scars}`;
+  return {
+    opening: authored ?? 'The Heart-Lode answers, and the crew carry that answer into the dark.',
+    crew: (['mara', 'tamsin', 'orin', 'sable'] as CrewId[]).map((crewId, index) => ({ crewId, text: personal[index]! })),
+    closing: `${coda}${scars}`,
+  };
+}
+
+function endingText(state: GameState, endingId: EndingId): string {
+  const narrative = endingNarrative(state, endingId);
+  return `${narrative.opening} ${narrative.crew.map((crew) => crew.text).join(' ')} ${narrative.closing}`;
 }
 
 export function applyCommand(input: GameState, command: Command): TransitionResult {
@@ -995,6 +1021,7 @@ export function selectGameView(state: GameState): GameView {
     repairCost: emergencyPlatingCost(state),
     scoreMultiplier: state.runMode === 'black_descent' ? 1.25 : 1,
     routeReservationCost: ROUTE_RESERVATION_COST,
+    endingNarrative: state.status === 'won' && state.ending ? endingNarrative(state, state.ending) : null,
     objective: state.heartNotes >= 3
       ? 'Survive until the seventh shift and answer the Heart-Lode.'
       : `Find ${3 - state.heartNotes} more Heart Note${3 - state.heartNotes === 1 ? '' : 's'} before shift seven.`,

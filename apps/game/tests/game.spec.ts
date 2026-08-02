@@ -84,12 +84,22 @@ test('a new expedition explains Orison, Heart Notes, and every crew stake before
   await page.getByTestId('enter-orison').click();
   await expect(page.locator('.shift-brief')).toContainText('transmitted all four of their names');
   await expect(page.locator('.route-focus')).toHaveCount(3);
-  await expect(page.locator('.route-focus').first()).toContainText('VOW MISSION');
+  await expect(page.locator('.route-focus').first()).toContainText('VOW · DUTY REQUIRED');
   await page.getByTestId('route-0').click();
   await expect(page.getByTestId('mission-story')).toContainText('WHY THIS MISSION MATTERS');
   await expect(page.getByTestId('mission-story')).toContainText('KNOWN HAZARD');
   await expect(page.getByTestId('mission-story').locator('.mission-focus')).toContainText('PERSONAL STAKE');
-  await expect(page.getByTestId('mission-story').locator('.mission-focus')).toContainText('advances');
+  await expect(page.getByTestId('mission-story').locator('.mission-focus')).toContainText('advance the vow');
+  await expect(page.getByTestId('mission-story').locator('.mission-focus')).toContainText('Resting protects');
+  await expect(page.locator('.staffing-crew-options .vow-duty')).toHaveCount(3);
+  await expect(page.locator('.mission-checklist')).toContainText('VOW RESTING');
+  await expect(page.getByTestId('tactical-read')).toContainText('HULL AFTER MISSION');
+  await expect(page.getByTestId('tactical-read')).toContainText('RATION AFTER ROOMS');
+  const focusName = (await page.locator('.route-card.is-selected .route-focus').innerText()).split(' · ')[0]!.trim();
+  const focusId = ({ 'MARA VEY': 'mara', 'TAMSIN ROOK': 'tamsin', 'ORIN VALE': 'orin', 'SABLE-9': 'sable' } as const)[focusName as 'MARA VEY' | 'TAMSIN ROOK' | 'ORIN VALE' | 'SABLE-9'];
+  await page.getByTestId(`staff-0-${focusId}`).click();
+  await expect(page.locator('.mission-checklist')).toContainText('VOW ON DUTY');
+  await expect(page.getByTestId('tactical-read')).toContainText('This mission can advance');
 });
 
 test('guided planner explains missing steps and deploys with inline staffing', async ({ page }) => {
@@ -133,6 +143,7 @@ test('crew cards expose actionable vows, trust, pressure, and signatures', async
     mara.vowProgress = 2;
     mara.loyalty = 3;
     mara.signatureUnlocked = true;
+    mara.strain = 4;
     window.__LODE_CHOIR__?.refresh();
   });
   const card = page.getByTestId('crew-mara').locator('..');
@@ -140,6 +151,7 @@ test('crew cards expose actionable vows, trust, pressure, and signatures', async
   await expect(card.locator('.crew-arc')).toContainText('2/3');
   await expect(card.locator('.crew-arc')).toContainText('TRUST');
   await expect(card.locator('.crew-arc')).toContainText('SIGNATURE ACTIVE');
+  await expect(card.locator('.crew-readout')).toContainText('PRESSURED · BONUS OFF');
   await card.getByText('Open dossier').click();
   await expect(card).toContainText('Advance by completing a mission without hull damage.');
   await expect(card).toContainText('Mara gains strain when the crew abandons a refuge.');
@@ -297,6 +309,9 @@ test('deterministic hook can resolve a finale and begin the next inherited desce
   await expect(page.getByTestId('completion-panel')).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Join the Choir' })).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Join the Choir' })).toBeFocused();
+  await expect(page.getByTestId('ending-story').locator('.ending-crew-codas article')).toHaveCount(4);
+  await expect(page.getByTestId('ending-story').locator('article').filter({ hasText: 'Mara Vey' })).toContainText('VOW KEPT · TRUST 3');
+  await expect(page.getByTestId('ending-story')).toContainText('Mara adds Vesper');
   await expect(page.locator('.completion-stats')).toContainText('echo score');
   await page.getByText('Inspect score ledger').click();
   await expect(page.locator('.score-breakdown')).toContainText('Expedition completed');

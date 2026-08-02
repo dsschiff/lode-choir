@@ -222,6 +222,12 @@ export interface TransitionResult {
   events: EngineEvent[];
 }
 
+export interface EndingNarrative {
+  opening: string;
+  crew: ReadonlyArray<{ crewId: CrewId; text: string }>;
+  closing: string;
+}
+
 export interface GameView {
   state: Readonly<GameState>;
   crew: ReadonlyArray<CrewState & CrewDefinition>;
@@ -234,5 +240,6 @@ export interface GameView {
   scoreMultiplier: number;
   routeReservationCost: number;
   objective: string;
+  endingNarrative: EndingNarrative | null;
 }
 

@@ -75,8 +75,7 @@ async function capture(browser, name, viewport, mobile = false) {
     await page.getByTestId(`crew-${crew}`).click();
     await rooms.nth(room).click();
   }
-  await page.getByTestId('crew-sable').click();
-  await page.getByRole('button', { name: 'APPOINT' }).click();
+  await page.locator('.leader-options').getByRole('button', { name: /Sable-9/ }).click();
   await screenshot('planning');
 
   await page.evaluate(() => {

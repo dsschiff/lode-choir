@@ -219,7 +219,7 @@ function CrewCard({ crew, selected, assigned, shift, onSelect, onUnassign }: {
 }) {
   const unavailable = crew.incapacitatedUntil > shift;
   return (
-    <article className={`crew-card ${selected ? 'is-selected' : ''} ${unavailable ? 'is-incapacitated' : ''}`}>
+    <article className={`crew-card ${selected ? 'is-selected' : ''} ${crew.strain >= 4 ? 'is-pressured' : ''} ${unavailable ? 'is-incapacitated' : ''}`}>
       <button
         type="button"
         className="crew-select"
@@ -242,7 +242,7 @@ function CrewCard({ crew, selected, assigned, shift, onSelect, onUnassign }: {
           <strong>{crew.name}</strong>
           <small>{unavailable ? `Incapacitated until shift ${crew.incapacitatedUntil + 1}` : assigned ? 'Assigned · tap to recall' : crew.role}</small>
         </span>
-        <span className="crew-readout"><b>{crew.strain}</b>/6 STR</span>
+        <span className="crew-readout"><span><b>{crew.strain}</b>/6 STR</span>{crew.strain >= 4 && !unavailable && <em>PRESSURED · BONUS OFF</em>}</span>
       </button>
       <div
         className="crew-meter"
@@ -485,6 +485,10 @@ function RoutePanel({ view, chartStatus, onSelect, onReserve, onClearReservation
   const staffedRooms = view.modules.filter((module) => module.assignedCrew).length;
   const missionReady = Boolean(view.state.selectedRoute);
   const selectedRoute = view.routes.find((route) => route.instanceId === view.state.selectedRoute);
+  const focusCrewId = selectedRoute?.definition.focusCrew;
+  const focusOnDuty = Boolean(focusCrewId && (view.state.routeLeader === focusCrewId || view.modules.some((module) => module.assignedCrew === focusCrewId)));
+  const roomProvisions = view.modules.reduce((total, module) => total + (module.forecast?.resources.provisions ?? 0), 0);
+  const projectedProvisions = selectedRoute ? view.state.resources.provisions + roomProvisions - selectedRoute.forecast.provisionCost : view.state.resources.provisions;
   const staffingReady = staffedRooms === requiredRooms;
   const firstUnstaffed = view.modules.find((module) => !module.assignedCrew);
   const carriedRelic = view.state.startingRelic ? RELICS.find((relic) => relic.id === view.state.startingRelic) : null;
@@ -530,7 +534,7 @@ function RoutePanel({ view, chartStatus, onSelect, onReserve, onClearReservation
                 <span className="route-meta"><span className="route-kind">{route.definition.kind}</span>{route.carried && <span className="route-carried-badge">CHARTED LAST SHIFT</span>}</span>
                 <strong>{route.definition.title}</strong>
                 <small>{route.definition.description}</small>
-                <span className="route-focus"><img src={`${BASE_PATH}/art/crew-${focus.id}.webp`} width="720" height="720" alt="" />{focus.name.toUpperCase()} · VOW MISSION</span>
+                <span className="route-focus"><img src={`${BASE_PATH}/art/crew-${focus.id}.webp`} width="720" height="720" alt="" />{focus.name.toUpperCase()} · VOW · DUTY REQUIRED</span>
                 {route.revealed && route.hiddenComplication && <em>Foreseen: {route.hiddenComplication}</em>}
               </span>
               <span className="route-risk"><b>{route.definition.hazard}</b><small>RISK</small></span>
@@ -548,11 +552,16 @@ function RoutePanel({ view, chartStatus, onSelect, onReserve, onClearReservation
       {selectedRoute && <aside className="mission-story" data-testid="mission-story">
         {(() => {
           const focus = view.crew.find((crew) => crew.id === selectedRoute.definition.focusCrew)!;
-          return <div className="mission-focus"><img src={`${BASE_PATH}/art/crew-${focus.id}.webp`} width="720" height="720" alt="" /><span><b>{focus.name.toUpperCase()} // PERSONAL STAKE</b><small>Completing this mission advances {focus.name.split(' ')[0]}’s vow once.</small></span></div>;
+          return <div className="mission-focus"><img src={`${BASE_PATH}/art/crew-${focus.id}.webp`} width="720" height="720" alt="" /><span><b>{focus.name.toUpperCase()} // PERSONAL STAKE</b><small>Keep {focus.name.split(' ')[0]} in a room or appoint them leader to advance the vow. Resting protects them from strain but misses this step.</small></span></div>;
         })()}
         <span>WHY THIS MISSION MATTERS</span>
         <p>{selectedRoute.definition.storyLead}</p>
         <small><b>KNOWN HAZARD</b> {selectedRoute.definition.hazardText}</small>
+      </aside>}
+      {selectedRoute && <aside className="tactical-read" data-testid="tactical-read">
+        <span><small>HULL AFTER MISSION</small><b>{selectedRoute.forecast.hullDamageMax === 0 ? 'NO KNOWN LOSS' : `−${selectedRoute.forecast.hullDamageMin}${selectedRoute.forecast.hullDamageMax !== selectedRoute.forecast.hullDamageMin ? `–${selectedRoute.forecast.hullDamageMax}` : ''} HULL`}</b><em>{selectedRoute.forecast.hullDamageMax === 0 ? 'Current staffing covers the known hazard.' : 'Ward protection or Mara’s leadership can reduce this.'}</em></span>
+        <span><small>PERSONAL VOW</small><b>{focusOnDuty ? 'ON DUTY' : 'RESTING'}</b><em>{focusOnDuty ? 'This mission can advance the selected crew arc.' : 'Rest lowers strain but forfeits this mission’s vow step.'}</em></span>
+        <span><small>RATION AFTER ROOMS</small><b>{projectedProvisions}</b><em>{projectedProvisions < 1 ? 'The plan cannot pay the mission cost.' : projectedProvisions < 3 ? 'Little reserve remains for leadership or later shifts.' : 'Enough reserve remains for optional leadership.'}</em></span>
       </aside>}
       <RouteChartStrip view={view} status={chartStatus} onReserve={onReserve} onClear={onClearReservation} />
       <div className="planner-step-heading"><span>2</span><div><strong>Staff {requiredRooms} rooms</strong>{view.state.shift === 1 && <small>Each room lists its exact output. A crew member can staff only one room.</small>}</div><b>{staffedRooms}/{requiredRooms}</b></div>
@@ -583,7 +592,7 @@ function RoutePanel({ view, chartStatus, onSelect, onReserve, onClearReservation
                       disabled={!isCurrent && !canAssign}
                       onClick={() => isCurrent ? onUnassign(crew.id) : onAssign(crew.id, module.slot)}
                     >
-                      <strong>{crew.name.split(' ')[0]}</strong><small>{crew.incapacitatedUntil > view.state.shift ? `back shift ${crew.incapacitatedUntil + 1}` : preview}</small>
+                      <strong>{crew.name.split(' ')[0]}{selectedRoute?.definition.focusCrew === crew.id && <em className="vow-duty">VOW</em>}</strong><small>{crew.incapacitatedUntil > view.state.shift ? `back shift ${crew.incapacitatedUntil + 1}` : preview}</small>
                     </button>
                   );
                 })}
@@ -611,11 +620,11 @@ function RoutePanel({ view, chartStatus, onSelect, onReserve, onClearReservation
         {view.crew.map((crew) => {
           const canLead = legal.some((command) => command.type === 'assign_route_leader' && command.crewId === crew.id);
           const alreadyWorking = view.modules.some((module) => module.assignedCrew === crew.id);
-          return <button type="button" key={crew.id} disabled={!canLead} onClick={() => onLeader(crew.id)}><strong>{crew.name}</strong><small>{alreadyWorking ? 'Staffing a room' : canLead ? LEADER_EFFECTS[crew.id] : 'Needs 2 provisions available'}</small></button>;
+          return <button type="button" key={crew.id} disabled={!canLead} onClick={() => onLeader(crew.id)}><strong>{crew.name}{selectedRoute?.definition.focusCrew === crew.id && <em className="vow-duty">VOW</em>}</strong><small>{alreadyWorking ? 'Staffing a room' : canLead ? LEADER_EFFECTS[crew.id] : 'Needs 2 provisions available'}</small></button>;
         })}
       </div>}
       <div className="mission-action-bar">
-        <div className="mission-checklist" aria-label="Deployment checklist"><span className={missionReady ? 'is-complete' : ''}>MISSION {missionReady ? '✓' : '○'}</span><span className={staffingReady ? 'is-complete' : ''}>ROOMS {staffedRooms}/{requiredRooms}</span></div>
+        <div className="mission-checklist" aria-label="Deployment checklist"><span className={missionReady ? 'is-complete' : ''}>MISSION {missionReady ? '✓' : '○'}</span><span className={staffingReady ? 'is-complete' : ''}>ROOMS {staffedRooms}/{requiredRooms}</span>{focusCrewId && <span className={focusOnDuty ? 'is-complete' : 'is-warning'}>VOW {focusOnDuty ? 'ON DUTY' : 'RESTING'}</span>}</div>
         <button type="button" className="primary-action" onClick={handleMissionAction} data-testid="resolve-shift">
           <span>{view.canResolveShift ? 'All required crew and equipment are ready.' : !missionReady ? 'One mission must be selected.' : `${requiredRooms - staffedRooms} room${requiredRooms - staffedRooms === 1 ? '' : 's'} still need crew.`}</span>
           <b>{view.canResolveShift ? 'DEPLOY MISSION' : !missionReady ? 'CHOOSE MISSION' : `STAFF ${requiredRooms - staffedRooms}`}</b>
@@ -716,13 +725,14 @@ function DevelopmentPanel({ view, slot, onSlot, onBuild, onUpgrade, onRepair, on
           </button>
         ))}
       </div>
+      <div className="workshop-section-heading"><span>NEW CONSTRUCTION</span><b>Choose one room for chamber {slot === null ? '—' : slot + 1}</b></div>
       <div className="module-choices">
         {choiceDefinitions.map((module) => {
           const missingAlloy = Math.max(0, module.buildCost - view.state.resources.alloy);
           const legalBuild = canBuild(module.id, slot);
           const action = slot === null ? 'CHOOSE CHAMBER' : missingAlloy > 0 ? `NEED ${missingAlloy} MORE ALLOY` : `BUILD IN CHAMBER ${slot + 1}`;
           return <article className={`module-choice ${legalBuild ? 'is-affordable' : ''}`} key={module.id} data-module={module.id}>
-            <span className="module-sigil">{MODULE_MARKS[module.id]}</span>
+            <span className="room module-blueprint" data-module={module.id} aria-hidden="true"><span className="room-machine"><i /><i /><i /><b>{MODULE_MARKS[module.id]}</b></span></span>
             <div><strong>{module.name}</strong><p>{module.description}</p><em>{module.assignmentHint}</em><span className="placement-effect" data-testid={`placement-${module.id}`}>{placementEffect(module.id)}</span><small>COST · {module.buildCost} ALLOY</small></div>
             <button type="button" onClick={() => slot !== null && onBuild(module.id, slot)} disabled={!legalBuild} data-testid={`build-${module.id}`}>
               {action}
@@ -816,7 +826,19 @@ function CompletionPanel({ view, onNewRun, onChronicle }: { view: GameView; onNe
       <span className="kicker">RUN // {won ? 'CONCORDANT' : 'SILENCED'} // {modeLabel}</span>
       <ToneMark active={won} />
       <h2 ref={heading} tabIndex={-1}>{won ? ENDINGS[view.state.ending ?? 'harmonize'].title : 'Orison goes dark.'}</h2>
-      <p>{view.state.endingText ?? (won ? 'The expedition is complete.' : 'The Orison cannot continue.')}</p>
+      {won && view.endingNarrative ? <div className="ending-story" data-testid="ending-story">
+        <p>{view.endingNarrative.opening}</p>
+        <div className="ending-crew-codas">
+          {view.endingNarrative.crew.map((coda) => {
+            const crew = view.crew.find((candidate) => candidate.id === coda.crewId)!;
+            return <article key={coda.crewId} style={{ '--crew-color': crew.color } as React.CSSProperties}>
+              <span className="crew-portrait"><img src={`${BASE_PATH}/art/crew-${crew.id}.webp`} width="720" height="720" alt="" /></span>
+              <span><strong>{crew.name}</strong><small>{crew.vowProgress >= 3 ? 'VOW KEPT' : crew.signatureUnlocked ? 'SIGNATURE AWAKENED' : 'VOW UNFINISHED'} · TRUST {crew.loyalty}</small><p>{coda.text}</p></span>
+            </article>;
+          })}
+        </div>
+        <p className="ending-close">{view.endingNarrative.closing}</p>
+      </div> : <p>{view.state.endingText ?? 'The Orison cannot continue.'}</p>}
       <div className="completion-stats">
         <span><b>{scoreRun(view.state as GameState)}</b> echo score</span><span><b>{view.state.shift}</b> shifts</span><span><b>{view.state.heartNotes}</b> Heart Notes</span><span><b>{view.state.integrity}</b> integrity</span>
       </div>
@@ -1069,7 +1091,7 @@ function ManualPage({ onBack }: { onBack: () => void }) {
         <article><span>02 // MISSION</span><h2>Choose one destination</h2><p>Each mission card shows rewards, hull damage, ration cost, and total crew strain. Risk is already included in the forecast.</p></article>
         <article><span>03 // ROOMS</span><h2>Staff three rooms</h2><p>Choose one crew member for each room. The planner shows the exact output before you deploy.</p></article>
         <article><span>04 // FOURTH CREW</span><h2>Rest or lead</h2><p>The unassigned crew member rests and removes two strain. A leader provides a listed bonus but costs one extra provision.</p></article>
-        <article><span>05 // COSTS</span><h2>Watch hull and strain</h2><p>Every mission costs one provision. Six strain causes a scar and makes that crew member unavailable for the next shift.</p></article>
+        <article><span>05 // COSTS</span><h2>Watch hull and strain</h2><p>Every mission costs one provision. At four strain, pressure suppresses that crew member’s extra room-output bonus. Six strain causes a scar and makes them unavailable for the next shift.</p></article>
         <article><span>06 // WORKSHOP</span><h2>Improve Orison</h2><p>After shifts two and four, spend alloy to build one room, upgrade one room, or repair two hull. You may also save the alloy.</p></article>
         <article><span>07 // CHRONICLE</span><h2>Keep the results</h2><p>Each ending unlocks one relic. The Chronicle stores your twelve most recent scores and can restart any recorded seed.</p></article>
         <article><span>08 // BLACK DESCENT</span><h2>Optional hard mode</h2><p>Start with 11 hull, 3 provisions, 4 alloy, and 1 lumen for a 1.25× score. Hidden high-risk faults deal twice their normal damage.</p></article>

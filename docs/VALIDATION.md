@@ -1,11 +1,11 @@
 # Validation Record
 
-Validated against the local `main` branch on 2026-07-31 with Node 24.14 and npm
+Validated against the local `main` branch on 2026-08-01 with Node 24.14 and npm
 11.9 on Windows.
 
 ## Rules and balance
 
-- 41 deterministic engine, content, simulation, and evidence-integrity tests pass, including immutability, legal-command
+- 42 deterministic engine, content, simulation, and evidence-integrity tests pass, including immutability, legal-command
   enforcement, save migration, exact replay, scars, loyalty, all endings, development
   deferral, mode-aware emergency repair, Black Descent composition and scoring, route
   leadership, and short-handed runs.
@@ -23,8 +23,8 @@ Validated against the local `main` branch on 2026-07-31 with Node 24.14 and npm
 | Policy | Adaptive leader | Always rest | Difference |
 | --- | ---: | ---: | ---: |
 | Conservative | 433 | 433 | 0.0 points |
-| Balanced | 117 | 110 | +1.4 points |
-| Aggressive | 4 | 10 | -1.2 points |
+| Balanced | 122 | 113 | +1.8 points |
+| Aggressive | 31 | 34 | -0.6 points |
 
 All four characters lead across every audited policy. The observed effect remains below
 the locked ten-point limit, so leadership is useful but not a compulsory upgrade.
@@ -34,26 +34,25 @@ The 500-seed relic audit stayed inside its separate balance gates. Win counts we
 | Policy | None | Heart Splinter | Vesper Tuning Fork | Oathkeeper's Latch |
 | --- | ---: | ---: | ---: | ---: |
 | Conservative | 423 | 423 | 457 | 423 |
-| Balanced | 99 | 93 | 99 | 123 |
-| Aggressive | 7 | 10 | 7 | 8 |
+| Balanced | 100 | 108 | 100 | 127 |
+| Aggressive | 25 | 30 | 25 | 31 |
 
-No relic improved a policy by more than 6.8 percentage points over carrying nothing,
-and the largest within-policy relic spread was 6.8 points. The one-integrity
+No relic improved a policy by more than 5.4 percentage points over carrying nothing,
+and the largest within-policy relic spread was 5.4 points. The one-integrity
 Oathkeeper's Latch remains the strongest balanced survival option without dominating;
 the Tuning Fork most helps conservative Note timing; the Heart Splinter's extra alloy
 is offset by Tamsin's starting strain.
 
-Balanced policies used emergency plating on 95.8–96.2% of ordinary/Heart/Fork runs.
-That new two-alloy sink raised no-relic balanced wins from 63 to 99 of 500 matched
-seeds while remaining optional for conservative and aggressive policies.
+Balanced policies used emergency plating on most ordinary/Heart/Fork runs while it
+remained optional for conservative and aggressive policies.
 
 The matched Charted Routes audit produced:
 
 | Policy | No chart | Chart-aware | Difference | Carried later chosen |
 | --- | ---: | ---: | ---: | ---: |
-| Conservative | 418 | 436 | +3.6 points | 26.7% |
-| Balanced | 110 | 170 | +12.0 points | 20.4% |
-| Aggressive | 2 | 12 | +2.0 points | 19.4% |
+| Conservative | 418 | 443 | +5.0 points | 27.1% |
+| Balanced | 117 | 160 | +8.6 points | 20.2% |
+| Aggressive | 24 | 43 | +3.8 points | 20.3% |
 
 Each chart-aware policy stayed below the locked fifteen-point impact ceiling, used
 reservations repeatedly, and still declined most returning routes. Baseline RNG states
@@ -64,23 +63,23 @@ The 24,000-run matched mode matrix validates the optional Black Descent contract
 starts at 11 hull, three provisions, four alloy, and one lumen; unread complications on
 risk-three-or-higher routes add two hazard rather than one; emergency plating costs
 three alloy; and completed scores receive an explicit 1.25 multiplier. Aggregate wins
-fell from 4,697/12,000 (39.1%) in Standard to 3,851/12,000 (32.1%), a 7.1-point drop
+fell from 5,011/12,000 (41.8%) in Standard to 4,021/12,000 (33.5%), an 8.3-point drop
 inside the locked 3–15 point target.
 
 | Policy | Standard wins / 4,000 | Black Descent wins / 4,000 | Difference |
 | --- | ---: | ---: | ---: |
-| Conservative | 3,441 | 3,435 | −0.2 points |
-| Balanced | 1,205 | 397 | −20.2 points |
-| Aggressive | 51 | 19 | −0.8 points |
+| Conservative | 3,451 | 3,455 | +0.1 points |
+| Balanced | 1,243 | 434 | −20.2 points |
+| Aggressive | 317 | 132 | −4.6 points |
 
 The mode deliberately concentrates pressure on balanced/risk-taking play while leaving
 the conservative policy viable rather than guaranteeing failure. Within Black Descent,
-balanced no-chart wins were 33, 33, 33, and 39/500 across none/Heart/Fork/Latch; charted
-wins were 64, 56, 55, and 84. All chart-aware balanced relic cells remain above the
+balanced no-chart wins were 38, 36, 38, and 46/500 across none/Heart/Fork/Latch; charted
+wins were 67, 68, 59, and 82. All chart-aware balanced relic cells remain above the
 locked 10% viability floor, relic spread stays below six points, and chart impact stays
 below nine points. Balanced chart cells used plating 346–374 times per 500 runs. Every
 aggressive relic/chart family still found at least one win. Carried routes were later
-chosen in 26.3%, 17.2%, and 15.2% of hard-mode reservations under conservative,
+chosen in 26.0%, 17.9%, and 16.5% of hard-mode reservations under conservative,
 balanced, and aggressive policies respectively.
 
 The score boundary was also hardened before enabling the multiplier: the completion
@@ -129,13 +128,14 @@ and 696,000 reconstructed replays passed.
 - 48 Playwright checks pass in Pixel 5 and desktop Chromium projects. They cover title
   navigation, direct seed entry, settings migration, installation prompt handling and persistent volume, first choice, touch assignment, optional leadership, resolution,
   loadout locking and keyboard selection, all three relic effects, relic resume,
-  exact route-cost forecasts, chart hold/swap/refund/reload/return behavior,
+  exact route-cost forecasts, four-strain room-pressure penalties, chart hold/swap/refund/reload/return behavior,
   autosave previews/resume, unaffordable story-choice gating, corrupt-save recovery,
   scored Chronicle history with four persistent crew-arc records, Black Descent keyboard selection, exact preview,
   save/resume, completion, archive categorization and fresh-run reset, later phase
   surfaces, validated backup rejection/restore across run, Chronicle, and settings,
   exact event-effect labels, score-ledger disclosure, copied seed-and-mode reports,
-  shared URL initialization with invalid-mode fallback, Chronicle progression counts,
+  shared URL initialization with invalid-mode fallback, on-duty personal-vow gating,
+  live tactical-read updates, structured four-crew ending codas, Chronicle progression counts,
   Chronicle rematch preparation, a complete seven-shift visible-control win, and test hooks.
   A stubbed Web Audio contract additionally verifies the ambient voices start with an
   active run, stop in menus, remain stopped while muted, resume after unmuting, and stop
@@ -160,9 +160,9 @@ and 696,000 reconstructed replays passed.
 
 ## Asset and dependency checks
 
-- The production export currently contains 36 files and 1,362,391 uncompressed bytes.
-  The directly referenced initial shell is 1,024,210 bytes; JavaScript totals 766,094
-  bytes, imagery 489,093 bytes, and CSS 55,456 bytes. The largest individual file is a
+- The production export currently contains 36 files and 1,370,828 uncompressed bytes.
+  The directly referenced initial shell is 1,032,647 bytes; JavaScript totals 771,315
+  bytes, imagery 489,093 bytes, and CSS 58,672 bytes. The largest individual file is a
   227,538-byte framework chunk. All remain below committed build-breaking budgets.
 - The export audit found no remote runtime asset references, no missing shell files,
   and no emitted file omitted from the generated service-worker cache.

@@ -12,7 +12,8 @@ Reversible decisions recorded during autonomous development. These do not block 
 - **Story pacing:** show mission results before the event and carry authored aftermath
   into the next phase without adding a compulsory debrief click between every shift.
 - **Personal missions:** every route names one crew stake and advances that vow at most
-  once. Keep the resource forecast visible so character attachment competes with survival.
+  once only while that crewmember is on duty. Keep the rest-versus-progress choice and
+  the live hull/vow/ration forecast visible so character attachment competes with survival.
 - **Echo Shards:** retain the migrated counter internally, but keep it out of the visible
   Chronicle until it buys a real choice. Scores and run records carry replay value now.
 - **Expedition scale:** the vertical slice uses three chamber operators plus one
