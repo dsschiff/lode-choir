@@ -1010,7 +1010,12 @@ function SettingsPage({ settings, installStatus, onChange, onInstall, onCreateBa
         ))}
         <label className="volume-setting">
           <span><strong>Choir volume</strong><small>Balance the moon-drone and interface tones.</small></span>
-          <input type="range" min="0" max="1" step="0.05" value={settings.volume} aria-label="Choir volume" onChange={(event) => onChange({ ...settings, volume: Number(event.target.value) })} />
+          <input type="range" min="0" max="1" step="0.05" value={settings.volume} aria-label="Choir volume" onChange={(event) => {
+            const volume = Number(event.target.value);
+            choirAudio.setVolume(volume);
+            onChange({ ...settings, volume });
+            choirAudio.playCue('inspect');
+          }} />
           <output>{Math.round(settings.volume * 100)}%</output>
         </label>
       </div>

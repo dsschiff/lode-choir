@@ -149,7 +149,8 @@ and 696,000 reconstructed replays passed.
   Chronicle rematch preparation, a complete seven-shift visible-control win, and test hooks.
   A stubbed Web Audio contract additionally verifies the ambient voices start with an
   active run, stop in menus, remain stopped while muted, resume after unmuting, and stop
-  again at terminal completion in both viewport projects.
+  again at terminal completion in both viewport projects. Nonzero volume changes play a
+  separate preview tone while ambience remains paused in Settings.
 - The production finalizer generated a content-addressed service worker with 35
   precached export files. Browser checks validate the standalone portrait manifest,
   registrar, generated chunk/art coverage, active service-worker control, then force

@@ -549,21 +549,22 @@ test('procedural ambience follows run, menu, mute, resume, and completion lifecy
 
   await openRunSettings(page);
   await page.getByRole('slider', { name: 'Choir volume' }).fill('0.7');
+  await expect.poll(() => page.evaluate(() => (window as unknown as { __AUDIO_METRICS__: { started: number } }).__AUDIO_METRICS__.started)).toBe(4);
   await page.getByRole('button', { name: /RETURN/ }).click();
   await resumeRun(page);
-  await expect.poll(() => page.evaluate(() => (window as unknown as { __AUDIO_METRICS__: { started: number } }).__AUDIO_METRICS__.started)).toBe(6);
+  await expect.poll(() => page.evaluate(() => (window as unknown as { __AUDIO_METRICS__: { started: number } }).__AUDIO_METRICS__.started)).toBe(7);
 
   await openRunSettings(page);
   await page.getByText('Mute the choir').click();
   await page.getByRole('button', { name: /RETURN/ }).click();
   await resumeRun(page);
-  expect(await page.evaluate(() => (window as unknown as { __AUDIO_METRICS__: { started: number } }).__AUDIO_METRICS__.started)).toBe(6);
+  expect(await page.evaluate(() => (window as unknown as { __AUDIO_METRICS__: { started: number } }).__AUDIO_METRICS__.started)).toBe(7);
 
   await openRunSettings(page);
   await page.getByText('Mute the choir').click();
   await page.getByRole('button', { name: /RETURN/ }).click();
   await resumeRun(page);
-  await expect.poll(() => page.evaluate(() => (window as unknown as { __AUDIO_METRICS__: { started: number; resumed: number } }).__AUDIO_METRICS__)).toMatchObject({ started: 9, resumed: 1 });
+  await expect.poll(() => page.evaluate(() => (window as unknown as { __AUDIO_METRICS__: { started: number; resumed: number } }).__AUDIO_METRICS__)).toMatchObject({ started: 10, resumed: 1 });
   await page.evaluate(() => {
     const state = window.__LODE_CHOIR__?.getState();
     if (!state) throw new Error('Test hook unavailable.');
