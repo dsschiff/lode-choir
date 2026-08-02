@@ -1,6 +1,7 @@
 import { chromium } from 'playwright';
 
 const target = process.argv[2] ?? 'https://dsschiff.github.io/lode-choir/';
+const expectedSha = process.env.LODE_CHOIR_EXPECT_SHA?.slice(0, 7);
 const url = new URL(target);
 url.searchParams.set('seed', 'LIVE-ORISON');
 url.searchParams.set('no-sw', '1');
@@ -19,6 +20,7 @@ try {
   await page.getByTestId('title-screen').waitFor();
   const build = (await page.locator('.build-stamp').innerText()).trim();
   if (!build.includes('0.4')) throw new Error(`Expected build 0.4, received ${build}.`);
+  if (expectedSha && !build.includes(expectedSha)) throw new Error(`Expected deployed commit ${expectedSha}, received ${build}.`);
 
   await page.getByTestId('new-run').click();
   await page.getByTestId('begin-descent').click();
@@ -42,7 +44,7 @@ try {
   if (!journal.includes(eventTitle)) throw new Error(`Public journal did not retain ${eventTitle}.`);
   if (errors.length > 0) throw new Error(errors.join('\n'));
 
-  console.log(JSON.stringify({ target: url.origin + url.pathname, build, eventTitle, viewport: '390x844', errors: 0 }));
+  console.log(JSON.stringify({ target: url.origin + url.pathname, build, expectedSha: expectedSha ?? null, eventTitle, viewport: '390x844', errors: 0 }));
 } finally {
   await browser.close();
 }

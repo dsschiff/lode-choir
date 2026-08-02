@@ -162,7 +162,10 @@ and 696,000 reconstructed replays passed.
   its exact child server, and returns in under 35 seconds on this host.
 - `npm run test:live` repeats the critical phone path against GitHub Pages. It confirms
   build 0.4, prologue and supply copy, staffing, deployment, one story choice, journal
-  retention, and zero page or console errors at 390×844.
+  retention, and zero page or console errors at 390×844. The Pages workflow injects
+  the triggering Git commit into the visible title-screen stamp, then retries this smoke
+  with `LODE_CHOIR_EXPECT_SHA` after deployment; the workflow cannot turn green while
+  Pages is serving an older export.
 - Visual inspection at 1440x960 and 390x844 confirmed title composition, Standard and
   Black Descent loadouts, portrait crops,
   touch targets, sticky resource rail, citadel grid, engine-derived route forecasts,

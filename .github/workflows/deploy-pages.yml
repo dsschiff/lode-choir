@@ -29,6 +29,7 @@ jobs:
         run: npm run build
         env:
           GITHUB_PAGES: 'true'
+          NEXT_PUBLIC_GIT_SHA: ${{ github.sha }}
       - name: Audit project-site paths and offline shell
         run: npm --workspace @lode-choir/game run audit:export
         env:
@@ -48,3 +49,19 @@ jobs:
     steps:
       - id: deployment
         uses: actions/deploy-pages@v4
+
+  smoke:
+    needs: deploy
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - name: Verify exact deployed commit through a phone playthrough
+        env:
+          LODE_CHOIR_EXPECT_SHA: ${{ github.sha }}
+        run: for attempt in {1..6}; do npm run test:live && exit 0; sleep 5; done; exit 1

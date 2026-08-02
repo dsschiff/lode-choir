@@ -41,6 +41,7 @@ const AUTOSAVE_KEY = 'lode_choir_autosave_v1';
 const LEGACY_KEY = 'lode_choir_legacy_v1';
 const SETTINGS_KEY = 'lode_choir_settings_v1';
 const BASE_PATH = process.env.NEXT_PUBLIC_BASE_PATH ?? '';
+const BUILD_SHA = process.env.NEXT_PUBLIC_GIT_SHA?.slice(0, 7);
 
 type Surface = 'title' | 'loadout' | 'prologue' | 'game' | 'pause' | 'manual' | 'chronicle' | 'settings' | 'credits';
 type Settings = { muted: boolean; highContrast: boolean; reducedMotion: boolean; volume: number };
@@ -1284,7 +1285,7 @@ function TitleScreen({ seed, hasSave, savePreview, notice, onSeed, onNew, onCont
           <button type="button" onClick={() => onNavigate('credits')}>Credits</button>
         </nav>
       </section>
-      <span className="build-stamp">ORISON BUILD // 0.4</span>
+      <span className="build-stamp">ORISON BUILD // 0.4{BUILD_SHA ? ` // ${BUILD_SHA}` : ''}</span>
     </main>
   );
 }

@@ -10,6 +10,7 @@ test.beforeEach(async ({ page }) => {
 
 test('title menu exposes seed, archive, settings, and credits', async ({ page }) => {
   await expect(page.getByRole('heading', { name: /Lode Choir/i })).toBeVisible();
+  await expect(page.locator('.build-stamp')).toContainText('ORISON BUILD // 0.4');
   await expect(page.getByTestId('new-run')).toBeVisible();
   await expect(page.getByText('EXPEDITION SEED')).toBeVisible();
 

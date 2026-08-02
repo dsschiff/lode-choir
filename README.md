@@ -5,7 +5,9 @@ living citadel Orison through a singing moon.
 
 **Play online:** https://dsschiff.github.io/lode-choir/
 
-**Current release:** Orison build 0.4
+**Current release:** Orison build 0.4. Production builds show their short Git commit
+on the title screen, and deployment succeeds only after that exact commit completes a
+phone-sized public playthrough on GitHub Pages.
 
 ## Commands
 
