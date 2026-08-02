@@ -41,6 +41,8 @@ expedition: resting prevents strain but forfeits that vow step. The planner upda
 hull, vow, and post-room ration forecast as assignments change. Victories close with a
 structured four-character coda whose text responds to each crew arc instead of one
 undifferentiated epilogue paragraph.
+Each of the sixteen missions also presents one authored objection from a second crew
+member, making the personal stake and the operational reason to refuse it visible together.
 At four strain, pressure suppresses a crewmember's extra room-output bonus, so a rested
 generalist can outperform the nominal specialist before the six-strain incapacitation
 threshold. Every affected room preview calls out the penalty before deployment.

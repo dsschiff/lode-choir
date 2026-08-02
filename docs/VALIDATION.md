@@ -7,7 +7,7 @@ Validated against the local `main` branch on 2026-08-01 with Node 24.14 and npm
 
 - 42 deterministic engine, content, simulation, and evidence-integrity tests pass, including immutability, legal-command
   enforcement, save migration, exact replay, scars, loyalty, all endings, development
-  deferral, mode-aware emergency repair, Black Descent composition and scoring, route
+  deferral, sixteen route-specific crew objections, mode-aware emergency repair, Black Descent composition and scoring, route
   leadership, and short-handed runs.
 - The simulation regression covers 500 seeds under conservative, balanced, and
   aggressive policies, both with adaptive leadership and with every fourth crew member
@@ -161,9 +161,9 @@ and 696,000 reconstructed replays passed.
 
 ## Asset and dependency checks
 
-- The production export currently contains 36 files and 1,377,198 uncompressed bytes.
-  The directly referenced initial shell is 1,039,017 bytes; JavaScript totals 774,979
-  bytes, imagery 489,093 bytes, and CSS 61,378 bytes. The largest individual file is a
+- The production export currently contains 36 files and 1,380,087 uncompressed bytes.
+  The directly referenced initial shell is 1,041,906 bytes; JavaScript totals 777,422
+  bytes, imagery 489,093 bytes, and CSS 61,824 bytes. The largest individual file is a
   227,538-byte framework chunk. All remain below committed build-breaking budgets.
 - The export audit found no remote runtime asset references, no missing shell files,
   and no emitted file omitted from the generated service-worker cache.

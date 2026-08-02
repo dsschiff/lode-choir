@@ -130,6 +130,8 @@ test('a new expedition explains Orison, Heart Notes, and every crew stake before
   await page.getByTestId('route-0').click();
   await expect(page.getByTestId('mission-story')).toContainText('WHY THIS MISSION MATTERS');
   await expect(page.getByTestId('mission-story')).toContainText('KNOWN HAZARD');
+  await expect(page.getByTestId('mission-story').locator('.mission-counter')).toContainText('OBJECTION');
+  await expect(page.getByTestId('mission-story').locator('.mission-counter')).not.toBeEmpty();
   await expect(page.getByTestId('mission-story').locator('.mission-focus')).toContainText('PERSONAL STAKE');
   await expect(page.getByTestId('mission-story').locator('.mission-focus')).toContainText('advance the vow');
   await expect(page.getByTestId('mission-story').locator('.mission-focus')).toContainText('Resting protects');

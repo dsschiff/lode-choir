@@ -62,7 +62,11 @@ test('story events offer tagged, state-changing choices', () => {
 
 test('route stories give every crew member personal missions', () => {
   assert.deepEqual(new Set(ROUTES.map((route) => route.focusCrew)), new Set(['mara', 'tamsin', 'orin', 'sable']));
-  for (const route of ROUTES) assert.ok(route.storyLead.length >= 40, `${route.id} needs a concrete personal lead`);
+  for (const route of ROUTES) {
+    assert.ok(route.storyLead.length >= 40, `${route.id} needs a concrete personal lead`);
+    assert.ok(route.counterCrew && route.counterCrew !== route.focusCrew, `${route.id} needs a dissenting crewmember`);
+    assert.ok(route.counterpoint && route.counterpoint.length >= 60, `${route.id} needs a concrete objection`);
+  }
 });
 
 test('crew vows explain the action that advances them', () => {

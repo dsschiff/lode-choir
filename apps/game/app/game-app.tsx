@@ -556,6 +556,10 @@ function RoutePanel({ view, chartStatus, onSelect, onReserve, onClearReservation
         })()}
         <span>WHY THIS MISSION MATTERS</span>
         <p>{selectedRoute.definition.storyLead}</p>
+        {selectedRoute.definition.counterCrew && selectedRoute.definition.counterpoint && (() => {
+          const counter = view.crew.find((crew) => crew.id === selectedRoute.definition.counterCrew)!;
+          return <blockquote className="mission-counter"><img src={`${BASE_PATH}/art/crew-${counter.id}.webp`} width="720" height="720" alt="" /><span><b>{counter.name.toUpperCase()} // OBJECTION</b><p>“{selectedRoute.definition.counterpoint}”</p></span></blockquote>;
+        })()}
         <small><b>KNOWN HAZARD</b> {selectedRoute.definition.hazardText}</small>
       </aside>}
       {selectedRoute && <aside className="tactical-read" data-testid="tactical-read">

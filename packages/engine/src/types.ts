@@ -53,6 +53,8 @@ export interface RouteDefinition {
   focusCrew: CrewId;
   description: string;
   storyLead: string;
+  counterCrew?: CrewId;
+  counterpoint?: string;
   rewardText: string;
   hazardText: string;
   baseRewards: Partial<Record<ResourceId, number>>;

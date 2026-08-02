@@ -369,6 +369,11 @@ h1, h2 { font-family: var(--serif); font-weight: 500; }
 .mission-focus small { color: var(--bone-300); font-size: .58rem; }
 .mission-story > span { color: var(--vein-400); font-size: .54rem; letter-spacing: .1em; }
 .mission-story p { margin: 7px 0 9px; font: .82rem/1.5 var(--serif); }
+.mission-counter { display: grid; grid-template-columns: 34px 1fr; gap: 8px; margin: 0 0 8px; padding: 8px; border-left: 2px solid var(--brass-400); background: rgba(200,155,85,.05); }
+.mission-counter img { width: 32px; height: 36px; object-fit: cover; object-position: center 24%; }
+.mission-counter span { display: grid; gap: 2px; }
+.mission-counter b { color: var(--brass-400); font-size: .46rem; letter-spacing: .06em; }
+.mission-counter p { margin: 0; color: var(--bone-300); font: .65rem/1.4 var(--serif); }
 .mission-story > small { display: block; padding-top: 8px; border-top: 1px solid var(--quiet-line); color: var(--bone-300); font-size: .6rem; line-height: 1.4; }
 .mission-story > small b { color: var(--danger-400); }
 .tactical-read { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin: 7px 0; }
