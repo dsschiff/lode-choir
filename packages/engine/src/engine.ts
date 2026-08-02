@@ -839,7 +839,7 @@ function resolveShift(state: GameState, events: EngineEvent[]): void {
   selectNextEvent(state, events);
 }
 
-function applyChoice(state: GameState, choice: EventChoice, events: EngineEvent[]): void {
+function applyChoice(state: GameState, eventTitle: string, choice: EventChoice, events: EngineEvent[]): void {
   if (choice.resourceDelta) {
     for (const [id, amount] of Object.entries(choice.resourceDelta) as [ResourceId, number][]) addResource(state, id, amount);
   }
@@ -847,7 +847,7 @@ function applyChoice(state: GameState, choice: EventChoice, events: EngineEvent[
   if (choice.noteDelta) state.heartNotes = Math.min(3, state.heartNotes + choice.noteDelta);
   if (choice.crewId && choice.loyaltyDelta) increaseLoyalty(state, choice.crewId, choice.loyaltyDelta, events);
   if (choice.crewId && choice.strainDelta) adjustStrain(state, choice.crewId, choice.strainDelta, events);
-  appendLog(state, 'story', `${choice.label}: ${choice.consequence}`);
+  appendLog(state, 'story', `${eventTitle} — ${choice.label}: ${choice.consequence}${choice.aftermath ? ` ${choice.aftermath}` : ''}`);
   emit(state, events, 'story', choice.consequence, choice.noteDelta ? 'mystic' : undefined);
 }
 
@@ -911,7 +911,7 @@ export function applyCommand(input: GameState, command: Command): TransitionResu
     }
     state.selectedRoute = command.instanceId;
     const route = routeDefinition(state.routeOffers.find((offer) => offer.instanceId === command.instanceId)!.routeId);
-    appendLog(state, 'route', `Course set for ${route.title}.`);
+    appendLog(state, 'route', `Course set for ${route.title}. ${route.storyLead}`);
   } else if (command.type === 'reserve_route') {
     const replacing = state.reservedRoute !== null;
     if (!replacing) state.resources.lumen -= ROUTE_RESERVATION_COST;
@@ -941,7 +941,7 @@ export function applyCommand(input: GameState, command: Command): TransitionResu
     resolveShift(state, events);
   } else if (command.type === 'choose_event') {
     const definition = storyEventDefinition(state.activeEvent!);
-    applyChoice(state, definition.choices[command.choiceIndex]!, events);
+    applyChoice(state, definition.title, definition.choices[command.choiceIndex]!, events);
     if (state.integrity <= 0) {
       state.status = 'lost';
       state.phase = 'complete';

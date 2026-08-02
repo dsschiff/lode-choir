@@ -135,7 +135,8 @@ and 696,000 reconstructed replays passed.
   surfaces, validated backup rejection/restore across run, Chronicle, and settings,
   exact event-effect labels, score-ledger disclosure, copied seed-and-mode reports,
   shared URL initialization with invalid-mode fallback, a mobile-accessible in-run
-  journal/menu with crew and story recap, on-duty personal-vow gating,
+  journal/menu with crew, mission-discovery, and persistent choice-aftermath recap,
+  on-duty personal-vow gating,
   live tactical-read updates, structured four-crew ending codas, Chronicle progression counts,
   Chronicle rematch preparation, a complete seven-shift visible-control win, and test hooks.
   A stubbed Web Audio contract additionally verifies the ambient voices start with an

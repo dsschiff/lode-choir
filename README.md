@@ -56,7 +56,9 @@ autosave, Chronicle progression, and accessibility/audio settings before restori
 local data.
 The in-run Log / Menu is available on phone and desktop, pauses the procedural choir,
 recaps the current objective, crew duties and vows, and the latest twelve story records,
-then returns to the exact selected mission and staffing plan.
+then returns to the exact selected mission and staffing plan. Mission discoveries and
+the full authored aftermath of each event choice are written into that save-backed
+journal, so the expedition's story survives after its decision panel closes.
 Paste a seed directly on the title screen, or append
 `?seed=SHARED-SIGNAL&mode=black_descent` to prepare the same deterministic expedition
 and contract for another player or later playtest.

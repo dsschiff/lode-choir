@@ -49,9 +49,12 @@ test('createRun is deterministic and seeds three distinct route offers', () => {
 test('commands are immutable transitions and reject illegal actions', () => {
   const initial = createRun({ seed: 'immutability' });
   const before = structuredClone(initial);
+  const selectedRoute = selectGameView(initial).routes[0]!;
   const selected = applyCommand(initial, { type: 'select_route', instanceId: initial.routeOffers[0]!.instanceId }).state;
   assert.deepEqual(initial, before);
   assert.equal(selected.commandTrace.length, 1);
+  assert.match(selected.log.at(-1)!.text, new RegExp(`Course set for ${selectedRoute.definition.title}`));
+  assert.ok(selected.log.at(-1)!.text.includes(selectedRoute.definition.storyLead));
   assert.throws(() => applyCommand(initial, { type: 'resolve_shift' }), /Illegal command/);
   assert.throws(() => applyCommand(initial, { type: 'assign_crew', crewId: 'mara', slot: 8 }), /Illegal command/);
 });
@@ -347,11 +350,17 @@ test('a resolved shift produces resources, route progress, story, and a clean ne
   assert.ok(result.events.some((event) => event.kind === 'route'));
   assert.equal(result.state.phase, 'event');
   assert.ok(result.state.activeEvent);
+  const event = selectGameView(result.state).activeStoryEvent!;
+  const choice = event.choices[0]!;
   const advanced = applyCommand(result.state, { type: 'choose_event', choiceIndex: 0 }).state;
   assert.equal(advanced.shift, 2);
   assert.equal(advanced.phase, 'planning');
   assert.equal(advanced.modules.every((module) => module.assignedCrew === null), true);
   assert.equal(advanced.routeOffers.length, 3);
+  const storyLog = [...advanced.log].reverse().find((entry) => entry.kind === 'story')!;
+  assert.ok(storyLog.text.includes(event.title));
+  assert.ok(storyLog.text.includes(choice.label));
+  assert.ok(storyLog.text.includes(choice.aftermath!));
 });
 
 test('development breaks offer legal builds or upgrades and consume alloy', () => {

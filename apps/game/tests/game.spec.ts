@@ -173,8 +173,12 @@ test('guided planner explains missing steps and deploys with inline staffing', a
   await page.locator('[data-testid^="event-choice-"]:enabled').first().click();
   await expect(page.getByTestId('decision-echo')).toContainText(eventTitle);
   await expect(page.getByTestId('decision-echo').locator('blockquote')).not.toBeEmpty();
+  const aftermath = await page.getByTestId('decision-echo').locator('blockquote').innerText();
   await expect(page.getByRole('heading', { name: 'Prepare this shift' })).toBeVisible();
   await expect(page.locator('.planner-step-heading small')).toHaveCount(0);
+  await openRunMenu(page);
+  await expect(page.getByTestId('expedition-journal')).toContainText(eventTitle);
+  await expect(page.getByTestId('expedition-journal')).toContainText(aftermath);
 });
 
 test('crew cards expose actionable vows, trust, pressure, and signatures', async ({ page }) => {
