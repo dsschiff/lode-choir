@@ -17,6 +17,7 @@ npm run test:sim
 npm run typecheck
 npm run build
 npm run test:e2e
+npm run test:live
 npm run verify
 npm run audit:deep -- --seeds=10000
 npm run audit:deep -- --seeds=1000 --prefix=confirmation --no-write

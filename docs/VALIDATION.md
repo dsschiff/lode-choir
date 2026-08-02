@@ -160,6 +160,9 @@ and 696,000 reconstructed replays passed.
   expanded charting, room inspector, or resource-gated event surfaces in either browser project.
 - Production static export passes. The bounded E2E runner builds, serves, tests, closes
   its exact child server, and returns in under 35 seconds on this host.
+- `npm run test:live` repeats the critical phone path against GitHub Pages. It confirms
+  build 0.4, prologue and supply copy, staffing, deployment, one story choice, journal
+  retention, and zero page or console errors at 390×844.
 - Visual inspection at 1440x960 and 390x844 confirmed title composition, Standard and
   Black Descent loadouts, portrait crops,
   touch targets, sticky resource rail, citadel grid, engine-derived route forecasts,
