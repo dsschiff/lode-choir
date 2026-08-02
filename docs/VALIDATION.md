@@ -166,9 +166,9 @@ and 696,000 reconstructed replays passed.
 
 ## Asset and dependency checks
 
-- The production export currently contains 36 files and 1,380,087 uncompressed bytes.
-  The directly referenced initial shell is 1,041,906 bytes; JavaScript totals 777,422
-  bytes, imagery 489,093 bytes, and CSS 61,824 bytes. The largest individual file is a
+- The production export currently contains 36 files and 1,381,757 uncompressed bytes.
+  The directly referenced initial shell is 1,043,576 bytes; JavaScript totals 778,918
+  bytes, imagery 489,093 bytes, and CSS 61,998 bytes. The largest individual file is a
   227,538-byte framework chunk. All remain below committed build-breaking budgets.
 - The export audit found no remote runtime asset references, no missing shell files,
   and no emitted file omitted from the generated service-worker cache.
@@ -179,8 +179,8 @@ and 696,000 reconstructed replays passed.
   pauses outside an active run, stops at completion, and shares the persisted mute and
   volume lifecycle; it
   has no runtime asset host or analytics dependency.
-- `npm audit` currently reports three high transitive advisories in the latest stable
-  Next release's pinned PostCSS and Sharp packages. The affected packages process only
-  trusted local source assets during this static build, not player-supplied CSS, source
-  maps, or images. npm's offered automatic fix is a breaking downgrade to Next 9 and was
-  intentionally rejected. Recheck when the next stable Next release updates those pins.
+- The latest stable Next release still declares advisory-affected PostCSS and Sharp
+  versions. Root overrides resolve PostCSS 8.5.25 and Sharp 0.35.3 instead; a fresh
+  `npm ci`, production export, typecheck, and engine suite pass with that tree, and
+  `npm audit --audit-level=high` reports zero vulnerabilities. Playwright Core is also
+  pinned to 1.61.1 so Axe and Playwright Test share one reproducible type surface.
