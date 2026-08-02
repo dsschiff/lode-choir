@@ -301,9 +301,9 @@ function Citadel({ view, selectedCrew, selectedBuildSlot, onRoom, onEmpty }: {
                 onClick={() => onEmpty(slot)}
                 disabled={view.state.phase !== 'development'}
                 data-testid={`room-${slot}`}
-                aria-label={`Empty chamber ${slot + 1}`}
+                aria-label={`Empty chamber ${slot + 1}, ${view.state.phase === 'development' ? 'available for construction' : 'opens during the workshop after shifts two and four'}`}
               >
-                <span>+</span><small>SEALED</small>
+                <span>+</span><small>{view.state.phase === 'development' ? 'BUILD SLOT' : 'SEALED'}</small>
               </button>
             );
           }

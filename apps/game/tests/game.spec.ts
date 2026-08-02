@@ -277,6 +277,8 @@ test('built rooms open a visual inspector with level-specific crew tradeoffs', a
     window.__LODE_CHOIR__?.refresh();
   });
   await expect(page.getByTestId('room-3')).toHaveClass(/is-selected/);
+  await expect(page.getByTestId('room-3')).toContainText('BUILD SLOT');
+  await expect(page.getByTestId('room-3')).toHaveAccessibleName(/available for construction/);
   await expect(page.locator('.citadel-caption')).toContainText('sealed chamber for new construction');
   await page.getByTestId('room-0').click();
   await expect(page.getByTestId('room-inspector')).toBeVisible();
