@@ -129,7 +129,7 @@ and 696,000 reconstructed replays passed.
 
 ## Interface and persistence
 
-- 52 Playwright checks pass in Pixel 5 and desktop Chromium projects. They cover title
+- 54 Playwright checks pass in Pixel 5 and desktop Chromium projects. They cover title
   navigation, direct seed entry, settings migration, installation prompt handling and persistent volume, first choice, touch assignment, optional leadership, resolution,
   loadout locking and keyboard selection, all three relic effects, relic resume,
   exact route-cost forecasts, four-strain room-pressure penalties, chart hold/swap/refund/reload/return behavior,
@@ -138,6 +138,7 @@ and 696,000 reconstructed replays passed.
   save/resume, completion, archive categorization and fresh-run reset, later phase
   surfaces, validated backup rejection/restore across run, Chronicle, and settings,
   exact event-effect labels, score-ledger disclosure, copied seed-and-mode reports,
+  a console- and page-error-free first mission path,
   shared URL initialization with invalid-mode fallback, a pre-shift supply glossary
   with full accessible resource-rail labels, a mobile-accessible in-run
   journal/menu with crew, mission-discovery, and persistent choice-aftermath recap,

@@ -195,6 +195,22 @@ test('guided planner explains missing steps and deploys with inline staffing', a
   await expect(page.getByTestId('expedition-journal')).toContainText(aftermath);
 });
 
+test('a complete first mission path produces no browser or page errors', async ({ page }) => {
+  const errors: string[] = [];
+  page.on('console', (message) => { if (message.type() === 'error') errors.push(`console: ${message.text()}`); });
+  page.on('pageerror', (error) => errors.push(`page: ${error.message}`));
+  await page.reload();
+  await beginRun(page);
+  await page.getByTestId('route-0').click();
+  await page.getByTestId('staff-0-mara').click();
+  await page.getByTestId('staff-1-tamsin').click();
+  await page.getByTestId('staff-2-orin').click();
+  await page.getByTestId('resolve-shift').click();
+  await page.locator('[data-testid^="event-choice-"]:enabled').first().click();
+  await openRunMenu(page);
+  expect(errors).toEqual([]);
+});
+
 test('crew cards expose actionable vows, trust, pressure, and signatures', async ({ page }) => {
   await beginRun(page);
   await page.evaluate(() => {
