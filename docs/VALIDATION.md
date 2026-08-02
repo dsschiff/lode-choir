@@ -91,6 +91,9 @@ from the current best-per-mode summaries because their missing crew components c
 recomputed honestly.
 - The engine exposes the seven score components as a tested ledger; the UI shows the
   base and mode multiplier and copies a deterministic seed-linked expedition report.
+- Heart Note recovery now emits and persists one of three numbered signal phrases;
+  an engine regression verifies the first route-sourced decode and the in-run menu
+  presents all three positions without revealing unrecovered text.
 - Content validation now proves all sixteen routes can surface a keyed story event and
   all twelve Chronicle lore fragments have reachable unlock tags.
 

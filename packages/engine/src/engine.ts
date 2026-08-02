@@ -39,6 +39,11 @@ const ROUTE_RESERVATION_COST = 1;
 const DEVELOPMENT_SHIFTS = new Set([2, 4]);
 const STARTER_MODULES: readonly ModuleId[] = ['heart_engine', 'deep_drill', 'ward_array'];
 const CREW_IDS: readonly CrewId[] = ['mara', 'tamsin', 'orin', 'sable'];
+export const HEART_NOTE_PHRASES = [
+  'THE CUT DID NOT END US.',
+  'WE KEPT THE NAMES YOU LEFT BELOW.',
+  'ORISON, YOU CARRIED OUR DOOR WITH YOU.',
+] as const;
 const RELIC_ALIASES: Readonly<Record<string, RelicId>> = {
   heart_splinter: 'heart_splinter',
   'Cantor Blade': 'heart_splinter',
@@ -152,6 +157,16 @@ function maximumIntegrity(state: GameState): number {
   return state.startingRelic === 'oathkeepers_latch' ? base + 1 : base;
 }
 
+function recoverHeartNotes(state: GameState, amount: number, source: string, events?: EngineEvent[]): void {
+  const before = state.heartNotes;
+  state.heartNotes = Math.min(HEART_NOTE_PHRASES.length, state.heartNotes + amount);
+  for (let index = before; index < state.heartNotes; index += 1) {
+    const text = `HEART NOTE ${index + 1}/3 // ${source}: “${HEART_NOTE_PHRASES[index]}”`;
+    appendLog(state, 'story', text);
+    if (events) emit(state, events, 'progress', text, 'mystic');
+  }
+}
+
 function emergencyPlatingCost(state: GameState): number {
   return state.runMode === 'black_descent' ? 3 : 2;
 }
@@ -207,6 +222,7 @@ export function createRun(options: CreateRunOptions | string): GameState {
   if (state.startingRelic) {
     const relic = RELICS.find((candidate) => candidate.id === state.startingRelic)!;
     appendLog(state, 'story', `${relic.name} equipped. ${relic.startingEffect}`);
+    if (state.heartNotes > 0) appendLog(state, 'story', `HEART NOTE 1/3 // ${relic.name}: “${HEART_NOTE_PHRASES[0]}”`);
   }
   if (state.runMode === 'black_descent') {
     appendLog(state, 'warning', 'Black Descent: lower starting resources, double hidden high-risk fault damage, and 3-alloy hull repair.');
@@ -519,7 +535,7 @@ function resolveRooms(state: GameState, events: EngineEvent[]): RoomResolution {
       addResource(state, 'lumen', strength);
       if (module.level >= 2 && !state.storyFlags.includes('resonance:heart-note') && state.resources.lumen >= 3) {
         addResource(state, 'lumen', -3);
-        state.heartNotes = Math.min(3, state.heartNotes + 1);
+        recoverHeartNotes(state, 1, 'Resonance Chamber', events);
         state.storyFlags.push('resonance:heart-note');
         emit(state, events, 'progress', 'Resonance Chamber: −3 lumen, +1 Heart Note.', 'mystic');
       }
@@ -627,7 +643,7 @@ function resolveRoute(state: GameState, room: RoomResolution, events: EngineEven
   const focusProgressBefore = state.crew.find((crew) => crew.id === route.focusCrew)!.vowProgress;
   for (const [id, amount] of Object.entries(projectedRouteRewards(state, offer, leader)) as [ResourceId, number][]) addResource(state, id, amount);
   const noteProgress = projectedRouteHeartNotes(state, offer);
-  state.heartNotes = Math.min(3, state.heartNotes + noteProgress);
+  recoverHeartNotes(state, noteProgress, route.title, events);
 
   const damage = projectedDamage(state, offer, leader, offer.revealed);
   state.integrity = Math.max(0, state.integrity - damage);
@@ -844,7 +860,7 @@ function applyChoice(state: GameState, eventTitle: string, choice: EventChoice, 
     for (const [id, amount] of Object.entries(choice.resourceDelta) as [ResourceId, number][]) addResource(state, id, amount);
   }
   if (choice.integrityDelta) state.integrity = Math.max(0, Math.min(maximumIntegrity(state), state.integrity + choice.integrityDelta));
-  if (choice.noteDelta) state.heartNotes = Math.min(3, state.heartNotes + choice.noteDelta);
+  if (choice.noteDelta) recoverHeartNotes(state, choice.noteDelta, eventTitle, events);
   if (choice.crewId && choice.loyaltyDelta) increaseLoyalty(state, choice.crewId, choice.loyaltyDelta, events);
   if (choice.crewId && choice.strainDelta) adjustStrain(state, choice.crewId, choice.strainDelta, events);
   appendLog(state, 'story', `${eventTitle} — ${choice.label}: ${choice.consequence}${choice.aftermath ? ` ${choice.aftermath}` : ''}`);

@@ -103,6 +103,8 @@ test('in-run log menu preserves the descent and recaps crew and story on phone',
   await menu.click();
   await expect(page.getByRole('heading', { name: 'Current descent' })).toBeVisible();
   await expect(page.getByTestId('pause-summary')).toContainText('SHIFT');
+  await expect(page.getByTestId('heart-note-register').locator('span')).toHaveCount(3);
+  await expect(page.getByTestId('heart-note-register')).toContainText('UNRECOVERED');
   await expect(page.getByTestId('pause-crew').locator('article')).toHaveCount(4);
   await expect(page.getByTestId('expedition-journal')).toContainText('Course set for');
   await page.getByRole('button', { name: 'FIELD MANUAL' }).click();

@@ -59,6 +59,9 @@ recaps the current objective, crew duties and vows, and the latest twelve story 
 then returns to the exact selected mission and staffing plan. Mission discoveries and
 the full authored aftermath of each event choice are written into that save-backed
 journal, so the expedition's story survives after its decision panel closes.
+Each of the three Heart Notes now decodes a fixed line of the buried signal. The
+in-run menu keeps recovered lines visible beside locked positions for the Notes still
+missing, turning the victory requirement into an unfolding message rather than a key count.
 Paste a seed directly on the title screen, or append
 `?seed=SHARED-SIGNAL&mode=black_descent` to prepare the same deterministic expedition
 and contract for another player or later playtest.

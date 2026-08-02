@@ -3,6 +3,7 @@
 import {
   CREW,
   ENDINGS as ENDING_CONTENT,
+  HEART_NOTE_PHRASES,
   LORE,
   MODULES,
   RELICS,
@@ -1123,6 +1124,10 @@ function ExpeditionMenu({ view, onNavigate, onTitle, onBack }: {
         <span><small>SHIFT</small><b>{view.state.shift}/7</b></span><span><small>PHASE</small><b>{view.state.phase.toUpperCase()}</b></span><span><small>HEART NOTES</small><b>{view.state.heartNotes}/3</b></span><span><small>HULL</small><b>{view.state.integrity}/{view.maxIntegrity}</b></span>
       </div>
       <p className="pause-objective"><b>WHAT IS HAPPENING</b>{SHIFT_BRIEFINGS[view.state.shift]} <em>{view.objective}</em></p>
+      <h2>Decoded signal</h2>
+      <div className="contract-terms" data-testid="heart-note-register">
+        {HEART_NOTE_PHRASES.map((phrase, index) => <span key={phrase}><b>HEART NOTE {index + 1}</b>{index < view.state.heartNotes ? `“${phrase}”` : 'UNRECOVERED'}</span>)}
+      </div>
       <div className="pause-actions">
         <button className="primary-action" type="button" onClick={onBack}><span>Return to the exact point where Orison paused.</span><b>RESUME EXPEDITION</b></button>
         <button type="button" onClick={() => onNavigate('manual')}>FIELD MANUAL</button>

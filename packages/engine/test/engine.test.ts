@@ -363,6 +363,17 @@ test('a resolved shift produces resources, route progress, story, and a clean ne
   assert.ok(storyLog.text.includes(choice.aftermath!));
 });
 
+test('recovered Heart Notes decode numbered phrases into the permanent expedition log', () => {
+  const state = readyFirstShift('heart-note-words');
+  state.routeOffers.find((offer) => offer.instanceId === state.selectedRoute)!.routeId = 'vein_cantor_seam';
+  const result = applyCommand(state, { type: 'resolve_shift' });
+  assert.equal(result.state.heartNotes, 1);
+  const noteLog = result.state.log.find((entry) => entry.text.startsWith('HEART NOTE 1/3'));
+  assert.ok(noteLog);
+  assert.match(noteLog.text, /THE CUT DID NOT END US/);
+  assert.ok(result.events.some((event) => event.text === noteLog.text && event.emphasis === 'mystic'));
+});
+
 test('development breaks offer legal builds or upgrades and consume alloy', () => {
   let state = readyFirstShift('development');
   state = applyCommand(state, { type: 'resolve_shift' }).state;
