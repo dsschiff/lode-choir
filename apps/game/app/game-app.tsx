@@ -234,8 +234,8 @@ function CrewCard({ crew, selected, assigned, shift, onSelect, onUnassign }: {
         <span className="crew-portrait" style={{ '--crew-color': crew.color } as React.CSSProperties}>
           <img
             src={`${BASE_PATH}/art/crew-${crew.id}.webp`}
-            width="720"
-            height="720"
+            width="384"
+            height="384"
             loading="lazy"
             decoding="async"
             alt=""
@@ -374,7 +374,7 @@ function RoomInspector({ view, slot, onClose }: { view: GameView; slot: number; 
           {view.crew.map((crew) => {
             const forecast = forecastRoomAssignment(view.state as GameState, slot, crew.id);
             const effects = [...roomForecastLabels(forecast), ...forecast.conditions];
-            return <article key={crew.id}><img src={`${BASE_PATH}/art/crew-${crew.id}.webp`} width="720" height="720" alt="" /><span><strong>{crew.name}</strong><p>{effects.join(' · ') || 'No immediate output.'}</p></span></article>;
+            return <article key={crew.id}><img src={`${BASE_PATH}/art/crew-${crew.id}.webp`} width="384" height="384" alt="" /><span><strong>{crew.name}</strong><p>{effects.join(' · ') || 'No immediate output.'}</p></span></article>;
           })}
         </div>
         <button type="button" className="inspector-done" onClick={onClose}>RETURN TO ORISON</button>
@@ -541,7 +541,7 @@ function RoutePanel({ view, chartStatus, onSelect, onReserve, onClearReservation
                 <span className="route-meta"><span className="route-kind">{route.definition.kind}</span>{route.carried && <span className="route-carried-badge">CHARTED LAST SHIFT</span>}</span>
                 <strong>{route.definition.title}</strong>
                 <small>{route.definition.description}</small>
-                <span className="route-focus"><img src={`${BASE_PATH}/art/crew-${focus.id}.webp`} width="720" height="720" alt="" />{focus.name.toUpperCase()} · VOW · DUTY REQUIRED</span>
+                <span className="route-focus"><img src={`${BASE_PATH}/art/crew-${focus.id}.webp`} width="384" height="384" alt="" />{focus.name.toUpperCase()} · VOW · DUTY REQUIRED</span>
                 {route.revealed && route.hiddenComplication && <em>Foreseen: {route.hiddenComplication}</em>}
               </span>
               <span className="route-risk"><b>{route.definition.hazard}</b><small>RISK</small></span>
@@ -559,13 +559,13 @@ function RoutePanel({ view, chartStatus, onSelect, onReserve, onClearReservation
       {selectedRoute && <aside className="mission-story" data-testid="mission-story">
         {(() => {
           const focus = view.crew.find((crew) => crew.id === selectedRoute.definition.focusCrew)!;
-          return <div className="mission-focus"><img src={`${BASE_PATH}/art/crew-${focus.id}.webp`} width="720" height="720" alt="" /><span><b>{focus.name.toUpperCase()} // PERSONAL STAKE</b><small>Keep {focus.name.split(' ')[0]} in a room or appoint them leader to advance the vow. Resting protects them from strain but misses this step.</small></span></div>;
+          return <div className="mission-focus"><img src={`${BASE_PATH}/art/crew-${focus.id}.webp`} width="384" height="384" alt="" /><span><b>{focus.name.toUpperCase()} // PERSONAL STAKE</b><small>Keep {focus.name.split(' ')[0]} in a room or appoint them leader to advance the vow. Resting protects them from strain but misses this step.</small></span></div>;
         })()}
         <span>WHY THIS MISSION MATTERS</span>
         <p>{selectedRoute.definition.storyLead}</p>
         {selectedRoute.definition.counterCrew && selectedRoute.definition.counterpoint && (() => {
           const counter = view.crew.find((crew) => crew.id === selectedRoute.definition.counterCrew)!;
-          return <blockquote className="mission-counter"><img src={`${BASE_PATH}/art/crew-${counter.id}.webp`} width="720" height="720" alt="" /><span><b>{counter.name.toUpperCase()} // OBJECTION</b><p>“{selectedRoute.definition.counterpoint}”</p></span></blockquote>;
+          return <blockquote className="mission-counter"><img src={`${BASE_PATH}/art/crew-${counter.id}.webp`} width="384" height="384" alt="" /><span><b>{counter.name.toUpperCase()} // OBJECTION</b><p>“{selectedRoute.definition.counterpoint}”</p></span></blockquote>;
         })()}
         <small><b>KNOWN HAZARD</b> {selectedRoute.definition.hazardText}</small>
       </aside>}
@@ -674,7 +674,7 @@ function EventPanel({ view, report, onChoose }: { view: GameView; report: ShiftR
         <footer><span>PRO <b>{report.resources.provisions}</b></span><span>ALY <b>{report.resources.alloy}</b></span><span>LUM <b>{report.resources.lumen}</b></span><span>HULL <b>{report.integrity}</b></span><span>NOTES <b>{report.heartNotes}/3</b></span></footer>
       </aside>}
       <div className="event-speaker">
-        {speaker ? <span className="crew-portrait event-portrait" style={{ '--crew-color': speaker.color } as React.CSSProperties}><img src={`${BASE_PATH}/art/crew-${speaker.id}.webp`} width="720" height="720" alt="" /></span> : <ToneMark active />}
+        {speaker ? <span className="crew-portrait event-portrait" style={{ '--crew-color': speaker.color } as React.CSSProperties}><img src={`${BASE_PATH}/art/crew-${speaker.id}.webp`} width="384" height="384" alt="" /></span> : <ToneMark active />}
         <span><small className="kicker">MISSION EVENT // {speaker?.name ?? 'ORISON'}</small><strong>{speaker ? speaker.role : 'LIVING CITADEL'}</strong>{speaker && <em>VOW {speaker.vowProgress}/3 · TRUST {speaker.loyalty}/3</em>}</span>
       </div>
       <h2 id="event-title">{event.title}</h2>
@@ -848,7 +848,7 @@ function CompletionPanel({ view, onNewRun, onChronicle }: { view: GameView; onNe
           {view.endingNarrative.crew.map((coda) => {
             const crew = view.crew.find((candidate) => candidate.id === coda.crewId)!;
             return <article key={coda.crewId} style={{ '--crew-color': crew.color } as React.CSSProperties}>
-              <span className="crew-portrait"><img src={`${BASE_PATH}/art/crew-${crew.id}.webp`} width="720" height="720" alt="" /></span>
+              <span className="crew-portrait"><img src={`${BASE_PATH}/art/crew-${crew.id}.webp`} width="384" height="384" alt="" /></span>
               <span><strong>{crew.name}</strong><small>{crew.vowProgress >= 3 ? 'VOW KEPT' : crew.signatureUnlocked ? 'SIGNATURE AWAKENED' : 'VOW UNFINISHED'} · TRUST {crew.loyalty}</small><p>{coda.text}</p></span>
             </article>;
           })}
@@ -902,7 +902,7 @@ function Chronicle({ legacy, onRetry, onBack }: { legacy: LegacyState; onRetry: 
       <h2>Crew echoes</h2>
       <div className="chronicle-crew" data-testid="chronicle-crew">
         {crewEchoes.map(({ definition, vows, signatures, scars, trust }) => <article key={definition.id}>
-          <img src={`${BASE_PATH}/art/crew-${definition.id}.webp`} width="720" height="720" alt="" />
+          <img src={`${BASE_PATH}/art/crew-${definition.id}.webp`} width="384" height="384" alt="" />
           <span><strong>{definition.name}</strong><small>{definition.role}</small><p>{vows} vows kept · {signatures} signatures awakened · {scars} scars carried · best trust {trust}</p></span>
         </article>)}
       </div>
@@ -916,7 +916,7 @@ function Chronicle({ legacy, onRetry, onBack }: { legacy: LegacyState; onRetry: 
           <small>{record.seed} · SHIFT {record.shift}/7 · {record.heartNotes} NOTES · {record.scars} SCARS · {record.fulfilledVows} VOWS{relic ? ` · ${relic.name}` : ''}{record.scoreVersion === 1 ? ' · ARCHIVED FORMULA' : record.runMode === 'black_descent' ? ` · BASE ${record.baseScore} × ${record.scoreMultiplier}` : ''}</small>
           {record.crew.length > 0 && <div className="run-crew-line">{record.crew.map((crew) => {
             const definition = CREW.find((candidate) => candidate.id === crew.id)!;
-            return <span key={crew.id}><img src={`${BASE_PATH}/art/crew-${crew.id}.webp`} width="720" height="720" alt="" /><b>{definition.name}</b><small>VOW {crew.vowProgress}/3 · TRUST {crew.loyalty}{crew.signatureUnlocked ? ' · SIGNATURE' : ''}{crew.scarred ? ' · SCAR' : ''}</small></span>;
+            return <span key={crew.id}><img src={`${BASE_PATH}/art/crew-${crew.id}.webp`} width="384" height="384" alt="" /><b>{definition.name}</b><small>VOW {crew.vowProgress}/3 · TRUST {crew.loyalty}{crew.signatureUnlocked ? ' · SIGNATURE' : ''}{crew.scarred ? ' · SCAR' : ''}</small></span>;
           })}</div>}
           <button type="button" onClick={() => onRetry(record)}>PREPARE SAME SIGNAL</button>
         </li>;
@@ -1055,7 +1055,7 @@ function DecisionEcho({ view, report }: { view: GameView; report: DecisionReport
   return (
     <aside className="decision-echo" data-testid="decision-echo">
       <div className="decision-witness">
-        {speaker ? <span className="crew-portrait" style={{ '--crew-color': speaker.color } as React.CSSProperties}><img src={`${BASE_PATH}/art/crew-${speaker.id}.webp`} width="720" height="720" alt="" /></span> : <span className="decision-orison" aria-hidden="true">LC</span>}
+        {speaker ? <span className="crew-portrait" style={{ '--crew-color': speaker.color } as React.CSSProperties}><img src={`${BASE_PATH}/art/crew-${speaker.id}.webp`} width="384" height="384" alt="" /></span> : <span className="decision-orison" aria-hidden="true">LC</span>}
         <span><small>{report.label ?? 'LAST DECISION'} // SHIFT {report.shift}</small><strong>{report.title}</strong></span>
       </div>
       <p><b>{report.choice}</b> {report.consequence}</p>
@@ -1157,7 +1157,7 @@ function ExpeditionMenu({ view, onNavigate, onTitle, onBack }: {
       <h2>Crew arcs</h2>
       <div className="pause-crew" data-testid="pause-crew">
         {view.crew.map((crew) => <article key={crew.id} style={{ '--crew-color': crew.color } as React.CSSProperties}>
-          <img src={`${BASE_PATH}/art/crew-${crew.id}.webp`} width="720" height="720" alt="" />
+          <img src={`${BASE_PATH}/art/crew-${crew.id}.webp`} width="384" height="384" alt="" />
           <span><strong>{crew.name}</strong><small>{duty(crew.id)} · VOW {crew.vowProgress}/3 · TRUST {crew.loyalty} · STRAIN {crew.strain}/6</small><p>{crew.vow}</p></span>
         </article>)}
       </div>

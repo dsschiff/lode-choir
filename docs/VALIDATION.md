@@ -177,16 +177,17 @@ and 696,000 reconstructed replays passed.
 
 ## Asset and dependency checks
 
-- The production export currently contains 36 files and 1,383,404 uncompressed bytes.
-  The directly referenced initial shell is 1,045,223 bytes; JavaScript totals 780,565
-  bytes, imagery 489,093 bytes, and CSS 61,998 bytes. The largest individual file is a
-  227,538-byte framework chunk. At gzip level 9, JavaScript is 229,753 bytes and the
-  referenced initial shell is 441,627 bytes. All remain below committed build-breaking
+- The production export currently contains 36 files and 1,175,302 uncompressed bytes.
+  The directly referenced initial shell is 1,045,505 bytes; JavaScript totals 780,847
+  bytes, imagery 280,709 bytes, and CSS 61,998 bytes. The largest individual file is a
+  227,538-byte framework chunk. At gzip level 9, JavaScript is 229,860 bytes and the
+  referenced initial shell is 441,731 bytes. All remain below committed build-breaking
   uncompressed and transfer budgets.
 - The export audit found no remote runtime asset references, no missing shell files,
   and no emitted file omitted from the generated service-worker cache.
-- The title art and all four 720px crew portraits were inspected after WebP conversion.
-  Their combined transfer size is about 489 KB.
+- The title art and four 384px crew portraits were inspected after WebP conversion.
+  The portraits retain more than five source pixels per largest CSS display pixel while
+  reducing their combined transfer from 291 KB to 83 KB; all imagery totals about 281 KB.
 - The app uses generated WebP imagery, CSS/SVG structure, and procedural Web Audio for
   a two-voice low-frequency moon-drone plus event-kind tones. The drone is gesture-gated,
   pauses outside an active run, stops at completion, and shares the persisted mute and
