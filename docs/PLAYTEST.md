@@ -4,15 +4,25 @@
 
 Observe without coaching:
 
-1. Can the player start and identify the first route choice within 15 seconds?
-2. Do they understand that three crew operate rooms while the fourth may rest or lead
+1. After the prologue, can the player say what Orison is, why the crew descended, and
+   what three Heart Notes will let them do?
+2. Can the player start and identify the first route choice within 15 seconds?
+3. After selecting it, can they name the personal stake, the objection, and the known
+   operational hazard without opening the manual?
+4. Do they understand that three crew operate rooms while the fourth may rest or lead
    the expedition for a character-specific benefit?
-3. Can they predict the main benefit and danger of the selected route?
-4. Does citadel construction change a later assignment decision?
-5. Does emergency plating feel like a tense survival trade rather than an automatic tax?
-6. Do they use route charting to make a future plan, rather than simply hoard lumen?
-7. Can they use the exact effect labels to explain the cost of a story choice?
-8. Can they explain why the run ended and reconstruct the final score from its ledger?
+5. Can they give two viable operators for the same room and explain the tradeoff, rather
+   than naming one character who always belongs there?
+6. At the first workshop, can they distinguish building in a sealed chamber from
+   upgrading a working room, without coaching?
+7. Does citadel construction change a later assignment decision?
+8. Does emergency plating feel like a tense survival trade rather than an automatic tax?
+9. Do they use route charting to make a future plan, rather than simply hoard lumen?
+10. Can they use the exact effect labels to explain the cost of a story choice?
+11. After one decision, can they recover its scene and aftermath from Log / Menu?
+12. At the finale, can they repeat the three decoded lines and explain how they inform
+    Harvest, Harmonize, or Seal?
+13. Can they explain why the run ended and reconstruct the final score from its ledger?
 
 ## Strategy passes
 

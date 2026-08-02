@@ -78,6 +78,17 @@ test('assignments move crew, displace occupants, and Sable reveals complications
   assert.ok(state.routeOffers.every((offer) => !offer.revealed));
 });
 
+test('browsing mission cards keeps one current course story per shift', () => {
+  const initial = createRun({ seed: 'course-browsing' });
+  const first = applyCommand(initial, { type: 'select_route', instanceId: initial.routeOffers[0]!.instanceId }).state;
+  const secondRoute = selectGameView(first).routes[1]!;
+  const second = applyCommand(first, { type: 'select_route', instanceId: secondRoute.instanceId }).state;
+  const courseEntries = second.log.filter((entry) => entry.text.startsWith('Course set for '));
+  assert.equal(courseEntries.length, 1);
+  assert.ok(courseEntries[0]!.text.includes(secondRoute.definition.title));
+  assert.ok(courseEntries[0]!.text.includes(secondRoute.definition.storyLead));
+});
+
 test('room forecasts expose exact specialist output without mutating the run', () => {
   const state = createRun({ seed: 'room-forecast' });
   const before = structuredClone(state);

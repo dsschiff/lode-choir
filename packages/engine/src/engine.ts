@@ -157,6 +157,15 @@ function maximumIntegrity(state: GameState): number {
   return state.startingRelic === 'oathkeepers_latch' ? base + 1 : base;
 }
 
+function setCourseLog(state: GameState, text: string): void {
+  const current = state.log.at(-1);
+  if (current?.shift === state.shift && current.kind === 'route' && current.text.startsWith('Course set for ')) {
+    current.text = text;
+    return;
+  }
+  appendLog(state, 'route', text);
+}
+
 function recoverHeartNotes(state: GameState, amount: number, source: string, events?: EngineEvent[]): void {
   const before = state.heartNotes;
   state.heartNotes = Math.min(HEART_NOTE_PHRASES.length, state.heartNotes + amount);
@@ -932,7 +941,7 @@ export function applyCommand(input: GameState, command: Command): TransitionResu
     }
     state.selectedRoute = command.instanceId;
     const route = routeDefinition(state.routeOffers.find((offer) => offer.instanceId === command.instanceId)!.routeId);
-    appendLog(state, 'route', `Course set for ${route.title}. ${route.storyLead}`);
+    setCourseLog(state, `Course set for ${route.title}. ${route.storyLead}`);
   } else if (command.type === 'reserve_route') {
     const replacing = state.reservedRoute !== null;
     if (!replacing) state.resources.lumen -= ROUTE_RESERVATION_COST;

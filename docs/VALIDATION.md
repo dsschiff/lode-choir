@@ -5,9 +5,10 @@ Validated against the local `main` branch on 2026-08-01 with Node 24.14 and npm
 
 ## Rules and balance
 
-- 42 deterministic engine, content, simulation, and evidence-integrity tests pass, including immutability, legal-command
+- 44 deterministic engine, content, simulation, and evidence-integrity tests pass, including immutability, legal-command
   enforcement, save migration, exact replay, scars, loyalty, all endings, development
-  deferral, sixteen route-specific crew objections, mode-aware emergency repair, Black Descent composition and scoring, route
+  deferral, one-per-shift course-journal replacement, sixteen route-specific crew objections,
+  mode-aware emergency repair, Black Descent composition and scoring, route
   leadership, and short-handed runs.
 - The simulation regression covers 500 seeds under conservative, balanced, and
   aggressive policies, both with adaptive leadership and with every fourth crew member
@@ -128,7 +129,7 @@ and 696,000 reconstructed replays passed.
 
 ## Interface and persistence
 
-- 50 Playwright checks pass in Pixel 5 and desktop Chromium projects. They cover title
+- 52 Playwright checks pass in Pixel 5 and desktop Chromium projects. They cover title
   navigation, direct seed entry, settings migration, installation prompt handling and persistent volume, first choice, touch assignment, optional leadership, resolution,
   loadout locking and keyboard selection, all three relic effects, relic resume,
   exact route-cost forecasts, four-strain room-pressure penalties, chart hold/swap/refund/reload/return behavior,
@@ -140,7 +141,8 @@ and 696,000 reconstructed replays passed.
   shared URL initialization with invalid-mode fallback, a mobile-accessible in-run
   journal/menu with crew, mission-discovery, and persistent choice-aftermath recap,
   on-duty personal-vow gating,
-  live tactical-read updates with engine-derived post-repair hull ranges, structured
+  live tactical-read updates with engine-derived post-repair hull ranges and lethal-plan
+  warnings, structured
   four-crew ending codas, Chronicle progression counts,
   Chronicle rematch preparation, a complete seven-shift visible-control win, and test hooks.
   A stubbed Web Audio contract additionally verifies the ambient voices start with an

@@ -99,6 +99,8 @@ test('new run reaches the first consequential choice immediately', async ({ page
 test('in-run log menu preserves the descent and recaps crew and story on phone', async ({ page }) => {
   await beginRun(page);
   await page.getByTestId('route-0').click();
+  const finalMission = await page.getByTestId('route-1').locator('.route-copy > strong').innerText();
+  await page.getByTestId('route-1').click();
   const menu = page.locator('.header-actions').getByRole('button', { name: 'Open expedition log and menu' });
   await expect(menu).toBeVisible();
   await menu.click();
@@ -108,13 +110,15 @@ test('in-run log menu preserves the descent and recaps crew and story on phone',
   await expect(page.getByTestId('heart-note-register')).toContainText('UNRECOVERED');
   await expect(page.getByTestId('pause-crew').locator('article')).toHaveCount(4);
   await expect(page.getByTestId('expedition-journal')).toContainText('Course set for');
+  await expect(page.getByTestId('expedition-journal')).toContainText(finalMission);
+  await expect(page.getByTestId('expedition-journal').locator('li')).toHaveCount(1);
   await page.getByRole('button', { name: 'FIELD MANUAL' }).click();
   await expect(page.getByRole('heading', { name: 'How an expedition works' })).toBeVisible();
   await page.getByRole('button', { name: /RETURN/ }).click();
   await expect(page.getByRole('heading', { name: 'Current descent' })).toBeVisible();
   await page.getByRole('button', { name: 'RESUME EXPEDITION' }).click();
   await expect(page.getByTestId('citadel-grid')).toBeVisible();
-  await expect(page.getByTestId('route-0')).toHaveAttribute('aria-pressed', 'true');
+  await expect(page.getByTestId('route-1')).toHaveAttribute('aria-pressed', 'true');
 });
 
 test('a new expedition explains Orison, Heart Notes, and every crew stake before planning', async ({ page }) => {

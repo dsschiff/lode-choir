@@ -567,7 +567,7 @@ function RoutePanel({ view, chartStatus, onSelect, onReserve, onClearReservation
         })()}
         <small><b>KNOWN HAZARD</b> {selectedRoute.definition.hazardText}</small>
       </aside>}
-      {selectedRoute && <aside className="tactical-read" data-testid="tactical-read">
+      {selectedRoute && <aside className="tactical-read" data-testid="tactical-read" aria-live="polite">
         <span className={selectedRoute.forecast.integrityAfterMin === 0 ? 'is-danger' : undefined}><small>HULL AFTER MISSION</small><b>{selectedRoute.forecast.integrityAfterMin}{selectedRoute.forecast.integrityAfterMax !== selectedRoute.forecast.integrityAfterMin ? `–${selectedRoute.forecast.integrityAfterMax}` : ''}/{view.maxIntegrity}</b><em>{selectedRoute.forecast.integrityAfterMin === 0 ? 'This plan can destroy Orison. Add protection or choose another mission.' : selectedRoute.forecast.hullDamageMax === 0 ? 'Current repairs and protection cover the known hazard.' : 'Includes room repairs, protection, and possible hidden damage.'}</em></span>
         <span><small>PERSONAL VOW</small><b>{focusOnDuty ? 'ON DUTY' : 'RESTING'}</b><em>{focusOnDuty ? 'This mission can advance the selected crew arc.' : 'Rest lowers strain but forfeits this mission’s vow step.'}</em></span>
         <span><small>RATION AFTER ROOMS</small><b>{projectedProvisions}</b><em>{projectedProvisions < 1 ? 'The plan cannot pay the mission cost.' : projectedProvisions < 3 ? 'Little reserve remains for leadership or later shifts.' : 'Enough reserve remains for optional leadership.'}</em></span>
