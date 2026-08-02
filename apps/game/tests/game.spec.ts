@@ -63,6 +63,7 @@ async function resumeRun(page: Page) {
   await page.getByRole('button', { name: /RESUME EXPEDITION/ }).click();
   await expect(page.getByTestId('citadel-grid')).toBeVisible();
   await expect(page.locator('.citadel-caption')).toContainText('compare all four crew');
+  await expect(page.locator('.citadel-caption')).toContainText('construction after shifts two and four');
 }
 
 async function returnToTitle(page: Page) {

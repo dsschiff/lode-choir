@@ -333,7 +333,7 @@ function Citadel({ view, selectedCrew, selectedBuildSlot, onRoom, onEmpty }: {
           ? 'Choose a room for the selected crew member.'
           : view.state.phase === 'development'
             ? 'Choose a sealed chamber for new construction, or tap a working room to inspect or upgrade it.'
-            : 'Tap a working room to compare all four crew. Staff rooms in the mission planner below.'}</span>
+            : 'Tap a working room to compare all four crew. Sealed chambers open for construction after shifts two and four.'}</span>
       </div>
     </section>
   );

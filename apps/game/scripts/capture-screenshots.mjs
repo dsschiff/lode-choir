@@ -88,6 +88,8 @@ async function capture(browser, name, viewport, mobile = false) {
     state.phase = 'event';
     state.activeEvent = 'glass_bell';
     state.resources = { provisions: 0, alloy: 0, lumen: 0 };
+    state.routeLeader = null;
+    for (const module of state.modules) module.assignedCrew = null;
     window.__LODE_CHOIR__?.refresh();
   });
   await screenshot('event');
