@@ -86,6 +86,30 @@ h1, h2 { font-family: var(--serif); font-weight: 500; }
 .menu-page-content { width: min(840px, 100%); margin: clamp(40px, 10vh, 110px) auto 0; }
 .menu-page-content h1 { margin: 12px 0 42px; font-size: clamp(3.2rem, 8vw, 6.5rem); line-height: .9; letter-spacing: -.05em; }
 .menu-page-content h2 { margin-top: 42px; font-size: 1.3rem; }
+.pause-summary { display: grid; grid-template-columns: repeat(4, 1fr); border-block: 1px solid var(--quiet-line); }
+.pause-summary > span { min-height: 76px; display: grid; align-content: center; gap: 4px; padding: 10px; border-right: 1px solid var(--quiet-line); }
+.pause-summary > span:last-child { border-right: 0; }
+.pause-summary small { color: var(--vein-400); font-size: .48rem; letter-spacing: .08em; }
+.pause-summary b { font: 1.2rem var(--serif); }
+.pause-objective { display: grid; gap: 7px; padding: 14px; border-left: 2px solid var(--vein-400); background: rgba(88,225,220,.05); font: .84rem/1.5 var(--serif); }
+.pause-objective b { color: var(--vein-400); font: .5rem var(--mono); letter-spacing: .08em; }
+.pause-objective em { color: var(--brass-400); font-style: normal; }
+.pause-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 7px; }
+.pause-actions .primary-action { grid-column: 1 / -1; width: 100%; }
+.pause-actions > button:not(.primary-action) { min-height: 44px; border: 1px solid var(--quiet-line); background: rgba(13,18,22,.6); cursor: pointer; font-size: .58rem; }
+.pause-crew { display: grid; grid-template-columns: 1fr 1fr; gap: 7px; }
+.pause-crew article { display: grid; grid-template-columns: 58px 1fr; gap: 10px; padding: 9px; border: 1px solid var(--quiet-line); border-left: 2px solid var(--crew-color); background: rgba(13,18,22,.68); }
+.pause-crew img { width: 56px; height: 62px; object-fit: cover; object-position: center 24%; }
+.pause-crew article > span { display: grid; align-content: center; gap: 3px; }
+.pause-crew strong { font: .82rem var(--serif); }
+.pause-crew small { color: var(--brass-400); font-size: .46rem; line-height: 1.35; }
+.pause-crew p { margin: 2px 0 0; color: var(--bone-300); font: .62rem/1.35 var(--serif); }
+.expedition-journal { margin: 0; padding: 0; list-style: none; display: grid; }
+.expedition-journal li { display: grid; grid-template-columns: 120px 1fr; gap: 12px; padding: 11px 0; border-bottom: 1px solid var(--quiet-line); }
+.expedition-journal span { color: var(--vein-400); font-size: .48rem; }
+.expedition-journal p { margin: 0; color: var(--bone-300); font: .72rem/1.45 var(--serif); }
+.pause-exit { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-top: 42px; padding: 14px; border: 1px solid rgba(229,111,102,.24); color: var(--bone-300); font-size: .58rem; }
+.pause-exit button { min-height: 44px; padding: 0 14px; border: 1px solid var(--danger-400); background: rgba(229,111,102,.06); cursor: pointer; font-size: .53rem; }
 .chronicle-summary { display: flex; flex-wrap: wrap; gap: 28px 48px; border-block: 1px solid var(--quiet-line); padding: 22px 0; }
 .chronicle-summary span { color: var(--bone-300); font-size: .7rem; text-transform: uppercase; }
 .chronicle-summary b { display: block; color: var(--brass-400); font: 2.2rem var(--serif); }
@@ -590,7 +614,7 @@ h1, h2 { font-family: var(--serif); font-weight: 500; }
   .brand-glyph { width: 28px; height: 28px; font-size: .5rem; }
   .resource-rail { justify-self: center; }
   .resource { min-width: 50px; }
-  .header-actions button:last-child { display: none; }
+  .header-actions button:first-child { display: none; }
   .game-shell { grid-template-columns: 1fr; grid-template-areas: "citadel" "command" "crew" "log"; padding: 12px; gap: 14px; }
   .command-deck { min-height: 0; padding: 16px 0 0; border-left: 0; border-top: 1px solid var(--quiet-line); }
   .event-panel, .development-panel, .finale-panel, .completion-panel { min-height: 420px; }
@@ -611,6 +635,11 @@ h1, h2 { font-family: var(--serif); font-weight: 500; }
   .menu-page-content { margin-top: 28px; }
   .archive-grid { grid-template-columns: 1fr; }
   .chronicle-crew { grid-template-columns: 1fr; }
+  .pause-summary { grid-template-columns: 1fr 1fr; }
+  .pause-summary > span:nth-child(2) { border-right: 0; }
+  .pause-summary > span:nth-child(-n+2) { border-bottom: 1px solid var(--quiet-line); }
+  .pause-crew { grid-template-columns: 1fr; }
+  .expedition-journal li { grid-template-columns: 1fr; gap: 4px; }
   .ending-crew-codas { grid-template-columns: 1fr; }
   .run-history li { grid-template-columns: 102px 1fr auto; padding-inline: 10px; }
   .run-crew-line { grid-column: 1 / -1; grid-template-columns: 1fr; }

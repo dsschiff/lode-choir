@@ -46,6 +46,29 @@ test('title menu exposes seed, archive, settings, and credits', async ({ page })
   await expect(page.getByRole('heading', { name: 'The Chronicle' })).toBeVisible();
 });
 
+async function openRunMenu(page: Page) {
+  const currentLog = page.getByRole('heading', { name: 'Current descent' });
+  if (await currentLog.count() === 0) await page.locator('.header-actions').getByRole('button', { name: 'Open expedition log and menu' }).click();
+  await expect(currentLog).toBeVisible();
+}
+
+async function openRunSettings(page: Page) {
+  await openRunMenu(page);
+  await page.getByRole('button', { name: 'SETTINGS & BACKUP' }).click();
+  await expect(page.getByRole('heading', { name: 'Settings' })).toBeVisible();
+}
+
+async function resumeRun(page: Page) {
+  await page.getByRole('button', { name: /RESUME EXPEDITION/ }).click();
+  await expect(page.getByTestId('citadel-grid')).toBeVisible();
+}
+
+async function returnToTitle(page: Page) {
+  await openRunMenu(page);
+  await page.getByRole('button', { name: 'RETURN TO TITLE' }).click();
+  await expect(page.getByTestId('title-screen')).toBeVisible();
+}
+
 test('legacy accessibility settings migrate with the default choir volume', async ({ page }) => {
   await page.evaluate(() => localStorage.setItem('lode_choir_settings_v1', JSON.stringify({
     muted: false,
@@ -70,6 +93,25 @@ test('new run reaches the first consequential choice immediately', async ({ page
   const routeBox = await page.locator('.route-panel').boundingBox();
   const crewBox = await page.locator('.crew-roster').boundingBox();
   expect(routeBox?.y).toBeLessThan(crewBox?.y ?? Number.POSITIVE_INFINITY);
+});
+
+test('in-run log menu preserves the descent and recaps crew and story on phone', async ({ page }) => {
+  await beginRun(page);
+  await page.getByTestId('route-0').click();
+  const menu = page.locator('.header-actions').getByRole('button', { name: 'Open expedition log and menu' });
+  await expect(menu).toBeVisible();
+  await menu.click();
+  await expect(page.getByRole('heading', { name: 'Current descent' })).toBeVisible();
+  await expect(page.getByTestId('pause-summary')).toContainText('SHIFT');
+  await expect(page.getByTestId('pause-crew').locator('article')).toHaveCount(4);
+  await expect(page.getByTestId('expedition-journal')).toContainText('Course set for');
+  await page.getByRole('button', { name: 'FIELD MANUAL' }).click();
+  await expect(page.getByRole('heading', { name: 'How an expedition works' })).toBeVisible();
+  await page.getByRole('button', { name: /RETURN/ }).click();
+  await expect(page.getByRole('heading', { name: 'Current descent' })).toBeVisible();
+  await page.getByRole('button', { name: 'RESUME EXPEDITION' }).click();
+  await expect(page.getByTestId('citadel-grid')).toBeVisible();
+  await expect(page.getByTestId('route-0')).toHaveAttribute('aria-pressed', 'true');
 });
 
 test('a new expedition explains Orison, Heart Notes, and every crew stake before planning', async ({ page }) => {
@@ -277,7 +319,7 @@ test('tap assignment, route selection, and shift resolution work on phone', asyn
 test('autosave can resume and corrupted saves fail safely', async ({ page }) => {
   await beginRun(page);
   await expect.poll(() => page.evaluate(() => localStorage.getItem('lode_choir_autosave_v1'))).not.toBeNull();
-  await page.getByRole('button', { name: 'Return to title menu' }).click();
+  await returnToTitle(page);
   await expect(page.getByTestId('continue-run')).toBeVisible();
   await expect(page.getByTestId('continue-run')).toContainText('SHIFT 1/7');
   await page.reload();
@@ -423,26 +465,30 @@ test('procedural ambience follows run, menu, mute, resume, and completion lifecy
   await beginRun(page);
   await expect.poll(() => page.evaluate(() => (window as unknown as { __AUDIO_METRICS__: { started: number } }).__AUDIO_METRICS__.started)).toBe(3);
 
-  await page.getByRole('button', { name: 'Open settings' }).click();
+  await openRunSettings(page);
   await expect.poll(() => page.evaluate(() => (window as unknown as { __AUDIO_METRICS__: { stopped: number } }).__AUDIO_METRICS__.stopped)).toBe(3);
   await page.getByRole('slider', { name: 'Choir volume' }).fill('0');
   await page.getByRole('button', { name: /RETURN/ }).click();
+  await resumeRun(page);
   await page.waitForTimeout(50);
   expect(await page.evaluate(() => (window as unknown as { __AUDIO_METRICS__: { started: number } }).__AUDIO_METRICS__.started)).toBe(3);
 
-  await page.getByRole('button', { name: 'Open settings' }).click();
+  await openRunSettings(page);
   await page.getByRole('slider', { name: 'Choir volume' }).fill('0.7');
   await page.getByRole('button', { name: /RETURN/ }).click();
+  await resumeRun(page);
   await expect.poll(() => page.evaluate(() => (window as unknown as { __AUDIO_METRICS__: { started: number } }).__AUDIO_METRICS__.started)).toBe(6);
 
-  await page.getByRole('button', { name: 'Open settings' }).click();
+  await openRunSettings(page);
   await page.getByText('Mute the choir').click();
   await page.getByRole('button', { name: /RETURN/ }).click();
+  await resumeRun(page);
   expect(await page.evaluate(() => (window as unknown as { __AUDIO_METRICS__: { started: number } }).__AUDIO_METRICS__.started)).toBe(6);
 
-  await page.getByRole('button', { name: 'Open settings' }).click();
+  await openRunSettings(page);
   await page.getByText('Mute the choir').click();
   await page.getByRole('button', { name: /RETURN/ }).click();
+  await resumeRun(page);
   await expect.poll(() => page.evaluate(() => (window as unknown as { __AUDIO_METRICS__: { started: number; resumed: number } }).__AUDIO_METRICS__)).toMatchObject({ started: 9, resumed: 1 });
   await page.evaluate(() => {
     const state = window.__LODE_CHOIR__?.getState();
@@ -462,7 +508,7 @@ test('validated progress backups preserve the active signal, Chronicle, and sett
     const state = window.__LODE_CHOIR__?.getState();
     return state ? { seed: state.seed, selectedRoute: state.selectedRoute } : null;
   });
-  await page.getByRole('button', { name: 'Open settings' }).click();
+  await openRunSettings(page);
   await page.getByText('High contrast').click();
   await page.getByRole('slider', { name: 'Choir volume' }).fill('0.45');
   await expect(page.locator('.app-root')).toHaveClass(/high-contrast/);
@@ -518,7 +564,7 @@ test('Black Descent previews exact conditions, resumes, scores, archives, and re
   await expect(modeIndicator).toBeVisible();
   await expect(modeIndicator).toContainText('BLACK DESCENT');
 
-  await page.getByRole('button', { name: 'Return to title menu' }).click();
+  await returnToTitle(page);
   await expect(page.getByTestId('continue-run')).toContainText('BLACK DESCENT');
   await page.reload();
   await page.getByTestId('continue-run').click();
@@ -764,7 +810,7 @@ test('unlocked Chronicle relics apply canonical starting effects', async ({ page
     await page.getByTestId('begin-descent').click();
     await page.getByTestId('enter-orison').click();
   };
-  const returnForAnother = async () => page.getByRole('button', { name: 'Return to title menu' }).click();
+  const returnForAnother = async () => returnToTitle(page);
 
   await beginWith('Heart Splinter');
   let state = await page.evaluate(() => window.__LODE_CHOIR__?.getState());

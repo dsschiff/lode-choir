@@ -77,6 +77,9 @@ async function capture(browser, name, viewport, mobile = false) {
   }
   await page.locator('.leader-options').getByRole('button', { name: /Sable-9/ }).click();
   await screenshot('planning');
+  await page.locator('.header-actions').getByRole('button', { name: 'Open expedition log and menu' }).click();
+  await screenshot('journal');
+  await page.getByRole('button', { name: /RESUME EXPEDITION/ }).click();
 
   await page.evaluate(() => {
     const state = window.__LODE_CHOIR__?.getState();

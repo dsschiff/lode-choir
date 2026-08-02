@@ -125,7 +125,7 @@ and 696,000 reconstructed replays passed.
 
 ## Interface and persistence
 
-- 48 Playwright checks pass in Pixel 5 and desktop Chromium projects. They cover title
+- 50 Playwright checks pass in Pixel 5 and desktop Chromium projects. They cover title
   navigation, direct seed entry, settings migration, installation prompt handling and persistent volume, first choice, touch assignment, optional leadership, resolution,
   loadout locking and keyboard selection, all three relic effects, relic resume,
   exact route-cost forecasts, four-strain room-pressure penalties, chart hold/swap/refund/reload/return behavior,
@@ -134,7 +134,8 @@ and 696,000 reconstructed replays passed.
   save/resume, completion, archive categorization and fresh-run reset, later phase
   surfaces, validated backup rejection/restore across run, Chronicle, and settings,
   exact event-effect labels, score-ledger disclosure, copied seed-and-mode reports,
-  shared URL initialization with invalid-mode fallback, on-duty personal-vow gating,
+  shared URL initialization with invalid-mode fallback, a mobile-accessible in-run
+  journal/menu with crew and story recap, on-duty personal-vow gating,
   live tactical-read updates, structured four-crew ending codas, Chronicle progression counts,
   Chronicle rematch preparation, a complete seven-shift visible-control win, and test hooks.
   A stubbed Web Audio contract additionally verifies the ambient voices start with an
@@ -154,15 +155,15 @@ and 696,000 reconstructed replays passed.
   touch targets, sticky resource rail, citadel grid, engine-derived route forecasts,
   leader preview, mobile action-before-roster order, and long scrolling with no
   horizontal overflow.
-- The 20-image review suite uses the fixed `QA-ORISON` URL seed and reduced-motion
+- The 22-image review suite uses the fixed `QA-ORISON` URL seed and reduced-motion
   media. Two consecutive full captures produced identical SHA-256 hashes for every
   JPEG, so visual evidence no longer drifts with random title seeds or animation frames.
 
 ## Asset and dependency checks
 
-- The production export currently contains 36 files and 1,370,828 uncompressed bytes.
-  The directly referenced initial shell is 1,032,647 bytes; JavaScript totals 771,315
-  bytes, imagery 489,093 bytes, and CSS 58,672 bytes. The largest individual file is a
+- The production export currently contains 36 files and 1,377,198 uncompressed bytes.
+  The directly referenced initial shell is 1,039,017 bytes; JavaScript totals 774,979
+  bytes, imagery 489,093 bytes, and CSS 61,378 bytes. The largest individual file is a
   227,538-byte framework chunk. All remain below committed build-breaking budgets.
 - The export audit found no remote runtime asset references, no missing shell files,
   and no emitted file omitted from the generated service-worker cache.

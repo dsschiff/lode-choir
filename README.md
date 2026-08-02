@@ -52,6 +52,9 @@ The Settings menu exposes browser installation guidance or an available native i
 prompt, and can create and validate a portable text backup containing the active
 autosave, Chronicle progression, and accessibility/audio settings before restoring any
 local data.
+The in-run Log / Menu is available on phone and desktop, pauses the procedural choir,
+recaps the current objective, crew duties and vows, and the latest twelve story records,
+then returns to the exact selected mission and staffing plan.
 Paste a seed directly on the title screen, or append
 `?seed=SHARED-SIGNAL&mode=black_descent` to prepare the same deterministic expedition
 and contract for another player or later playtest.
@@ -68,6 +71,7 @@ the current uncompressed initial shell is under 1.1 MB, with CSS capped at 64 KB
 Current review captures: [desktop title](docs/screenshots/title-desktop.jpg),
 [phone title](docs/screenshots/title-phone.jpg),
 [desktop planning](docs/screenshots/planning-desktop.jpg), and
-[phone planning](docs/screenshots/planning-phone.jpg). The same folder also contains
+[phone planning](docs/screenshots/planning-phone.jpg), and
+[phone expedition log](docs/screenshots/journal-phone.jpg). The same folder also contains
 reproducible Settings, Standard and Black Descent loadouts, event, development,
 finale, completion, and Chronicle captures for both viewports.

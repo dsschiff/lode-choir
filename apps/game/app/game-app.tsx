@@ -41,7 +41,7 @@ const LEGACY_KEY = 'lode_choir_legacy_v1';
 const SETTINGS_KEY = 'lode_choir_settings_v1';
 const BASE_PATH = process.env.NEXT_PUBLIC_BASE_PATH ?? '';
 
-type Surface = 'title' | 'loadout' | 'prologue' | 'game' | 'manual' | 'chronicle' | 'settings' | 'credits';
+type Surface = 'title' | 'loadout' | 'prologue' | 'game' | 'pause' | 'manual' | 'chronicle' | 'settings' | 'credits';
 type Settings = { muted: boolean; highContrast: boolean; reducedMotion: boolean; volume: number };
 type SavePreview = { seed: string; shift: number; relicName: string | null; runMode: RunMode };
 type ProgressBackup = { game: 'lode-choir-backup'; version: 1; autosave: string | null; legacy: string; settings: Settings };
@@ -1100,6 +1100,44 @@ function ManualPage({ onBack }: { onBack: () => void }) {
   );
 }
 
+function ExpeditionMenu({ view, onNavigate, onTitle, onBack }: {
+  view: GameView;
+  onNavigate: (surface: Surface) => void;
+  onTitle: () => void;
+  onBack: () => void;
+}) {
+  const selectedRoute = view.routes.find((route) => route.instanceId === view.state.selectedRoute);
+  const storyLog = view.state.log.filter((entry) => ['story', 'route', 'crew', 'warning'].includes(entry.kind)).slice(-12).reverse();
+  const duty = (crewId: CrewId) => {
+    if (view.state.routeLeader === crewId) return `Leading ${selectedRoute?.definition.title ?? 'the mission'}`;
+    const module = view.modules.find((candidate) => candidate.assignedCrew === crewId);
+    return module ? `Staffing ${module.name}` : 'Resting this shift';
+  };
+  return (
+    <MenuPage eyebrow="ORISON // EXPEDITION LOG" title="Current descent" onBack={onBack}>
+      <div className="pause-summary" data-testid="pause-summary">
+        <span><small>SHIFT</small><b>{view.state.shift}/7</b></span><span><small>PHASE</small><b>{view.state.phase.toUpperCase()}</b></span><span><small>HEART NOTES</small><b>{view.state.heartNotes}/3</b></span><span><small>HULL</small><b>{view.state.integrity}/{view.maxIntegrity}</b></span>
+      </div>
+      <p className="pause-objective"><b>WHAT IS HAPPENING</b>{SHIFT_BRIEFINGS[view.state.shift]} <em>{view.objective}</em></p>
+      <div className="pause-actions">
+        <button className="primary-action" type="button" onClick={onBack}><span>Return to the exact point where Orison paused.</span><b>RESUME EXPEDITION</b></button>
+        <button type="button" onClick={() => onNavigate('manual')}>FIELD MANUAL</button>
+        <button type="button" onClick={() => onNavigate('settings')}>SETTINGS & BACKUP</button>
+      </div>
+      <h2>Crew arcs</h2>
+      <div className="pause-crew" data-testid="pause-crew">
+        {view.crew.map((crew) => <article key={crew.id} style={{ '--crew-color': crew.color } as React.CSSProperties}>
+          <img src={`${BASE_PATH}/art/crew-${crew.id}.webp`} width="720" height="720" alt="" />
+          <span><strong>{crew.name}</strong><small>{duty(crew.id)} · VOW {crew.vowProgress}/3 · TRUST {crew.loyalty} · STRAIN {crew.strain}/6</small><p>{crew.vow}</p></span>
+        </article>)}
+      </div>
+      <h2>Story so far</h2>
+      {storyLog.length > 0 ? <ol className="expedition-journal" data-testid="expedition-journal">{storyLog.map((entry) => <li key={entry.seq}><span>SHIFT {entry.shift} · {entry.kind.toUpperCase()}</span><p>{entry.text}</p></li>)}</ol> : <p className="empty-message">The first mission has not yet left a story record.</p>}
+      <div className="pause-exit"><span>Your current descent is autosaved in this browser.</span><button type="button" onClick={onTitle}>RETURN TO TITLE</button></div>
+    </MenuPage>
+  );
+}
+
 function LoadoutPage({ seed, unlocked, selected, runMode, onSelect, onMode, onBegin, onBack }: {
   seed: string;
   unlocked: readonly RelicId[];
@@ -1217,7 +1255,7 @@ function TitleScreen({ seed, hasSave, savePreview, notice, onSeed, onNew, onCont
           <button type="button" onClick={() => onNavigate('credits')}>Credits</button>
         </nav>
       </section>
-      <span className="build-stamp">ORISON BUILD // 0.2</span>
+      <span className="build-stamp">ORISON BUILD // 0.3</span>
     </main>
   );
 }
@@ -1539,6 +1577,7 @@ export function GameApp() {
   if (surface === 'title') return <div className={shellClasses}><TitleScreen seed={seed} hasSave={hasSave} savePreview={savePreview} notice={notice} onSeed={setSeed} onNew={() => prepareLoadout(seed, new URLSearchParams(window.location.search).get('mode') === 'black_descent' ? 'black_descent' : 'standard')} onContinue={continueRun} onNavigate={openMenuPage} /></div>;
   if (surface === 'loadout') return <div className={shellClasses}><LoadoutPage seed={seed} unlocked={legacy.relics} selected={selectedRelic} runMode={selectedRunMode} onSelect={setSelectedRelic} onMode={setSelectedRunMode} onBegin={() => startRun(seed, selectedRelic, selectedRunMode, true)} onBack={goBack} /></div>;
   if (surface === 'prologue' && view) return <div className={shellClasses}><ProloguePage view={view} onEnter={() => { setSurface('game'); resetDocumentScroll(); void choirAudio.wake(); }} onAbort={() => { setSurface('loadout'); resetDocumentScroll(); }} /></div>;
+  if (surface === 'pause' && view) return <div className={shellClasses}><ExpeditionMenu view={view} onNavigate={openMenuPage} onTitle={() => { setSurface('title'); resetDocumentScroll(); }} onBack={() => { setSurface('game'); resetDocumentScroll(); }} /></div>;
   if (surface === 'manual') return <div className={shellClasses}><ManualPage onBack={goBack} /></div>;
   if (surface === 'chronicle') return <div className={shellClasses}><Chronicle legacy={legacy} onRetry={prepareArchivedRun} onBack={goBack} /></div>;
   if (surface === 'settings') return <div className={shellClasses}><SettingsPage settings={settings} installStatus={installStatus} onChange={setSettings} onInstall={installApp} onCreateBackup={createProgressBackup} onRestoreBackup={restoreProgressBackup} onBack={goBack} /></div>;
@@ -1554,13 +1593,13 @@ export function GameApp() {
   return (
     <div className={`${shellClasses} phase-${view.state.phase}`}>
       <header className="game-header">
-        <button type="button" className="brand-button" onClick={() => { setReturnSurface('game'); setSurface('title'); }} aria-label="Return to title menu">
+        <button type="button" className="brand-button" onClick={() => openMenuPage('pause')} aria-label="Open expedition log and menu">
           <span className="brand-glyph">LC</span><span><b>LODE CHOIR</b><small>{view.state.seed}</small><em className={view.state.runMode === 'black_descent' ? 'run-mode-badge is-black' : 'run-mode-badge'}>{view.state.runMode === 'black_descent' ? 'BLACK DESCENT · 1.25×' : 'STANDARD DESCENT · 1×'}</em></span>
         </button>
         <ResourceRail view={view} />
         <div className="header-actions">
           <button type="button" onClick={() => openMenuPage('settings')} aria-label="Open settings">⚙</button>
-          <button type="button" onClick={() => setSurface('title')}>MENU</button>
+          <button type="button" onClick={() => openMenuPage('pause')} aria-label="Open expedition log and menu">LOG / MENU</button>
         </div>
         <div className={view.state.runMode === 'black_descent' ? 'run-mode-mobile is-black' : 'run-mode-mobile'}>{view.state.runMode === 'black_descent' ? 'BLACK DESCENT · 1.25× SCORE' : 'STANDARD DESCENT · 1× SCORE'}</div>
       </header>
