@@ -138,7 +138,8 @@ and 696,000 reconstructed replays passed.
   save/resume, completion, archive categorization and fresh-run reset, later phase
   surfaces, validated backup rejection/restore across run, Chronicle, and settings,
   exact event-effect labels, score-ledger disclosure, copied seed-and-mode reports,
-  shared URL initialization with invalid-mode fallback, a mobile-accessible in-run
+  shared URL initialization with invalid-mode fallback, a pre-shift supply glossary
+  with full accessible resource-rail labels, a mobile-accessible in-run
   journal/menu with crew, mission-discovery, and persistent choice-aftermath recap,
   on-duty personal-vow gating,
   live tactical-read updates with engine-derived post-repair hull ranges and lethal-plan
@@ -162,7 +163,7 @@ and 696,000 reconstructed replays passed.
   touch targets, sticky resource rail, citadel grid, engine-derived route forecasts,
   leader preview, mobile action-before-roster order, and long scrolling with no
   horizontal overflow.
-- The 22-image review suite uses the fixed `QA-ORISON` URL seed and reduced-motion
+- The 24-image review suite uses the fixed `QA-ORISON` URL seed and reduced-motion
   media. Two consecutive full captures produced identical SHA-256 hashes for every
   JPEG, so visual evidence no longer drifts with random title seeds or animation frames.
 

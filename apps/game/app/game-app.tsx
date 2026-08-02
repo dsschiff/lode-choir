@@ -193,17 +193,18 @@ function ToneMark({ active = false }: { active?: boolean }) {
 function ResourceRail({ view }: { view: GameView }) {
   const state = view.state;
   const items = [
-    ['PRO', state.resources.provisions],
-    ['ALY', state.resources.alloy],
-    ['LUM', state.resources.lumen],
-    ['HULL', `${state.integrity}/${view.maxIntegrity}`],
-    ['NOTE', `${state.heartNotes}/3`],
-  ];
+    { label: 'PRO', name: 'Provisions', value: state.resources.provisions, purpose: 'Pays for missions and optional leaders.' },
+    { label: 'ALY', name: 'Alloy', value: state.resources.alloy, purpose: 'Builds, upgrades, and repairs Orison.' },
+    { label: 'LUM', name: 'Lumen', value: state.resources.lumen, purpose: 'Charts missions and powers signal decoding.' },
+    { label: 'HULL', name: 'Hull', value: `${state.integrity}/${view.maxIntegrity}`, purpose: 'Orison is lost at zero.' },
+    { label: 'NOTE', name: 'Heart Notes', value: `${state.heartNotes}/3`, purpose: 'Recover three before shift seven.' },
+  ] as const;
   return (
     <section className="resource-rail" aria-label="Expedition resources">
-      {items.map(([label, value]) => (
-        <div className={label === 'HULL' && Number(state.integrity) <= 3 ? 'resource is-danger' : 'resource'} key={label}>
-          <span>{label}</span><strong>{value}</strong>
+      {items.map((item) => (
+        <div className={item.label === 'HULL' && Number(state.integrity) <= 3 ? 'resource is-danger' : 'resource'} key={item.label} title={`${item.name}: ${item.purpose}`}>
+          <span className="sr-only">{item.name}: {item.value}. {item.purpose}</span>
+          <span aria-hidden="true">{item.label}</span><strong aria-hidden="true">{item.value}</strong>
         </div>
       ))}
     </section>
@@ -1080,6 +1081,7 @@ function ProloguePage({ view, onEnter, onAbort }: { view: GameView; onEnter: () 
         <p className="prologue-premise"><strong>Orison is a walking mining citadel.</strong> Its six legs carry nine working rooms through Vesper’s abandoned mine. Now a signal called the Heart-Lode is speaking through its walls.</p>
         <div className="contract-terms">
           <span><b>HEART NOTES</b> Complete phrases recovered from the signal. Three Notes are enough to answer it.</span>
+          <span><b>SUPPLIES</b> Provisions pay for missions and leaders. Alloy builds or repairs rooms. Lumen charts a mission for next shift and powers signal decoding.</span>
           <span><b>THE CONTRACT</b> Recover three Notes in seven shifts, keep Orison walking, then decide what the Heart-Lode is.</span>
           <span><b>EACH SHIFT</b> Choose a site, assign three people to Orison’s rooms, and answer what the mission uncovers.</span>
         </div>
@@ -1104,10 +1106,11 @@ function ManualPage({ onBack }: { onBack: () => void }) {
         <article><span>02 // MISSION</span><h2>Choose one destination</h2><p>Each mission card shows rewards, hull damage, ration cost, and total crew strain. Risk is already included in the forecast.</p></article>
         <article><span>03 // ROOMS</span><h2>Staff three rooms</h2><p>There is no universal specialist. Mara favors output and safety, Tamsin trades strain for material, Orin repairs hull, and Sable finds lumen or hidden faults. Tap a working room to compare all four exact outputs.</p></article>
         <article><span>04 // FOURTH CREW</span><h2>Rest or lead</h2><p>The unassigned crew member rests and removes two strain. A leader provides a listed bonus but costs one extra provision.</p></article>
-        <article><span>05 // COSTS</span><h2>Watch hull and strain</h2><p>Every mission costs one provision. At four strain, pressure suppresses that crew member’s extra room-output bonus. Six strain causes a scar and makes them unavailable for the next shift.</p></article>
-        <article><span>06 // WORKSHOP</span><h2>Improve Orison</h2><p>After shifts two and four, spend alloy to build one room, upgrade one room, or repair two hull. You may also save the alloy.</p></article>
-        <article><span>07 // CHRONICLE</span><h2>Keep the results</h2><p>Each ending unlocks one relic. The Chronicle stores your twelve most recent scores and can restart any recorded seed.</p></article>
-        <article><span>08 // BLACK DESCENT</span><h2>Optional hard mode</h2><p>Start with 11 hull, 3 provisions, 4 alloy, and 1 lumen for a 1.25× score. Hidden high-risk faults deal twice their normal damage.</p></article>
+        <article><span>05 // SUPPLIES</span><h2>Know what each store buys</h2><p>Provisions pay for every mission and optional leader. Alloy builds, upgrades, and repairs Orison. Lumen holds a declined mission for next shift and powers the Resonance Chamber.</p></article>
+        <article><span>06 // COSTS</span><h2>Watch hull and strain</h2><p>Every mission costs one provision. At four strain, pressure suppresses that crew member’s extra room-output bonus. Six strain causes a scar and makes them unavailable for the next shift.</p></article>
+        <article><span>07 // WORKSHOP</span><h2>Improve Orison</h2><p>After shifts two and four, spend alloy to build in a sealed chamber, upgrade a working room, or repair two hull. You may also save the alloy.</p></article>
+        <article><span>08 // CHRONICLE</span><h2>Keep the results</h2><p>Each ending unlocks one relic. The Chronicle stores your twelve most recent scores and can restart any recorded seed.</p></article>
+        <article><span>09 // BLACK DESCENT</span><h2>Optional hard mode</h2><p>Start with 11 hull, 3 provisions, 4 alloy, and 1 lumen for a 1.25× score. Hidden high-risk faults deal twice their normal damage.</p></article>
       </div>
     </MenuPage>
   );

@@ -15,6 +15,7 @@ test('title menu exposes seed, archive, settings, and credits', async ({ page })
 
   await page.getByRole('button', { name: 'Manual' }).click();
   await expect(page.getByRole('heading', { name: 'How an expedition works' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Know what each store buys' })).toBeVisible();
   await page.getByRole('button', { name: /RETURN/ }).click();
 
   await page.evaluate(() => {
@@ -128,9 +129,13 @@ test('a new expedition explains Orison, Heart Notes, and every crew stake before
   await expect(page.getByRole('heading', { name: /moon said your names/i })).toBeVisible();
   await expect(page.getByText(/walking mining citadel/i)).toBeVisible();
   await expect(page.locator('.contract-terms')).toContainText('Complete phrases recovered from the signal. Three Notes are enough to answer it.');
+  await expect(page.locator('.contract-terms')).toContainText('Provisions pay for missions and leaders');
   for (const name of ['Mara Vey', 'Tamsin Rook', 'Orin Vale', 'Sable-9']) await expect(page.getByText(name, { exact: true })).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Prepare this shift' })).toHaveCount(0);
   await page.getByTestId('enter-orison').click();
+  await expect(page.locator('.resource-rail .sr-only').filter({ hasText: /^Provisions:/ })).toHaveCount(1);
+  await expect(page.locator('.resource-rail .sr-only').filter({ hasText: /^Alloy:/ })).toHaveCount(1);
+  await expect(page.locator('.resource-rail .sr-only').filter({ hasText: /^Lumen:/ })).toHaveCount(1);
   await expect(page.locator('.shift-brief')).toContainText('transmitted all four of their names');
   await expect(page.locator('.route-focus')).toHaveCount(3);
   await expect(page.locator('.route-focus').first()).toContainText('VOW · DUTY REQUIRED');

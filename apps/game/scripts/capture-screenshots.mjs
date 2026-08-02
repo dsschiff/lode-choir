@@ -66,7 +66,8 @@ async function capture(browser, name, viewport, mobile = false) {
   await page.locator('.descent-mode-options label.is-black').click();
   await screenshot('loadout-black');
   await page.locator('.descent-mode-options label').first().click();
-  await page.getByRole('button', { name: /RETURN/ }).click();
+  await page.getByTestId('begin-descent').click();
+  await screenshot('prologue');
 
   await page.evaluate(() => window.__LODE_CHOIR__?.newRun('QA-ORISON'));
   await page.getByTestId('route-0').click();
