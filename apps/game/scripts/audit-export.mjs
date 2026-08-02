@@ -1,14 +1,17 @@
-import { readdir, readFile, stat } from 'node:fs/promises';
+import { readdir, readFile } from 'node:fs/promises';
 import { extname, relative, resolve, sep } from 'node:path';
+import { gzipSync } from 'node:zlib';
 
 const outputRoot = resolve('out');
 const deploymentPrefix = process.env.GITHUB_PAGES === 'true' ? '/lode-choir' : '';
 const limits = {
   total: 1_600_000,
   javascript: 800_000,
+  gzipJavascript: 300_000,
   images: 550_000,
   css: 64_000,
   initialShell: 1_100_000,
+  gzipInitialShell: 475_000,
   largestFile: 250_000,
 };
 
@@ -22,14 +25,21 @@ async function listFiles(directory) {
 }
 
 const files = (await listFiles(outputRoot)).sort();
-const records = await Promise.all(files.map(async (path) => ({
-  path,
-  relativePath: relative(outputRoot, path).split(sep).join('/'),
-  bytes: (await stat(path)).size,
-  extension: extname(path),
-})));
+const compressible = new Set(['.css', '.html', '.js', '.json', '.svg', '.txt', '.webmanifest']);
+const records = await Promise.all(files.map(async (path) => {
+  const content = await readFile(path);
+  const extension = extname(path);
+  return {
+    path,
+    relativePath: relative(outputRoot, path).split(sep).join('/'),
+    bytes: content.byteLength,
+    gzipBytes: compressible.has(extension) ? gzipSync(content, { level: 9 }).byteLength : content.byteLength,
+    extension,
+  };
+}));
 const total = records.reduce((sum, record) => sum + record.bytes, 0);
 const javascript = records.filter((record) => record.extension === '.js').reduce((sum, record) => sum + record.bytes, 0);
+const gzipJavascript = records.filter((record) => record.extension === '.js').reduce((sum, record) => sum + record.gzipBytes, 0);
 const images = records.filter((record) => ['.webp', '.png', '.svg'].includes(record.extension)).reduce((sum, record) => sum + record.bytes, 0);
 const css = records.filter((record) => record.extension === '.css').reduce((sum, record) => sum + record.bytes, 0);
 const largest = [...records].sort((left, right) => right.bytes - left.bytes)[0];
@@ -50,6 +60,8 @@ const missingReferences = referencedPaths.filter((path) => !recordByPath.has(pat
 if (missingReferences.length > 0) throw new Error(`Exported shell references missing local files: ${missingReferences.join(', ')}`);
 const initialShell = (recordByPath.get('index.html')?.bytes ?? 0)
   + referencedPaths.reduce((sum, path) => sum + (recordByPath.get(path)?.bytes ?? 0), 0);
+const gzipInitialShell = (recordByPath.get('index.html')?.gzipBytes ?? 0)
+  + referencedPaths.reduce((sum, path) => sum + (recordByPath.get(path)?.gzipBytes ?? 0), 0);
 
 const manifest = JSON.parse(await readFile(resolve(outputRoot, 'manifest.webmanifest'), 'utf8'));
 if (manifest.display !== 'standalone' || manifest.start_url !== './' || manifest.scope !== './') {
@@ -62,7 +74,7 @@ const uncached = records
   .map((record) => record.relativePath);
 if (uncached.length > 0) throw new Error(`Offline shell omits exported files: ${uncached.join(', ')}`);
 
-const checks = { total, javascript, images, css, initialShell, largestFile: largest?.bytes ?? 0 };
+const checks = { total, javascript, gzipJavascript, images, css, initialShell, gzipInitialShell, largestFile: largest?.bytes ?? 0 };
 for (const [id, value] of Object.entries(checks)) {
   if (value > limits[id]) throw new Error(`${id} budget exceeded: ${value} > ${limits[id]} bytes.`);
 }
