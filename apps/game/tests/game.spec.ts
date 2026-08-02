@@ -438,6 +438,25 @@ test('deterministic hook can resolve a finale and begin the next inherited desce
   await expect(page.getByRole('radio', { name: /Vesper Tuning Fork/i })).toBeEnabled();
 });
 
+test('a failed expedition preserves its recovered signal', async ({ page }) => {
+  await beginRun(page);
+  await page.evaluate(() => {
+    const state = window.__LODE_CHOIR__?.getState();
+    if (!state) throw new Error('Test hook unavailable.');
+    state.status = 'lost';
+    state.phase = 'complete';
+    state.shift = 4;
+    state.heartNotes = 2;
+    state.integrity = 0;
+    state.endingText = 'The last leg folds beneath Orison.';
+    window.__LODE_CHOIR__?.refresh();
+  });
+  await expect(page.getByTestId('completion-panel')).toContainText('The last leg folds beneath Orison');
+  await expect(page.getByTestId('lost-signal').locator('span')).toHaveCount(2);
+  await expect(page.getByTestId('lost-signal')).toContainText('WE KEPT THE NAMES YOU LEFT BELOW');
+  await expect(page.getByTestId('lost-signal')).not.toContainText('ORISON, YOU CARRIED OUR DOOR WITH YOU');
+});
+
 test('a shared URL prepares the exact deterministic signal and contract', async ({ page }) => {
   await page.goto('/?seed=SHARED-SIGNAL&mode=black_descent&no-sw=1');
   await expect(page.getByRole('textbox', { name: 'Expedition seed' })).toHaveValue('SHARED-SIGNAL');

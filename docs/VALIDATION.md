@@ -129,7 +129,7 @@ and 696,000 reconstructed replays passed.
 
 ## Interface and persistence
 
-- 54 Playwright checks pass in Pixel 5 and desktop Chromium projects. They cover title
+- 56 Playwright checks pass in Pixel 5 and desktop Chromium projects. They cover title
   navigation, direct seed entry, settings migration, installation prompt handling and persistent volume, first choice, touch assignment, optional leadership, resolution,
   loadout locking and keyboard selection, all three relic effects, relic resume,
   exact route-cost forecasts, four-strain room-pressure penalties, chart hold/swap/refund/reload/return behavior,
@@ -144,7 +144,7 @@ and 696,000 reconstructed replays passed.
   journal/menu with crew, mission-discovery, and persistent choice-aftermath recap,
   on-duty personal-vow gating,
   live tactical-read updates with engine-derived post-repair hull ranges and lethal-plan
-  warnings, structured
+  warnings, recovered-signal retention after a loss, structured
   four-crew ending codas, Chronicle progression counts,
   Chronicle rematch preparation, a complete seven-shift visible-control win, and test hooks.
   A stubbed Web Audio contract additionally verifies the ambient voices start with an

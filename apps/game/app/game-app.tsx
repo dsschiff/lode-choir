@@ -815,6 +815,7 @@ function CompletionPanel({ view, onNewRun, onChronicle }: { view: GameView; onNe
       `${outcome} · ${modeLabel}`,
       `Seed: ${view.state.seed}`,
       `Score: ${score.total} · Shift: ${view.state.shift}/7 · Notes: ${view.state.heartNotes}/3 · Hull: ${view.state.integrity}`,
+      ...(view.state.heartNotes > 0 ? [`Signal: ${HEART_NOTE_PHRASES.slice(0, view.state.heartNotes).join(' / ')}`] : []),
       `Replay this signal: ${replayUrl.toString()}`,
     ].join('\n');
     let copied = false;
@@ -853,6 +854,9 @@ function CompletionPanel({ view, onNewRun, onChronicle }: { view: GameView; onNe
         </div>
         <p className="ending-close">{view.endingNarrative.closing}</p>
       </div> : <p>{view.state.endingText ?? 'The Orison cannot continue.'}</p>}
+      {!won && view.state.heartNotes > 0 && <div className="contract-terms" data-testid="lost-signal">
+        {HEART_NOTE_PHRASES.slice(0, view.state.heartNotes).map((phrase, index) => <span key={phrase}><b>RECOVERED NOTE {index + 1}</b>“{phrase}”</span>)}
+      </div>}
       <div className="completion-stats">
         <span><b>{scoreRun(view.state as GameState)}</b> echo score</span><span><b>{view.state.shift}</b> shifts</span><span><b>{view.state.heartNotes}</b> Heart Notes</span><span><b>{view.state.integrity}</b> integrity</span>
       </div>
