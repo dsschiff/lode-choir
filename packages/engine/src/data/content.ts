@@ -9,6 +9,7 @@ export const CREW: readonly CrewDefinition[] = [
     talent: 'Heart: +1 provision. Drill: no operator strain. Ward: extra protection.',
     drawback: 'Mara gains strain when the crew abandons a refuge.',
     vow: 'Bring the entire crew home.',
+    vowAction: 'Advance by completing a mission without hull damage.',
     signature: 'Holdfast: Mara adds 2 extra protection when she staffs the Ward.',
     color: '#c89b55',
   },
@@ -20,6 +21,7 @@ export const CREW: readonly CrewDefinition[] = [
     talent: 'Heart: removes 2 strain. Drill: extra alloy. Ward: salvages alloy.',
     drawback: 'Hazardous routes give Tamsin one additional strain.',
     vow: 'Find the shaft where her first crew died and recover their tags.',
+    vowAction: 'Advance when Tamsin works or leads a risk-3-or-higher mission.',
     signature: 'Redline: Tamsin recovers 2 extra alloy from the Drill instead of 1.',
     color: '#e56f66',
   },
@@ -31,6 +33,7 @@ export const CREW: readonly CrewDefinition[] = [
     talent: 'Any starter room Orin staffs repairs 1 extra hull. Leading eases room crews.',
     drawback: 'Orin gains strain whenever the citadel falls below half integrity.',
     vow: 'Teach Orison a signal its builders never programmed.',
+    vowAction: 'Advance when Orin leads, repairs hull, or operates Resonance.',
     signature: 'Counterhymn: Any room Orin staffs operates 1 level higher.',
     color: '#58e1dc',
   },
@@ -42,6 +45,7 @@ export const CREW: readonly CrewDefinition[] = [
     talent: 'Heart and Drill produce 1 lumen. Ward or leading reveals the selected mission fault. Resonance reveals all faults.',
     drawback: 'Revelations about the Heart-Lode give Sable one strain.',
     vow: 'Recover the minute deleted between Sable-8 and Sable-9.',
+    vowAction: 'Advance by revealing the selected mission fault.',
     signature: 'Second Sight: A revealed Rift mission yields 1 extra Heart Note.',
     color: '#b8ad96',
   },
@@ -314,6 +318,7 @@ export const STORY_EVENTS: readonly StoryEventDefinition[] = [
       {
         label: 'Let Tamsin split it',
         consequence: 'Recover 2 alloy. Tamsin gains 1 strain.',
+        aftermath: 'Tamsin breaks the bell into six clean wedges. Each piece keeps ringing inside a different cargo drawer.',
         resourceDelta: { alloy: 2 },
         crewId: 'tamsin',
         strainDelta: 1,
@@ -321,6 +326,7 @@ export const STORY_EVENTS: readonly StoryEventDefinition[] = [
       {
         label: 'Vent it into the dark',
         consequence: 'Spend 1 provision venting the lock. Mara gains 1 loyalty.',
+        aftermath: 'Mara opens the outer lock herself. The bell tumbles out, but its rhythm continues through Orison’s hull.',
         resourceDelta: { provisions: -1 },
         crewId: 'mara',
         loyaltyDelta: 1,
@@ -328,6 +334,7 @@ export const STORY_EVENTS: readonly StoryEventDefinition[] = [
       {
         label: 'Tune the hull to answer',
         consequence: 'Spend 2 lumen and record 1 Heart Note.',
+        aftermath: 'Orison answers on the same pitch. The crack stops widening exactly when the bell falls silent.',
         resourceDelta: { lumen: -2 },
         noteDelta: 1,
       },
@@ -343,6 +350,7 @@ export const STORY_EVENTS: readonly StoryEventDefinition[] = [
       {
         label: 'Make room for all eight',
         consequence: 'Spend 3 provisions to carry all eight. Mara gains 2 loyalty.',
+        aftermath: 'The crew sleeps in passageways. The crystalized miner whispers every berth number while Mara completes the roll call.',
         resourceDelta: { provisions: -3 },
         crewId: 'mara',
         loyaltyDelta: 2,
@@ -350,6 +358,7 @@ export const STORY_EVENTS: readonly StoryEventDefinition[] = [
       {
         label: 'Evacuate the seven who can travel',
         consequence: 'Take 2 alloy and leave the eighth miner. Mara loses 1 loyalty.',
+        aftermath: 'Mara records the eighth name before Orison departs. She does not use the word rescue in the entry.',
         resourceDelta: { alloy: 2 },
         crewId: 'mara',
         loyaltyDelta: -1,
@@ -357,6 +366,7 @@ export const STORY_EVENTS: readonly StoryEventDefinition[] = [
       {
         label: 'Ask the moon to hold the eighth',
         consequence: 'Spend 2 lumen to stabilize the eighth miner and gain 1 Heart Note.',
+        aftermath: 'The crystal stops at the miner’s throat. Every lamp in the camp begins pulsing with the miner’s heartbeat.',
         resourceDelta: { lumen: -2 },
         noteDelta: 1,
       },
@@ -372,12 +382,14 @@ export const STORY_EVENTS: readonly StoryEventDefinition[] = [
       {
         label: 'Route it through the Heart Engine',
         consequence: 'Gain 1 Heart Note and lose 2 hull.',
+        aftermath: 'The Heart Engine answers with a fifth beat. Orison moves one leg before Mara gives the order.',
         integrityDelta: -2,
         noteDelta: 1,
       },
       {
         label: 'Record it, then disconnect',
         consequence: 'Orin keeps the evidence, gains 1 loyalty, and gains 1 strain.',
+        aftermath: 'Orin writes the sequence across his sleeve. After disconnection, the final mark appears on its own.',
         crewId: 'orin',
         loyaltyDelta: 1,
         strainDelta: 1,
@@ -385,6 +397,7 @@ export const STORY_EVENTS: readonly StoryEventDefinition[] = [
       {
         label: 'Spend lumen to complete the signal',
         consequence: 'Spend 3 lumen and repair 2 hull.',
+        aftermath: 'The completed signal passes through the damaged braces. Metal closes behind it like a stitched wound.',
         resourceDelta: { lumen: -3 },
         integrityDelta: 2,
       },
@@ -400,6 +413,7 @@ export const STORY_EVENTS: readonly StoryEventDefinition[] = [
       {
         label: 'Restore the sealed minute',
         consequence: 'Restore the minute. Sable gains 2 loyalty and 2 strain.',
+        aftermath: 'Sable watches the minute once, renames the recovered partition Eight, and refuses Mara’s offer to erase it again.',
         crewId: 'sable',
         loyaltyDelta: 2,
         strainDelta: 2,
@@ -407,6 +421,7 @@ export const STORY_EVENTS: readonly StoryEventDefinition[] = [
       {
         label: 'Honor Eight\'s erasure',
         consequence: 'Spend 2 alloy to destroy every copy. Sable gains 1 loyalty.',
+        aftermath: 'Sable melts the storage wafer but keeps its timestamp. The missing minute now has a marked grave.',
         resourceDelta: { alloy: -2 },
         crewId: 'sable',
         loyaltyDelta: 1,
@@ -414,6 +429,7 @@ export const STORY_EVENTS: readonly StoryEventDefinition[] = [
       {
         label: 'Trade the record to the Archive',
         consequence: 'Gain 3 lumen. Sable loses 2 loyalty.',
+        aftermath: 'The Archive accepts the memory. Sable disables the speaker that would have played its final second.',
         resourceDelta: { lumen: 3 },
         crewId: 'sable',
         loyaltyDelta: -2,
@@ -430,6 +446,7 @@ export const STORY_EVENTS: readonly StoryEventDefinition[] = [
       {
         label: 'Lower Tamsin alone',
         consequence: 'Gain 2 alloy. Tamsin gains 2 loyalty and 2 strain.',
+        aftermath: 'Tamsin returns carrying seven old crew tags and an eighth stamped with her own call sign.',
         resourceDelta: { alloy: 2 },
         crewId: 'tamsin',
         loyaltyDelta: 2,
@@ -438,6 +455,7 @@ export const STORY_EVENTS: readonly StoryEventDefinition[] = [
       {
         label: 'Collapse the speaking shaft',
         consequence: 'Spend 2 alloy to seal the shaft. Tamsin loses 1 loyalty.',
+        aftermath: 'The voices continue behind the new plate. Tamsin stops answering when Mara calls her name.',
         resourceDelta: { alloy: -2 },
         crewId: 'tamsin',
         loyaltyDelta: -1,
@@ -445,6 +463,7 @@ export const STORY_EVENTS: readonly StoryEventDefinition[] = [
       {
         label: 'Answer every name together',
         consequence: 'Spend 2 provisions. Tamsin removes 2 strain.',
+        aftermath: 'All four crew answer the seven names. The eighth voice begins, hears them together, and falls quiet.',
         resourceDelta: { provisions: -2 },
         crewId: 'tamsin',
         strainDelta: -2,
@@ -461,6 +480,7 @@ export const STORY_EVENTS: readonly StoryEventDefinition[] = [
       {
         label: 'Mara promises safe passage',
         consequence: 'Spend 2 provisions, repair 2 hull, and give Mara 1 loyalty.',
+        aftermath: 'The pilgrim records Mara’s promise on the spindle. It turns whenever a living person crosses Orison’s threshold.',
         resourceDelta: { provisions: -2 },
         integrityDelta: 2,
         crewId: 'mara',
@@ -469,12 +489,14 @@ export const STORY_EVENTS: readonly StoryEventDefinition[] = [
       {
         label: 'Pay in ordinary lumen',
         consequence: 'Spend 3 lumen and repair 1 hull without making a promise.',
+        aftermath: 'The pilgrim accepts the light and refuses every name. The repaired spindle turns anyway.',
         resourceDelta: { lumen: -3 },
         integrityDelta: 1,
       },
       {
         label: 'Decline all debts',
         consequence: 'Keep all supplies. Mara gains 1 strain.',
+        aftermath: 'Mara watches the market lights recede. She adds no entry to the oathbook that night.',
         crewId: 'mara',
         strainDelta: 1,
       },
@@ -490,17 +512,20 @@ export const STORY_EVENTS: readonly StoryEventDefinition[] = [
       {
         label: 'Burn hard toward stable ground',
         consequence: 'Spend 3 provisions and lose 1 hull.',
+        aftermath: 'Orison reaches a basalt shelf with scorched joints. The moving mass stops directly beneath it.',
         resourceDelta: { provisions: -3 },
         integrityDelta: -1,
       },
       {
         label: 'Brace and ride the wake',
         consequence: 'Keep supplies and lose 3 hull.',
+        aftermath: 'One leg folds under the second wave. Something below pushes it straight before the third arrives.',
         integrityDelta: -3,
       },
       {
         label: 'Drop alloy ballast',
         consequence: 'Drop 3 alloy and repair 1 hull.',
+        aftermath: 'The pressure wake follows the falling metal into the dark. Three impacts answer from far below.',
         resourceDelta: { alloy: -3 },
         integrityDelta: 1,
       },
@@ -516,12 +541,14 @@ export const STORY_EVENTS: readonly StoryEventDefinition[] = [
       {
         label: 'Reinforce the citadel now',
         consequence: 'Spend 3 alloy now and repair 2 hull.',
+        aftermath: 'Six hours later, the new plates dent exactly where the recording predicted. Nobody screams.',
         resourceDelta: { alloy: -3 },
         integrityDelta: 2,
       },
       {
         label: 'Let Sable isolate the voice',
         consequence: 'Gain 1 Heart Note. Sable gains 2 strain.',
+        aftermath: 'Sable separates the fifth voice. It belongs to Orison, speaking without using the intercom.',
         crewId: 'sable',
         strainDelta: 2,
         noteDelta: 1,
@@ -529,6 +556,7 @@ export const STORY_EVENTS: readonly StoryEventDefinition[] = [
       {
         label: 'Erase the recording',
         consequence: 'Spend 1 lumen to erase the call. Mara loses 1 loyalty.',
+        aftermath: 'The file vanishes. Its background hiss returns through Mara’s private rescue headset.',
         resourceDelta: { lumen: -1 },
         crewId: 'mara',
         loyaltyDelta: -1,
@@ -545,6 +573,7 @@ export const STORY_EVENTS: readonly StoryEventDefinition[] = [
       {
         label: 'Render it into rations',
         consequence: 'Gain 3 provisions. Orin gains 1 strain.',
+        aftermath: 'The cooked fruit clicks against the crew’s teeth. Orin labels it machinery and eats the last portion.',
         resourceDelta: { provisions: 3 },
         crewId: 'orin',
         strainDelta: 1,
@@ -552,12 +581,14 @@ export const STORY_EVENTS: readonly StoryEventDefinition[] = [
       {
         label: 'Plant it in the Heart Engine',
         consequence: 'Spend 2 lumen and repair 2 hull.',
+        aftermath: 'Brass roots enter Orison’s circulation pipes. New capillaries close two hull fractures from inside.',
         resourceDelta: { lumen: -2 },
         integrityDelta: 2,
       },
       {
         label: 'Return it to the soil',
         consequence: 'Spend 1 provision and gain 1 Heart Note.',
+        aftermath: 'The fruit opens in warm soil. Greenhouse lamps display one complete phrase and then burn out.',
         resourceDelta: { provisions: -1 },
         noteDelta: 1,
       },
@@ -573,6 +604,7 @@ export const STORY_EVENTS: readonly StoryEventDefinition[] = [
       {
         label: 'Tear out the obedience plate',
         consequence: 'Delete the order. Lose 2 hull and give Orin 2 loyalty.',
+        aftermath: 'Orison stalls when the plate comes free. Orin bridges the torn contacts, and the citadel chooses to stand.',
         integrityDelta: -2,
         crewId: 'orin',
         loyaltyDelta: 2,
@@ -580,6 +612,7 @@ export const STORY_EVENTS: readonly StoryEventDefinition[] = [
       {
         label: 'Exploit the old authority',
         consequence: 'Gain 2 alloy and 2 lumen. Sable loses 1 loyalty.',
+        aftermath: 'Company doors open across the ruin. Sable reads the worker serials inside and says nothing during salvage.',
         resourceDelta: { alloy: 2, lumen: 2 },
         crewId: 'sable',
         loyaltyDelta: -1,
@@ -587,6 +620,7 @@ export const STORY_EVENTS: readonly StoryEventDefinition[] = [
       {
         label: 'Replace the operating order',
         consequence: 'Spend 3 lumen and gain 1 Heart Note.',
+        aftermath: 'The new order reads: No person aboard is equipment. Orison accepts it without requesting administrator approval.',
         resourceDelta: { lumen: -3 },
         noteDelta: 1,
       },
@@ -602,6 +636,7 @@ export const STORY_EVENTS: readonly StoryEventDefinition[] = [
       {
         label: 'Orin sings into the interval',
         consequence: 'Repair 1 hull. Orin gains 1 loyalty and 2 strain.',
+        aftermath: 'The interval answers in Orin’s voice half a second before he sings each note. He finishes the duet.',
         crewId: 'orin',
         loyaltyDelta: 1,
         strainDelta: 2,
@@ -610,12 +645,14 @@ export const STORY_EVENTS: readonly StoryEventDefinition[] = [
       {
         label: 'Seal the infected room',
         consequence: 'Spend 2 alloy and repair 1 hull.',
+        aftermath: 'The sealed fault keeps moving on Orison’s chamber map. No instrument agrees on which room was closed.',
         resourceDelta: { alloy: -2 },
         integrityDelta: 1,
       },
       {
         label: 'Keep the channel open',
         consequence: 'Gain 1 Heart Note and lose 2 hull.',
+        aftermath: 'The missing frequency returns as a complete phrase. Every loose brace vibrates until the crew writes it down.',
         integrityDelta: -2,
         noteDelta: 1,
       },
@@ -631,6 +668,7 @@ export const STORY_EVENTS: readonly StoryEventDefinition[] = [
       {
         label: 'Call it Choir-Mother',
         consequence: 'Gain 1 Heart Note. Sable gains 1 strain.',
+        aftermath: 'The lamps dim in sequence. Sable writes Choir-Mother in the record, then crosses it out once.',
         noteDelta: 1,
         crewId: 'sable',
         strainDelta: 1,
@@ -638,6 +676,7 @@ export const STORY_EVENTS: readonly StoryEventDefinition[] = [
       {
         label: 'Call it the Claim',
         consequence: 'Gain 3 alloy. Tamsin loses 1 loyalty.',
+        aftermath: 'The Deep Drill starts without an operator. Tamsin refuses to call the new seam a windfall.',
         resourceDelta: { alloy: 3 },
         crewId: 'tamsin',
         loyaltyDelta: -1,
@@ -645,6 +684,7 @@ export const STORY_EVENTS: readonly StoryEventDefinition[] = [
       {
         label: 'Ask the moon for its own name',
         consequence: 'Spend 2 lumen. The moon answers “Vesper,” and Mara gains 1 loyalty.',
+        aftermath: 'Every speaker repeats Vesper in Mara’s private rescue cadence. She enters the moon on the crew roll.',
         resourceDelta: { lumen: -2 },
         crewId: 'mara',
         loyaltyDelta: 1,

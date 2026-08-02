@@ -6,10 +6,10 @@ import type {
 } from './types.ts';
 
 export const FALLBACK_CREW: readonly CrewDefinition[] = [
-  { id: 'mara', name: 'Mara Vey', role: 'Captain', epithet: 'rescue captain', talent: 'Yields food, runs the Drill safely, or braces the Ward.', drawback: 'Gains strain when a refuge is abandoned.', vow: 'Bring everyone home.', signature: 'Holdfast', color: '#dca86b' },
-  { id: 'tamsin', name: 'Tamsin Rook', role: 'Delver', epithet: 'deep-vein miner', talent: 'Rests in the Heart or pushes rooms for alloy.', drawback: 'Takes 1 extra strain on severe missions.', vow: 'Recover her first crew\'s tags.', signature: 'Redline', color: '#ef715f' },
-  { id: 'orin', name: 'Orin Vale', role: 'Citadel Engineer', epithet: 'systems lead', talent: 'Repairs Orison from any starter room.', drawback: 'Produces less alloy on the Drill.', vow: 'Teach Orison a new signal.', signature: 'Counterhymn', color: '#70cbb9' },
-  { id: 'sable', name: 'Sable-9', role: 'Survey Synthetic', epithet: 'ninth memory build', talent: 'Records lumen in the Heart or Drill. Reveals faults from the Ward, leadership, or Resonance.', drawback: 'Cannot recover strain in the Heart Engine.', vow: 'Recover Sable-8\'s deleted minute.', signature: 'Second Sight', color: '#8ebcf4' },
+  { id: 'mara', name: 'Mara Vey', role: 'Captain', epithet: 'rescue captain', talent: 'Yields food, runs the Drill safely, or braces the Ward.', drawback: 'Gains strain when a refuge is abandoned.', vow: 'Bring everyone home.', vowAction: 'Advance by completing a mission without hull damage.', signature: 'Holdfast', color: '#dca86b' },
+  { id: 'tamsin', name: 'Tamsin Rook', role: 'Delver', epithet: 'deep-vein miner', talent: 'Rests in the Heart or pushes rooms for alloy.', drawback: 'Takes 1 extra strain on severe missions.', vow: 'Recover her first crew\'s tags.', vowAction: 'Advance when Tamsin works or leads a dangerous mission.', signature: 'Redline', color: '#ef715f' },
+  { id: 'orin', name: 'Orin Vale', role: 'Citadel Engineer', epithet: 'systems lead', talent: 'Repairs Orison from any starter room.', drawback: 'Produces less alloy on the Drill.', vow: 'Teach Orison a new signal.', vowAction: 'Advance when Orin leads, repairs hull, or operates Resonance.', signature: 'Counterhymn', color: '#70cbb9' },
+  { id: 'sable', name: 'Sable-9', role: 'Survey Synthetic', epithet: 'ninth memory build', talent: 'Records lumen in the Heart or Drill. Reveals faults from the Ward, leadership, or Resonance.', drawback: 'Cannot recover strain in the Heart Engine.', vow: 'Recover Sable-8\'s deleted minute.', vowAction: 'Advance by revealing the selected mission fault.', signature: 'Second Sight', color: '#8ebcf4' },
 ];
 
 export const FALLBACK_MODULES: readonly ModuleDefinition[] = [

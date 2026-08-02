@@ -5,7 +5,7 @@ Validated against the local `main` branch on 2026-07-31 with Node 24.14 and npm
 
 ## Rules and balance
 
-- 32 deterministic engine, content, simulation, and evidence-integrity tests pass, including immutability, legal-command
+- 39 deterministic engine, content, simulation, and evidence-integrity tests pass, including immutability, legal-command
   enforcement, save migration, exact replay, scars, loyalty, all endings, development
   deferral, mode-aware emergency repair, Black Descent composition and scoring, route
   leadership, and short-handed runs.
@@ -126,7 +126,7 @@ and 696,000 reconstructed replays passed.
 
 ## Interface and persistence
 
-- 36 Playwright checks pass in Pixel 5 and desktop Chromium projects. They cover title
+- 48 Playwright checks pass in Pixel 5 and desktop Chromium projects. They cover title
   navigation, direct seed entry, settings migration, installation prompt handling and persistent volume, first choice, touch assignment, optional leadership, resolution,
   loadout locking and keyboard selection, all three relic effects, relic resume,
   exact route-cost forecasts, chart hold/swap/refund/reload/return behavior,
@@ -146,7 +146,7 @@ and 696,000 reconstructed replays passed.
   the context offline and reload the full title, fixed seed, CSS, JavaScript, and title
   art successfully in both viewport projects.
 - Axe scans report no detectable violations on the title, manual, loadout, planning,
-  expanded charting, or resource-gated event surfaces in either browser project.
+  expanded charting, room inspector, or resource-gated event surfaces in either browser project.
 - Production static export passes. The bounded E2E runner builds, serves, tests, closes
   its exact child server, and returns in under 35 seconds on this host.
 - Visual inspection at 1440x960 and 390x844 confirmed title composition, Standard and
@@ -160,9 +160,9 @@ and 696,000 reconstructed replays passed.
 
 ## Asset and dependency checks
 
-- The production export currently contains 36 files and 1,315,179 uncompressed bytes.
-  The directly referenced initial shell is 976,998 bytes; JavaScript totals 737,732
-  bytes, imagery 489,093 bytes, and CSS 36,672 bytes. The largest individual file is a
+- The production export currently contains 36 files and 1,357,424 uncompressed bytes.
+  The directly referenced initial shell is 1,019,243 bytes; JavaScript totals 761,961
+  bytes, imagery 489,093 bytes, and CSS 54,622 bytes. The largest individual file is a
   227,538-byte framework chunk. All remain below committed build-breaking budgets.
 - The export audit found no remote runtime asset references, no missing shell files,
   and no emitted file omitted from the generated service-worker cache.

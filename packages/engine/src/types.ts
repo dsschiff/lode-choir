@@ -16,6 +16,7 @@ export interface CrewDefinition {
   talent: string;
   drawback: string;
   vow: string;
+  vowAction: string;
   signature: string;
   color: string;
 }
@@ -91,6 +92,7 @@ export interface RoomAssignmentForecast {
 export interface EventChoice {
   label: string;
   consequence: string;
+  aftermath?: string;
   resourceDelta?: Partial<Record<ResourceId, number>>;
   integrityDelta?: number;
   crewId?: CrewId;

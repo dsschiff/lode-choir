@@ -44,6 +44,8 @@ type Surface = 'title' | 'loadout' | 'prologue' | 'game' | 'manual' | 'chronicle
 type Settings = { muted: boolean; highContrast: boolean; reducedMotion: boolean; volume: number };
 type SavePreview = { seed: string; shift: number; relicName: string | null; runMode: RunMode };
 type ProgressBackup = { game: 'lode-choir-backup'; version: 1; autosave: string | null; legacy: string; settings: Settings };
+type ShiftReport = { shift: number; events: EngineEvent[]; resources: GameState['resources']; integrity: number; heartNotes: number };
+type DecisionReport = { shift: number; title: string; speaker: CrewId | 'orison'; choice: string; consequence: string; aftermath?: string };
 type InstallPromptEvent = Event & {
   prompt: () => Promise<void>;
   userChoice: Promise<{ outcome: 'accepted' | 'dismissed' }>;
@@ -242,10 +244,18 @@ function CrewCard({ crew, selected, assigned, shift, onSelect, onUnassign }: {
       >
         <i style={{ width: `${Math.min(100, (crew.strain / 6) * 100)}%` }} />
       </div>
+      <div className="crew-arc" aria-label={`${crew.name} personal progression`}>
+        <span><b>VOW</b><i>{Array.from({ length: 3 }, (_, index) => <em key={index} className={index < crew.vowProgress ? 'is-filled' : ''} />)}</i><small>{crew.vowProgress}/3</small></span>
+        <span><b>TRUST</b><i>{Array.from({ length: 3 }, (_, index) => <em key={index} className={index < Math.max(0, crew.loyalty) ? 'is-filled' : ''} />)}</i><small>{crew.loyalty}/3</small></span>
+        <strong className={crew.signatureUnlocked ? 'is-awakened' : ''}>{crew.signatureUnlocked ? 'SIGNATURE ACTIVE' : 'SIGNATURE LOCKED'}</strong>
+      </div>
       <details>
-        <summary>Vow · {crew.vowProgress}/3 <span>{crew.loyalty} loyalty</span></summary>
-        <p>{crew.vow}</p>
-        <p><em>{crew.signatureUnlocked ? `Awakened: ${crew.signature}` : `Talent: ${crew.talent}`}</em></p>
+        <summary>Open dossier <span>{crew.epithet}</span></summary>
+        <p><b>VOW</b> {crew.vow}</p>
+        <p><b>ADVANCE</b> {crew.vowAction}</p>
+        <p><b>TALENT</b> {crew.talent}</p>
+        <p><b>PRESSURE</b> {crew.drawback}</p>
+        <p><b>{crew.signatureUnlocked ? 'ACTIVE SIGNATURE' : 'UNLOCK AT 3 TRUST'}</b> {crew.signature}</p>
         {crew.scar && <p className="scar">Scar: {crew.scar}</p>}
       </details>
     </article>
@@ -310,6 +320,49 @@ function Citadel({ view, selectedCrew, selectedBuildSlot, onRoom, onEmpty }: {
         <span>{selectedCrew ? 'Choose a room for the selected crew member.' : 'Staff rooms in the mission planner below. Adjacent rooms may improve output.'}</span>
       </div>
     </section>
+  );
+}
+
+function RoomInspector({ view, slot, onClose }: { view: GameView; slot: number; onClose: () => void }) {
+  const module = view.modules.find((candidate) => candidate.slot === slot);
+  useEffect(() => {
+    const closeOnEscape = (event: KeyboardEvent) => { if (event.key === 'Escape') onClose(); };
+    window.addEventListener('keydown', closeOnEscape);
+    return () => window.removeEventListener('keydown', closeOnEscape);
+  }, [onClose]);
+  if (!module) return null;
+  const assigned = view.crew.find((crew) => crew.id === module.assignedCrew);
+  const neighbors = view.modules.filter((candidate) => {
+    const leftRow = Math.floor(slot / 3);
+    const rightRow = Math.floor(candidate.slot / 3);
+    return Math.abs(leftRow - rightRow) + Math.abs((slot % 3) - (candidate.slot % 3)) === 1;
+  });
+  return (
+    <div className="room-inspector-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose(); }}>
+      <section className="room-inspector" role="dialog" aria-modal="true" aria-labelledby="room-inspector-title" data-testid="room-inspector">
+        <button type="button" className="inspector-close" onClick={onClose} aria-label="Close room inspection">×</button>
+        <div className="inspector-heading">
+          <span className="room inspector-machine-wrap" data-module={module.id} aria-hidden="true"><span className="room-machine inspector-machine"><i /><i /><i /><b>{MODULE_MARKS[module.id]}</b></span></span>
+          <span><small>CHAMBER {String(slot + 1).padStart(2, '0')} // LEVEL {module.level}</small><h2 id="room-inspector-title">{module.name}</h2><p>{module.description}</p></span>
+        </div>
+        <div className="inspector-status">
+          <span><b>THIS SHIFT</b>{assigned ? `${assigned.name} is assigned.` : 'No operator assigned.'}</span>
+          <span><b>ADJACENT</b>{neighbors.length > 0 ? neighbors.map((neighbor) => neighbor.name).join(' · ') : 'No working rooms.'}</span>
+          <span><b>UPGRADE</b>{module.upgradeCost === null ? 'Maximum level reached.' : `${module.upgradeCost} alloy to reach level ${module.level + 1}.`}</span>
+        </div>
+        {module.forecast && <div className="inspector-output"><span>CURRENT OUTPUT</span>{roomForecastLabels(module.forecast).map((label) => <b key={label}>{label}</b>)}{module.forecast.conditions.map((condition) => <em key={condition}>{condition}</em>)}</div>}
+        <div className="inspector-rule"><span>ROOM RULE</span><p>{module.assignmentHint}</p></div>
+        <div className="specialist-matrix" aria-label={`${module.name} crew effects`}>
+          <span>WHO SHOULD WORK HERE?</span>
+          {view.crew.map((crew) => {
+            const forecast = forecastRoomAssignment(view.state as GameState, slot, crew.id);
+            const effects = [...roomForecastLabels(forecast), ...forecast.conditions];
+            return <article key={crew.id}><img src={`${BASE_PATH}/art/crew-${crew.id}.webp`} width="720" height="720" alt="" /><span><strong>{crew.name}</strong><p>{effects.join(' · ') || 'No immediate output.'}</p></span></article>;
+          })}
+        </div>
+        <button type="button" className="inspector-done" onClick={onClose}>RETURN TO ORISON</button>
+      </section>
+    </div>
   );
 }
 
@@ -557,7 +610,7 @@ function RoutePanel({ view, chartStatus, onSelect, onReserve, onClearReservation
   );
 }
 
-function EventPanel({ view, onChoose }: { view: GameView; onChoose: (choiceIndex: number) => void }) {
+function EventPanel({ view, report, onChoose }: { view: GameView; report: ShiftReport | null; onChoose: (choiceIndex: number) => void }) {
   const event = view.activeStoryEvent;
   if (!event) return <p className="empty-message">No event signal was received.</p>;
   const speaker = view.crew.find((crew) => crew.id === event.speaker);
@@ -579,10 +632,18 @@ function EventPanel({ view, onChoose }: { view: GameView; onChoose: (choiceIndex
   };
   return (
     <section className="event-panel" aria-labelledby="event-title" data-testid="event-panel">
-      <span className="kicker">MISSION EVENT // {speaker?.name ?? 'ORISON'}</span>
-      <ToneMark active />
+      {report && <aside className="shift-report" data-testid="shift-report">
+        <div><span>SHIFT {report.shift} // FIELD REPORT</span><strong>What your plan did</strong></div>
+        <ul>{report.events.map((result) => <li key={result.id} data-kind={result.kind}><i />{result.text}</li>)}</ul>
+        <footer><span>PRO <b>{report.resources.provisions}</b></span><span>ALY <b>{report.resources.alloy}</b></span><span>LUM <b>{report.resources.lumen}</b></span><span>HULL <b>{report.integrity}</b></span><span>NOTES <b>{report.heartNotes}/3</b></span></footer>
+      </aside>}
+      <div className="event-speaker">
+        {speaker ? <span className="crew-portrait event-portrait" style={{ '--crew-color': speaker.color } as React.CSSProperties}><img src={`${BASE_PATH}/art/crew-${speaker.id}.webp`} width="720" height="720" alt="" /></span> : <ToneMark active />}
+        <span><small className="kicker">MISSION EVENT // {speaker?.name ?? 'ORISON'}</small><strong>{speaker ? speaker.role : 'LIVING CITADEL'}</strong>{speaker && <em>VOW {speaker.vowProgress}/3 · TRUST {speaker.loyalty}/3</em>}</span>
+      </div>
       <h2 id="event-title">{event.title}</h2>
       <p className="event-body">{event.body}</p>
+      {speaker && <p className="event-vow"><b>{speaker.name.toUpperCase()} WANTS</b> {speaker.vow}</p>}
       <div className="choice-list">
         {event.choices.map((choice, index) => {
           const effects = effectLabels(choice);
@@ -894,6 +955,20 @@ function SettingsPage({ settings, installStatus, onChange, onInstall, onCreateBa
   );
 }
 
+function DecisionEcho({ view, report }: { view: GameView; report: DecisionReport }) {
+  const speaker = report.speaker === 'orison' ? null : view.crew.find((crew) => crew.id === report.speaker);
+  return (
+    <aside className="decision-echo" data-testid="decision-echo">
+      <div className="decision-witness">
+        {speaker ? <span className="crew-portrait" style={{ '--crew-color': speaker.color } as React.CSSProperties}><img src={`${BASE_PATH}/art/crew-${speaker.id}.webp`} width="720" height="720" alt="" /></span> : <span className="decision-orison" aria-hidden="true">LC</span>}
+        <span><small>LAST DECISION // SHIFT {report.shift}</small><strong>{report.title}</strong></span>
+      </div>
+      <p><b>{report.choice}</b> {report.consequence}</p>
+      {report.aftermath && <blockquote>{report.aftermath}</blockquote>}
+    </aside>
+  );
+}
+
 function loadLegacy(value: string | null): LegacyState {
   if (!value) return createLegacyState();
   try {
@@ -1083,6 +1158,7 @@ export function GameApp() {
   const [view, setView] = useState<GameView | null>(null);
   const [selectedCrew, setSelectedCrew] = useState<CrewId | null>(null);
   const [selectedBuildSlot, setSelectedBuildSlot] = useState<number | null>(null);
+  const [inspectedRoomSlot, setInspectedRoomSlot] = useState<number | null>(null);
   const [selectedRelic, setSelectedRelic] = useState<RelicId | null>(null);
   const [selectedRunMode, setSelectedRunMode] = useState<RunMode>('standard');
   const [settings, setSettings] = useState<Settings>(DEFAULT_SETTINGS);
@@ -1091,6 +1167,8 @@ export function GameApp() {
   const [savePreview, setSavePreview] = useState<SavePreview | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [feedback, setFeedback] = useState<EngineEvent[]>([]);
+  const [shiftReport, setShiftReport] = useState<ShiftReport | null>(null);
+  const [decisionReport, setDecisionReport] = useState<DecisionReport | null>(null);
   const [chartStatus, setChartStatus] = useState<string | null>(null);
   const [installPrompt, setInstallPrompt] = useState<InstallPromptEvent | null>(null);
   const [installStatus, setInstallStatus] = useState<InstallStatus>('browser');
@@ -1161,7 +1239,10 @@ export function GameApp() {
     setView(selectGameView(state));
     setSelectedCrew(null);
     setSelectedBuildSlot(null);
+    setInspectedRoomSlot(null);
     setFeedback([]);
+    setShiftReport(null);
+    setDecisionReport(null);
     setChartStatus(null);
     setNotice(null);
     recordedCompletion.current = null;
@@ -1182,6 +1263,9 @@ export function GameApp() {
     try {
       const state = deserialize(payload);
       setView(selectGameView(state));
+      setShiftReport(null);
+      setDecisionReport(null);
+      setInspectedRoomSlot(null);
       setSurface('game');
       setNotice(null);
       setChartStatus(null);
@@ -1200,8 +1284,34 @@ export function GameApp() {
     const current = stateRef.current;
     if (!current) return;
     try {
+      let chosenDecision: DecisionReport | null = null;
+      if (command.type === 'choose_event' && current.activeEvent) {
+        const activeEvent = selectGameView(current).activeStoryEvent;
+        const choice = activeEvent?.choices[command.choiceIndex];
+        if (activeEvent && choice) {
+          chosenDecision = {
+            shift: current.shift,
+            title: activeEvent.title,
+            speaker: activeEvent.speaker,
+            choice: choice.label,
+            consequence: choice.consequence,
+            ...(choice.aftermath ? { aftermath: choice.aftermath } : {}),
+          };
+        }
+      }
       const result = applyCommand(current, command);
       setView(selectGameView(result.state));
+      if (command.type === 'resolve_shift') {
+        setDecisionReport(null);
+        setShiftReport({
+          shift: current.shift,
+          events: result.events.filter((event) => event.kind !== 'story' && event.kind !== 'ending'),
+          resources: { ...result.state.resources },
+          integrity: result.state.integrity,
+          heartNotes: result.state.heartNotes,
+        });
+      }
+      if (chosenDecision) setDecisionReport(chosenDecision);
       const releasedBySelection = command.type === 'select_route' && current.reservedRoute === command.instanceId;
       const chartCommand = command.type === 'reserve_route' || command.type === 'clear_route_reservation' || releasedBySelection;
       if (command.type === 'reserve_route') setChartStatus(current.reservedRoute ? 'Chart updated.' : 'Route charted for the next forecast.');
@@ -1284,6 +1394,7 @@ export function GameApp() {
     setChartStatus(null);
     setSelectedCrew(null);
     setSelectedBuildSlot(null);
+    setInspectedRoomSlot(null);
     recordedCompletion.current = null;
     if (restored.run) {
       localStorage.setItem(AUTOSAVE_KEY, serialize(restored.run));
@@ -1325,8 +1436,8 @@ export function GameApp() {
   if (!view) return null;
 
   const onRoom = (slot: number) => {
-    if (view.state.phase === 'development') { setSelectedBuildSlot(slot); return; }
-    if (selectedCrew) dispatch({ type: 'assign_crew', crewId: selectedCrew, slot });
+    if (selectedCrew && view.state.phase === 'planning') { dispatch({ type: 'assign_crew', crewId: selectedCrew, slot }); return; }
+    setInspectedRoomSlot(slot);
   };
 
   return (
@@ -1344,12 +1455,14 @@ export function GameApp() {
       </header>
       {notice && <div className="game-notice" role="status">{notice}<button onClick={() => setNotice(null)} aria-label="Dismiss">×</button></div>}
       {feedback.length > 0 && <div className="feedback-stack" aria-live="polite">{feedback.map((event) => <span className={`feedback ${event.emphasis ?? ''}`} key={event.id}>{event.text}</span>)}</div>}
+      {inspectedRoomSlot !== null && <RoomInspector view={view} slot={inspectedRoomSlot} onClose={() => setInspectedRoomSlot(null)} />}
       <main className="game-shell">
         <h1 className="sr-only">Lode Choir expedition</h1>
         <Citadel view={view} selectedCrew={selectedCrew} selectedBuildSlot={selectedBuildSlot} onRoom={onRoom} onEmpty={setSelectedBuildSlot} />
         <aside className="command-deck">
+          {decisionReport && view.state.phase !== 'event' && view.state.phase !== 'complete' && <DecisionEcho view={view} report={decisionReport} />}
           {view.state.phase === 'planning' && <RoutePanel view={view} chartStatus={chartStatus} onSelect={(instanceId) => dispatch({ type: 'select_route', instanceId })} onReserve={(instanceId) => dispatch({ type: 'reserve_route', instanceId })} onClearReservation={() => dispatch({ type: 'clear_route_reservation' })} onAssign={(crewId, slot) => dispatch({ type: 'assign_crew', crewId, slot })} onUnassign={(crewId) => dispatch({ type: 'unassign_crew', crewId })} onLeader={(crewId) => dispatch({ type: 'assign_route_leader', crewId })} onUnassignLeader={(crewId) => dispatch({ type: 'unassign_crew', crewId })} onResolve={() => dispatch({ type: 'resolve_shift' })} />}
-          {view.state.phase === 'event' && <EventPanel view={view} onChoose={(choiceIndex) => dispatch({ type: 'choose_event', choiceIndex })} />}
+          {view.state.phase === 'event' && <EventPanel view={view} report={shiftReport} onChoose={(choiceIndex) => dispatch({ type: 'choose_event', choiceIndex })} />}
           {view.state.phase === 'development' && <DevelopmentPanel view={view} slot={selectedBuildSlot} onSlot={setSelectedBuildSlot} onBuild={(moduleId, slot) => dispatch({ type: 'build_module', moduleId, slot })} onUpgrade={(slot) => dispatch({ type: 'upgrade_module', slot })} onRepair={() => dispatch({ type: 'repair_citadel' })} onSkip={() => dispatch({ type: 'skip_development' })} />}
           {view.state.phase === 'finale' && <FinalePanel view={view} onChoose={(endingId) => dispatch({ type: 'choose_ending', endingId })} />}
           {view.state.phase === 'complete' && <CompletionPanel view={view} onNewRun={() => prepareLoadout(makeSeed())} onChronicle={() => openMenuPage('chronicle')} />}

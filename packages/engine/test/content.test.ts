@@ -60,6 +60,19 @@ test('story events offer tagged, state-changing choices', () => {
   }
 });
 
+test('crew vows explain the action that advances them', () => {
+  for (const crew of CREW) {
+    assert.ok(crew.vow.length >= 12, `${crew.id} needs a concrete vow`);
+    assert.match(crew.vowAction, /^Advance /, `${crew.id} needs an actionable vow rule`);
+  }
+});
+
+test('every story decision carries a concrete aftermath into the next phase', () => {
+  for (const event of STORY_EVENTS) for (const choice of event.choices) {
+    assert.ok(choice.aftermath && choice.aftermath.length >= 45, `${event.id}/${choice.label} needs authored aftermath`);
+  }
+});
+
 test('every route can surface authored story and every lore key is reachable', () => {
   const routeTags = new Set(ROUTES.map((route) => route.storyTag));
   const eventTags = new Set(STORY_EVENTS.flatMap((event) => event.tags));

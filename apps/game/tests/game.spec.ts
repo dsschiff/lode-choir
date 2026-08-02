@@ -107,9 +107,71 @@ test('guided planner explains missing steps and deploys with inline staffing', a
   await expect(action).toContainText('DEPLOY MISSION');
   await action.click();
   await expect(page.getByTestId('event-panel')).toBeVisible();
+  await expect(page.getByTestId('shift-report')).toContainText('What your plan did');
+  await expect(page.getByTestId('shift-report')).toContainText('Heart Engine: +2 provisions.');
+  await expect(page.getByTestId('shift-report')).toContainText('Deep Drill: +5 alloy.');
+  const eventTitle = await page.getByTestId('event-panel').getByRole('heading').innerText();
   await page.locator('[data-testid^="event-choice-"]:enabled').first().click();
+  await expect(page.getByTestId('decision-echo')).toContainText(eventTitle);
+  await expect(page.getByTestId('decision-echo').locator('blockquote')).not.toBeEmpty();
   await expect(page.getByRole('heading', { name: 'Prepare this shift' })).toBeVisible();
   await expect(page.locator('.planner-step-heading small')).toHaveCount(0);
+});
+
+test('crew cards expose actionable vows, trust, pressure, and signatures', async ({ page }) => {
+  await beginRun(page);
+  await page.evaluate(() => {
+    const state = window.__LODE_CHOIR__?.getState();
+    if (!state) throw new Error('Test hook unavailable.');
+    const mara = state.crew.find((crew) => crew.id === 'mara');
+    if (!mara) throw new Error('Mara unavailable.');
+    mara.vowProgress = 2;
+    mara.loyalty = 3;
+    mara.signatureUnlocked = true;
+    window.__LODE_CHOIR__?.refresh();
+  });
+  const card = page.getByTestId('crew-mara').locator('..');
+  await expect(card.locator('.crew-arc')).toContainText('VOW');
+  await expect(card.locator('.crew-arc')).toContainText('2/3');
+  await expect(card.locator('.crew-arc')).toContainText('TRUST');
+  await expect(card.locator('.crew-arc')).toContainText('SIGNATURE ACTIVE');
+  await card.getByText('Open dossier').click();
+  await expect(card).toContainText('Advance by completing a mission without hull damage.');
+  await expect(card).toContainText('Mara gains strain when the crew abandons a refuge.');
+  await expect(card).toContainText('Holdfast: Mara adds 2 extra protection');
+});
+
+test('built rooms open a visual inspector with level-specific crew tradeoffs', async ({ page }) => {
+  await beginRun(page);
+  await page.getByTestId('room-0').click();
+  const inspector = page.getByTestId('room-inspector');
+  await expect(inspector).toBeVisible();
+  await expect(inspector.getByRole('heading', { name: 'Heart Engine' })).toBeVisible();
+  await expect(inspector.locator('.inspector-machine')).toBeVisible();
+  await expect(inspector).toContainText('CHAMBER 01 // LEVEL 1');
+  await expect(inspector).toContainText('6 alloy to reach level 2.');
+  await expect(inspector.locator('.specialist-matrix article')).toHaveCount(4);
+  await expect(inspector).toContainText('Mara stretches the ration yield.');
+  await expect(inspector).toContainText('Sable cannot rest here.');
+  const inspectorScan = await new AxeBuilder({ page }).include('[data-testid="room-inspector"]').analyze();
+  expect(inspectorScan.violations, JSON.stringify(inspectorScan.violations, null, 2)).toEqual([]);
+  await page.getByRole('button', { name: 'Close room inspection' }).click();
+  await expect(inspector).toHaveCount(0);
+
+  await page.evaluate(() => {
+    const state = window.__LODE_CHOIR__?.getState();
+    if (!state) throw new Error('Test hook unavailable.');
+    state.phase = 'development';
+    state.shift = 2;
+    state.resources.alloy = 3;
+    state.developmentChoices = ['heart_engine', 'deep_drill', 'ward_array', 'foundry', 'infirmary', 'resonance_chamber'];
+    window.__LODE_CHOIR__?.refresh();
+  });
+  await expect(page.getByTestId('room-3')).toHaveClass(/is-selected/);
+  await page.getByTestId('room-0').click();
+  await expect(page.getByTestId('room-inspector')).toBeVisible();
+  await page.getByRole('button', { name: 'Close room inspection' }).click();
+  await expect(page.getByTestId('room-3')).toHaveClass(/is-selected/);
 });
 
 test('a pasted expedition seed starts the matching signal', async ({ page }) => {

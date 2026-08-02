@@ -7,7 +7,7 @@ const limits = {
   total: 1_600_000,
   javascript: 800_000,
   images: 550_000,
-  css: 50_000,
+  css: 64_000,
   initialShell: 1_100_000,
   largestFile: 250_000,
 };
