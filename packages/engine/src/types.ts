@@ -50,6 +50,7 @@ export interface RouteDefinition {
   id: string;
   title: string;
   kind: RouteKind;
+  focusCrew: CrewId;
   description: string;
   storyLead: string;
   rewardText: string;

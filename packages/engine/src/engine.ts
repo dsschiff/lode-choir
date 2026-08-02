@@ -366,12 +366,14 @@ function progressVow(state: GameState, crewId: CrewId, events: EngineEvent[]): v
   const crew = state.crew.find((candidate) => candidate.id === crewId);
   if (!crew || crew.vowProgress >= 3) return;
   crew.vowProgress += 1;
+  const definition = effectiveCrew().find((candidate) => candidate.id === crewId);
   if (crew.vowProgress === 2) increaseLoyalty(state, crewId, 1, events);
   if (crew.vowProgress === 3) {
     increaseLoyalty(state, crewId, 1, events);
-    const definition = effectiveCrew().find((candidate) => candidate.id === crewId);
     emit(state, events, 'progress', `${definition?.name ?? crewId} fulfills a personal vow.`, 'mystic');
   }
+  appendLog(state, 'crew', `${definition?.name ?? crewId} advances a vow (${crew.vowProgress}/3): ${definition?.vow ?? 'Unfinished work.'}`);
+  emit(state, events, 'progress', `${definition?.name ?? crewId} advances a vow to ${crew.vowProgress}/3.`, 'positive');
 }
 
 interface RoomResolution {
@@ -611,6 +613,7 @@ function resolveRoute(state: GameState, room: RoomResolution, events: EngineEven
   const offer = state.routeOffers.find((candidate) => candidate.instanceId === state.selectedRoute)!;
   const route = routeDefinition(offer.routeId);
   const leader = state.routeLeader;
+  const focusProgressBefore = state.crew.find((crew) => crew.id === route.focusCrew)!.vowProgress;
   for (const [id, amount] of Object.entries(projectedRouteRewards(state, offer, leader)) as [ResourceId, number][]) addResource(state, id, amount);
   const noteProgress = projectedRouteHeartNotes(state, offer);
   state.heartNotes = Math.min(3, state.heartNotes + noteProgress);
@@ -660,6 +663,8 @@ function resolveRoute(state: GameState, room: RoomResolution, events: EngineEven
   if (route.hazard >= 3 && (leader === 'tamsin' || state.modules.some((module) => module.assignedCrew === 'tamsin'))) progressVow(state, 'tamsin', events);
   if (leader === 'orin' || room.repair > 0 || state.modules.some((module) => module.id === 'resonance_chamber' && module.assignedCrew === 'orin')) progressVow(state, 'orin', events);
   if (offer.revealed) progressVow(state, 'sable', events);
+  const focusCrew = state.crew.find((crew) => crew.id === route.focusCrew)!;
+  if (focusCrew.vowProgress === focusProgressBefore) progressVow(state, route.focusCrew, events);
 
   state.storyFlags.push(`route:${route.id}`);
   if (!state.storyFlags.includes(`tag:${route.storyTag}`)) state.storyFlags.push(`tag:${route.storyTag}`);

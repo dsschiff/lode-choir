@@ -152,6 +152,24 @@ test('combined room and mission forecasts match the resolved resource and hull t
   );
 });
 
+test('a personal mission advances its focus vow exactly once', () => {
+  let state: GameState | null = null;
+  let instanceId = '';
+  for (let index = 0; index < 200 && !state; index += 1) {
+    const candidate = createRun({ seed: `personal-route-${index}` });
+    const route = selectGameView(candidate).routes.find((offer) => offer.definition.focusCrew === 'mara' && offer.definition.hazard <= 1);
+    if (route) { state = candidate; instanceId = route.instanceId; }
+  }
+  assert.ok(state, 'expected a low-risk Mara mission within bounded seeds');
+  state = applyCommand(state, { type: 'select_route', instanceId }).state;
+  state = applyCommand(state, { type: 'assign_crew', crewId: 'tamsin', slot: 0 }).state;
+  state = applyCommand(state, { type: 'assign_crew', crewId: 'orin', slot: 1 }).state;
+  state = applyCommand(state, { type: 'assign_crew', crewId: 'mara', slot: 2 }).state;
+  const result = applyCommand(state, { type: 'resolve_shift' });
+  assert.equal(result.state.crew.find((crew) => crew.id === 'mara')!.vowProgress, 1);
+  assert.equal(result.events.filter((event) => event.text === 'Mara Vey advances a vow to 1/3.').length, 1);
+});
+
 test('every starter-room crew permutation resolves to its displayed forecast', () => {
   const crewIds = ['mara', 'tamsin', 'orin', 'sable'] as const;
   for (const first of crewIds) for (const second of crewIds) for (const third of crewIds) {

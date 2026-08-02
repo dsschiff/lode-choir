@@ -83,9 +83,13 @@ test('a new expedition explains Orison, Heart Notes, and every crew stake before
   await expect(page.getByRole('heading', { name: 'Prepare this shift' })).toHaveCount(0);
   await page.getByTestId('enter-orison').click();
   await expect(page.locator('.shift-brief')).toContainText('transmitted all four of their names');
+  await expect(page.locator('.route-focus')).toHaveCount(3);
+  await expect(page.locator('.route-focus').first()).toContainText('VOW MISSION');
   await page.getByTestId('route-0').click();
   await expect(page.getByTestId('mission-story')).toContainText('WHY THIS MISSION MATTERS');
   await expect(page.getByTestId('mission-story')).toContainText('KNOWN HAZARD');
+  await expect(page.getByTestId('mission-story').locator('.mission-focus')).toContainText('PERSONAL STAKE');
+  await expect(page.getByTestId('mission-story').locator('.mission-focus')).toContainText('advances');
 });
 
 test('guided planner explains missing steps and deploys with inline staffing', async ({ page }) => {
@@ -110,6 +114,7 @@ test('guided planner explains missing steps and deploys with inline staffing', a
   await expect(page.getByTestId('shift-report')).toContainText('What your plan did');
   await expect(page.getByTestId('shift-report')).toContainText('Heart Engine: +2 provisions.');
   await expect(page.getByTestId('shift-report')).toContainText('Deep Drill: +5 alloy.');
+  await expect(page.getByTestId('shift-report')).toContainText('advances a vow to');
   const eventTitle = await page.getByTestId('event-panel').getByRole('heading').innerText();
   await page.locator('[data-testid^="event-choice-"]:enabled').first().click();
   await expect(page.getByTestId('decision-echo')).toContainText(eventTitle);
@@ -580,9 +585,18 @@ test('the workshop preselects an open chamber and explains build affordability',
   await expect(page.getByTestId('build-foundry')).toHaveText('NEED 1 MORE ALLOY');
   await expect(page.getByTestId('build-infirmary')).toBeEnabled();
   await expect(page.getByTestId('build-infirmary')).toHaveText('BUILD IN CHAMBER 4');
+  await expect(page.getByTestId('placement-foundry')).toContainText('HEART LINK');
+  await page.locator('.slot-picker button').nth(1).click();
+  await expect(page.getByTestId('placement-foundry')).toContainText('DRILL LINK');
+  await expect(page.getByTestId('placement-infirmary')).toContainText('NO LINK BONUS');
+  await page.locator('.slot-picker button').first().click();
   await page.getByTestId('build-infirmary').click();
   const state = await page.evaluate(() => window.__LODE_CHOIR__?.getState());
   expect(state?.modules.some((module) => module.id === 'infirmary' && module.slot === 3)).toBe(true);
+  await expect(page.getByTestId('decision-echo')).toContainText('ORISON CHANGED');
+  await expect(page.getByTestId('decision-echo')).toContainText('Mercy Berth online');
+  await expect(page.getByTestId('decision-echo')).not.toContainText('Additional growth trays');
+  await expect(page.getByTestId('decision-echo')).toContainText('A second pressure berth opens');
 });
 
 test('charted routes hold, swap, refund, survive reload, and return next shift', async ({ page }) => {

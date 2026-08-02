@@ -45,7 +45,7 @@ type Settings = { muted: boolean; highContrast: boolean; reducedMotion: boolean;
 type SavePreview = { seed: string; shift: number; relicName: string | null; runMode: RunMode };
 type ProgressBackup = { game: 'lode-choir-backup'; version: 1; autosave: string | null; legacy: string; settings: Settings };
 type ShiftReport = { shift: number; events: EngineEvent[]; resources: GameState['resources']; integrity: number; heartNotes: number };
-type DecisionReport = { shift: number; title: string; speaker: CrewId | 'orison'; choice: string; consequence: string; aftermath?: string };
+type DecisionReport = { shift: number; label?: string; title: string; speaker: CrewId | 'orison'; choice: string; consequence: string; aftermath?: string };
 type InstallPromptEvent = Event & {
   prompt: () => Promise<void>;
   userChoice: Promise<{ outcome: 'accepted' | 'dismissed' }>;
@@ -96,6 +96,15 @@ const LEADER_EFFECTS: Record<CrewId, string> = {
 };
 
 const RESOURCE_LABELS = { provisions: 'provision', alloy: 'alloy', lumen: 'lumen' } as const;
+
+const MODULE_CHANGE_TEXT: Record<ModuleId, string> = {
+  heart_engine: 'Additional growth trays unfold around the heated core.',
+  deep_drill: 'A second cutting head locks to the main shaft.',
+  ward_array: 'New braces extend from the room into Orison’s legs.',
+  foundry: 'The crucible accepts a hotter smelting cycle.',
+  infirmary: 'A second pressure berth opens beneath the treatment lamps.',
+  resonance_chamber: 'The chamber separates another band of the Heart-Lode signal.',
+};
 
 const SHIFT_BRIEFINGS = [
   '',
@@ -505,6 +514,7 @@ function RoutePanel({ view, chartStatus, onSelect, onReserve, onClearReservation
       <div className="route-list" id="mission-options">
         {view.routes.map((route, index) => {
           const selected = view.state.selectedRoute === route.instanceId;
+          const focus = view.crew.find((crew) => crew.id === route.definition.focusCrew)!;
           return (
             <button
               type="button"
@@ -519,6 +529,7 @@ function RoutePanel({ view, chartStatus, onSelect, onReserve, onClearReservation
                 <span className="route-meta"><span className="route-kind">{route.definition.kind}</span>{route.carried && <span className="route-carried-badge">CHARTED LAST SHIFT</span>}</span>
                 <strong>{route.definition.title}</strong>
                 <small>{route.definition.description}</small>
+                <span className="route-focus"><img src={`${BASE_PATH}/art/crew-${focus.id}.webp`} width="720" height="720" alt="" />{focus.name.toUpperCase()} · VOW MISSION</span>
                 {route.revealed && route.hiddenComplication && <em>Foreseen: {route.hiddenComplication}</em>}
               </span>
               <span className="route-risk"><b>{route.definition.hazard}</b><small>RISK</small></span>
@@ -534,6 +545,10 @@ function RoutePanel({ view, chartStatus, onSelect, onReserve, onClearReservation
         })}
       </div>
       {selectedRoute && <aside className="mission-story" data-testid="mission-story">
+        {(() => {
+          const focus = view.crew.find((crew) => crew.id === selectedRoute.definition.focusCrew)!;
+          return <div className="mission-focus"><img src={`${BASE_PATH}/art/crew-${focus.id}.webp`} width="720" height="720" alt="" /><span><b>{focus.name.toUpperCase()} // PERSONAL STAKE</b><small>Completing this mission advances {focus.name.split(' ')[0]}’s vow once.</small></span></div>;
+        })()}
         <span>WHY THIS MISSION MATTERS</span>
         <p>{selectedRoute.definition.storyLead}</p>
         <small><b>KNOWN HAZARD</b> {selectedRoute.definition.hazardText}</small>
@@ -675,6 +690,18 @@ function DevelopmentPanel({ view, slot, onSlot, onBuild, onUpgrade, onRepair, on
   const canUpgrade = (targetSlot: number) => legal.some((command) => command.type === 'upgrade_module' && command.slot === targetSlot);
   const canRepair = legal.some((command) => command.type === 'repair_citadel');
   const repairAmount = Math.min(2, view.maxIntegrity - view.state.integrity);
+  const placementEffect = (moduleId: ModuleId) => {
+    if (slot === null) return 'Choose a chamber to preview its links.';
+    const neighbors = view.modules.filter((candidate) => {
+      const leftRow = Math.floor(slot / 3);
+      const rightRow = Math.floor(candidate.slot / 3);
+      return Math.abs(leftRow - rightRow) + Math.abs((slot % 3) - (candidate.slot % 3)) === 1;
+    });
+    const effects: string[] = [];
+    if (moduleId !== 'heart_engine' && neighbors.some((neighbor) => neighbor.id === 'heart_engine')) effects.push('HEART LINK · operates 1 level stronger');
+    if (moduleId === 'foundry' && neighbors.some((neighbor) => neighbor.id === 'deep_drill')) effects.push('DRILL LINK · repairs 1 extra hull');
+    return effects.join(' · ') || 'NO LINK BONUS · another chamber may produce more';
+  };
   return (
     <section className="development-panel" aria-labelledby="development-title" data-testid="development-panel">
       <span className="kicker">CITADEL WORKSHOP</span>
@@ -695,7 +722,7 @@ function DevelopmentPanel({ view, slot, onSlot, onBuild, onUpgrade, onRepair, on
           const action = slot === null ? 'CHOOSE CHAMBER' : missingAlloy > 0 ? `NEED ${missingAlloy} MORE ALLOY` : `BUILD IN CHAMBER ${slot + 1}`;
           return <article className={`module-choice ${legalBuild ? 'is-affordable' : ''}`} key={module.id} data-module={module.id}>
             <span className="module-sigil">{MODULE_MARKS[module.id]}</span>
-            <div><strong>{module.name}</strong><p>{module.description}</p><em>{module.assignmentHint}</em><small>COST · {module.buildCost} ALLOY</small></div>
+            <div><strong>{module.name}</strong><p>{module.description}</p><em>{module.assignmentHint}</em><span className="placement-effect" data-testid={`placement-${module.id}`}>{placementEffect(module.id)}</span><small>COST · {module.buildCost} ALLOY</small></div>
             <button type="button" onClick={() => slot !== null && onBuild(module.id, slot)} disabled={!legalBuild} data-testid={`build-${module.id}`}>
               {action}
             </button>
@@ -961,7 +988,7 @@ function DecisionEcho({ view, report }: { view: GameView; report: DecisionReport
     <aside className="decision-echo" data-testid="decision-echo">
       <div className="decision-witness">
         {speaker ? <span className="crew-portrait" style={{ '--crew-color': speaker.color } as React.CSSProperties}><img src={`${BASE_PATH}/art/crew-${speaker.id}.webp`} width="720" height="720" alt="" /></span> : <span className="decision-orison" aria-hidden="true">LC</span>}
-        <span><small>LAST DECISION // SHIFT {report.shift}</small><strong>{report.title}</strong></span>
+        <span><small>{report.label ?? 'LAST DECISION'} // SHIFT {report.shift}</small><strong>{report.title}</strong></span>
       </div>
       <p><b>{report.choice}</b> {report.consequence}</p>
       {report.aftermath && <blockquote>{report.aftermath}</blockquote>}
@@ -1285,6 +1312,7 @@ export function GameApp() {
     if (!current) return;
     try {
       let chosenDecision: DecisionReport | null = null;
+      let orisonChange: DecisionReport | null = null;
       if (command.type === 'choose_event' && current.activeEvent) {
         const activeEvent = selectGameView(current).activeStoryEvent;
         const choice = activeEvent?.choices[command.choiceIndex];
@@ -1299,6 +1327,41 @@ export function GameApp() {
           };
         }
       }
+      if (command.type === 'build_module') {
+        const definition = MODULES.find((module) => module.id === command.moduleId);
+        if (definition) orisonChange = {
+          shift: current.shift,
+          label: 'ORISON CHANGED',
+          title: `${definition.name} online`,
+          speaker: 'orison',
+          choice: `Built in chamber ${command.slot + 1}.`,
+          consequence: `${definition.buildCost} alloy became a permanent working room.`,
+          aftermath: MODULE_CHANGE_TEXT[definition.id],
+        };
+      } else if (command.type === 'upgrade_module') {
+        const module = current.modules.find((candidate) => candidate.slot === command.slot);
+        const definition = module && MODULES.find((candidate) => candidate.id === module.id);
+        if (module && definition) orisonChange = {
+          shift: current.shift,
+          label: 'ORISON CHANGED',
+          title: `${definition.name} reaches level ${module.level + 1}`,
+          speaker: 'orison',
+          choice: `Upgraded chamber ${command.slot + 1}.`,
+          consequence: 'Its base output increases on every later shift.',
+          aftermath: MODULE_CHANGE_TEXT[definition.id],
+        };
+      } else if (command.type === 'repair_citadel') {
+        const repair = Math.min(2, selectGameView(current).maxIntegrity - current.integrity);
+        orisonChange = {
+          shift: current.shift,
+          label: 'ORISON CHANGED',
+          title: 'Emergency plating complete',
+          speaker: 'orison',
+          choice: `Restored ${repair} hull.`,
+          consequence: 'The workshop closed without building or upgrading a room.',
+          aftermath: 'New plates cover the latest fractures. The repaired seams remain visible.',
+        };
+      }
       const result = applyCommand(current, command);
       setView(selectGameView(result.state));
       if (command.type === 'resolve_shift') {
@@ -1312,6 +1375,7 @@ export function GameApp() {
         });
       }
       if (chosenDecision) setDecisionReport(chosenDecision);
+      if (orisonChange) setDecisionReport(orisonChange);
       const releasedBySelection = command.type === 'select_route' && current.reservedRoute === command.instanceId;
       const chartCommand = command.type === 'reserve_route' || command.type === 'clear_route_reservation' || releasedBySelection;
       if (command.type === 'reserve_route') setChartStatus(current.reservedRoute ? 'Chart updated.' : 'Route charted for the next forecast.');
@@ -1319,6 +1383,8 @@ export function GameApp() {
       else setChartStatus(null);
       setFeedback(chartCommand ? [] : result.events.filter((event) => event.kind !== 'ending').slice(-3));
       result.events.slice(-2).forEach((event) => choirAudio.play(event));
+      if (command.type === 'select_route') choirAudio.playCue('select');
+      if (command.type === 'assign_crew' || command.type === 'assign_route_leader' || command.type === 'unassign_crew') choirAudio.playCue('assign');
       if (command.type === 'assign_crew' || command.type === 'assign_route_leader' || command.type === 'unassign_crew') setSelectedCrew(null);
       if (command.type === 'build_module' || command.type === 'upgrade_module' || command.type === 'repair_citadel' || command.type === 'skip_development') setSelectedBuildSlot(null);
       setNotice(null);
@@ -1437,6 +1503,7 @@ export function GameApp() {
 
   const onRoom = (slot: number) => {
     if (selectedCrew && view.state.phase === 'planning') { dispatch({ type: 'assign_crew', crewId: selectedCrew, slot }); return; }
+    choirAudio.playCue('inspect');
     setInspectedRoomSlot(slot);
   };
 

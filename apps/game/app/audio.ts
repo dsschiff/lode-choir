@@ -4,6 +4,8 @@ type AudioWindow = Window & typeof globalThis & {
   webkitAudioContext?: typeof AudioContext;
 };
 
+export type InterfaceCue = 'select' | 'assign' | 'inspect';
+
 class ChoirAudio {
   private context: AudioContext | null = null;
   private enabled = true;
@@ -124,6 +126,31 @@ class ChoirAudio {
       oscillator.connect(gain).connect(this.context.destination);
       oscillator.start(now);
       oscillator.stop(now + 0.32);
+    });
+  }
+
+  playCue(cue: InterfaceCue) {
+    if (!this.enabled || this.volume === 0) return;
+    void this.wake().then(() => {
+      if (!this.context || this.context.state !== 'running') return;
+      const now = this.context.currentTime;
+      const oscillator = this.context.createOscillator();
+      const gain = this.context.createGain();
+      const frequencies: Record<InterfaceCue, [number, number]> = {
+        select: [174.6, 220],
+        assign: [220, 293.7],
+        inspect: [130.8, 164.8],
+      };
+      const [start, end] = frequencies[cue];
+      oscillator.type = cue === 'inspect' ? 'triangle' : 'sine';
+      oscillator.frequency.setValueAtTime(start, now);
+      oscillator.frequency.exponentialRampToValueAtTime(end, now + 0.1);
+      gain.gain.setValueAtTime(0.0001, now);
+      gain.gain.exponentialRampToValueAtTime(Math.max(0.0001, 0.018 * this.volume), now + 0.012);
+      gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.14);
+      oscillator.connect(gain).connect(this.context.destination);
+      oscillator.start(now);
+      oscillator.stop(now + 0.15);
     });
   }
 }
