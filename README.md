@@ -78,8 +78,8 @@ the moon and crew discoveries surfaced by route-tagged events.
 See `docs/VALIDATION.md` for the current balance, browser, accessibility, visual,
 and dependency-audit evidence.
 `npm run verify` also enforces static-export budgets and full offline-cache coverage;
-the current uncompressed initial shell is under 1.1 MB, its gzip estimate is capped at
-475 KB, JavaScript gzip at 300 KB, and CSS at 64 KB.
+the current uncompressed initial shell is under 1 MB, its gzip estimate is capped at
+400 KB, all imagery at 250 KB, JavaScript gzip at 300 KB, and CSS at 64 KB.
 `docs/deep-audit.json` records the latest 10,000-seed, 480,000-run/replay balance soak.
 
 Current review captures: [desktop title](docs/screenshots/title-desktop.jpg),
