@@ -140,7 +140,8 @@ and 696,000 reconstructed replays passed.
   shared URL initialization with invalid-mode fallback, a mobile-accessible in-run
   journal/menu with crew, mission-discovery, and persistent choice-aftermath recap,
   on-duty personal-vow gating,
-  live tactical-read updates, structured four-crew ending codas, Chronicle progression counts,
+  live tactical-read updates with engine-derived post-repair hull ranges, structured
+  four-crew ending codas, Chronicle progression counts,
   Chronicle rematch preparation, a complete seven-shift visible-control win, and test hooks.
   A stubbed Web Audio contract additionally verifies the ambient voices start with an
   active run, stop in menus, remain stopped while muted, resume after unmuting, and stop

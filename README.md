@@ -5,6 +5,8 @@ living citadel Orison through a singing moon.
 
 **Play online:** https://dsschiff.github.io/lode-choir/
 
+**Current release:** Orison build 0.4
+
 ## Commands
 
 ```powershell
@@ -38,7 +40,8 @@ a transparent 1.25× score. The completion ledger exposes every score component 
 copy a seed-linked expedition report for playtest comparison.
 Personal missions now require their named crewmember to staff a chamber or lead the
 expedition: resting prevents strain but forfeits that vow step. The planner updates its
-hull, vow, and post-room ration forecast as assignments change. Victories close with a
+actual surviving-hull range, vow, and post-room ration forecast as assignments change,
+including room repair and hidden-fault uncertainty. Victories close with a
 structured four-character coda whose text responds to each crew arc instead of one
 undifferentiated epilogue paragraph.
 Each of the sixteen missions also presents one authored objection from a second crew

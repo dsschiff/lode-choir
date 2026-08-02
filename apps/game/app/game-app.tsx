@@ -328,7 +328,11 @@ function Citadel({ view, selectedCrew, selectedBuildSlot, onRoom, onEmpty }: {
       </div>
       <div className="citadel-caption">
         <ToneMark active={Boolean(selectedCrew)} />
-        <span>{selectedCrew ? 'Choose a room for the selected crew member.' : 'Staff rooms in the mission planner below. Adjacent rooms may improve output.'}</span>
+        <span>{selectedCrew
+          ? 'Choose a room for the selected crew member.'
+          : view.state.phase === 'development'
+            ? 'Choose a sealed chamber for new construction, or tap a working room to inspect or upgrade it.'
+            : 'Tap a working room to compare all four crew. Staff rooms in the mission planner below.'}</span>
       </div>
     </section>
   );
@@ -564,7 +568,7 @@ function RoutePanel({ view, chartStatus, onSelect, onReserve, onClearReservation
         <small><b>KNOWN HAZARD</b> {selectedRoute.definition.hazardText}</small>
       </aside>}
       {selectedRoute && <aside className="tactical-read" data-testid="tactical-read">
-        <span><small>HULL AFTER MISSION</small><b>{selectedRoute.forecast.hullDamageMax === 0 ? 'NO KNOWN LOSS' : `−${selectedRoute.forecast.hullDamageMin}${selectedRoute.forecast.hullDamageMax !== selectedRoute.forecast.hullDamageMin ? `–${selectedRoute.forecast.hullDamageMax}` : ''} HULL`}</b><em>{selectedRoute.forecast.hullDamageMax === 0 ? 'Current staffing covers the known hazard.' : 'Ward protection or Mara’s leadership can reduce this.'}</em></span>
+        <span className={selectedRoute.forecast.integrityAfterMin === 0 ? 'is-danger' : undefined}><small>HULL AFTER MISSION</small><b>{selectedRoute.forecast.integrityAfterMin}{selectedRoute.forecast.integrityAfterMax !== selectedRoute.forecast.integrityAfterMin ? `–${selectedRoute.forecast.integrityAfterMax}` : ''}/{view.maxIntegrity}</b><em>{selectedRoute.forecast.integrityAfterMin === 0 ? 'This plan can destroy Orison. Add protection or choose another mission.' : selectedRoute.forecast.hullDamageMax === 0 ? 'Current repairs and protection cover the known hazard.' : 'Includes room repairs, protection, and possible hidden damage.'}</em></span>
         <span><small>PERSONAL VOW</small><b>{focusOnDuty ? 'ON DUTY' : 'RESTING'}</b><em>{focusOnDuty ? 'This mission can advance the selected crew arc.' : 'Rest lowers strain but forfeits this mission’s vow step.'}</em></span>
         <span><small>RATION AFTER ROOMS</small><b>{projectedProvisions}</b><em>{projectedProvisions < 1 ? 'The plan cannot pay the mission cost.' : projectedProvisions < 3 ? 'Little reserve remains for leadership or later shifts.' : 'Enough reserve remains for optional leadership.'}</em></span>
       </aside>}
@@ -768,7 +772,11 @@ function FinalePanel({ view, onChoose }: { view: GameView; onChoose: (ending: En
       <span className="kicker">HEART-LODE // FINAL DECISION</span>
       <div className="heart-glyph" aria-hidden="true"><i /><i /><i /></div>
       <h2 id="finale-title">Decide what happens to the Heart-Lode</h2>
-      <p>The mine is open and the moon is responding. Choose the expedition's final order.</p>
+      <p>The mine is open. The three recovered phrases are answering through Orison's rooms.</p>
+      <div className="contract-terms" data-testid="finale-signal">
+        {HEART_NOTE_PHRASES.map((phrase, index) => <span key={phrase}><b>HEART NOTE {index + 1}</b>“{phrase}”</span>)}
+      </div>
+      <p>Choose the expedition's final order.</p>
       <div className="ending-choices">
         {(Object.entries(ENDINGS) as [EndingId, (typeof ENDINGS)[EndingId]][]).map(([id, ending]) => (
           <button type="button" key={id} onClick={() => onChoose(id)} data-testid={`ending-${id}`}>
@@ -1094,7 +1102,7 @@ function ManualPage({ onBack }: { onBack: () => void }) {
       <div className="manual-grid">
         <article><span>01 // PREMISE</span><h2>Listen before you mine</h2><p>Orison is a walking citadel inside the moon Vesper. Heart Notes are complete phrases recovered from a signal below the abandoned mine.</p></article>
         <article><span>02 // MISSION</span><h2>Choose one destination</h2><p>Each mission card shows rewards, hull damage, ration cost, and total crew strain. Risk is already included in the forecast.</p></article>
-        <article><span>03 // ROOMS</span><h2>Staff three rooms</h2><p>Choose one crew member for each room. The planner shows the exact output before you deploy.</p></article>
+        <article><span>03 // ROOMS</span><h2>Staff three rooms</h2><p>There is no universal specialist. Mara favors output and safety, Tamsin trades strain for material, Orin repairs hull, and Sable finds lumen or hidden faults. Tap a working room to compare all four exact outputs.</p></article>
         <article><span>04 // FOURTH CREW</span><h2>Rest or lead</h2><p>The unassigned crew member rests and removes two strain. A leader provides a listed bonus but costs one extra provision.</p></article>
         <article><span>05 // COSTS</span><h2>Watch hull and strain</h2><p>Every mission costs one provision. At four strain, pressure suppresses that crew member’s extra room-output bonus. Six strain causes a scar and makes them unavailable for the next shift.</p></article>
         <article><span>06 // WORKSHOP</span><h2>Improve Orison</h2><p>After shifts two and four, spend alloy to build one room, upgrade one room, or repair two hull. You may also save the alloy.</p></article>
@@ -1264,7 +1272,7 @@ function TitleScreen({ seed, hasSave, savePreview, notice, onSeed, onNew, onCont
           <button type="button" onClick={() => onNavigate('credits')}>Credits</button>
         </nav>
       </section>
-      <span className="build-stamp">ORISON BUILD // 0.3</span>
+      <span className="build-stamp">ORISON BUILD // 0.4</span>
     </main>
   );
 }

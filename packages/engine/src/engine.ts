@@ -727,11 +727,16 @@ function forecastRoute(state: GameState, offer: RouteOffer): RouteForecast {
   const hiddenDamage = offer.hiddenComplication && !certainlyRevealed
     ? projectedDamage(state, offer, leader, false)
     : knownDamage;
+  const hullDamageMin = Math.min(knownDamage, hiddenDamage);
+  const hullDamageMax = Math.max(knownDamage, hiddenDamage);
+  const integrityAfterRooms = Math.min(maximumIntegrity(state), state.integrity + projectedRepair(state));
   return {
     rewards: projectedRouteRewards(state, offer, leader),
     heartNotes: projectedRouteHeartNotes(state, offer),
-    hullDamageMin: Math.min(knownDamage, hiddenDamage),
-    hullDamageMax: Math.max(knownDamage, hiddenDamage),
+    hullDamageMin,
+    hullDamageMax,
+    integrityAfterMin: Math.max(0, integrityAfterRooms - hullDamageMax),
+    integrityAfterMax: Math.max(0, integrityAfterRooms - hullDamageMin),
     provisionCost: leader ? 2 : 1,
     netCrewStrain: projectedNetStrain(state, offer, leader, certainlyRevealed || !offer.hiddenComplication),
   };

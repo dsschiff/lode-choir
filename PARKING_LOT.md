@@ -25,3 +25,12 @@ Reversible decisions recorded during autonomous development. These do not block 
   routes with risk three or higher. The first 10-hull/all-fault prototype pushed matched
   balanced chart-aware wins below the locked viability floor; the revised rule keeps
   information pressure legible without making the middle policy nearly futile.
+- **Heart Note canon:** keep the three decoded signal lines fixed and numbered across
+  routes so the goal has a coherent reveal. Route-specific or randomized Note text stays
+  parked until it can preserve ending ambiguity and exact replay without obscuring the arc.
+- **Crew pressure:** at four strain, suppress only extra room-output talents. A prototype
+  that also removed the room's base level collapsed balanced wins from 122/500 to 25/500;
+  keep the lighter rule unless playtests show pressure is still too easy to ignore.
+- **Mission disagreement:** every mission keeps one authored objection from a second crew
+  member, but objections do not veto selection or create another currency. Add mechanical
+  dissent only if players understand the present survival-versus-vow choice first.

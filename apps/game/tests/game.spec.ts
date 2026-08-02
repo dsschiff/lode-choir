@@ -61,6 +61,7 @@ async function openRunSettings(page: Page) {
 async function resumeRun(page: Page) {
   await page.getByRole('button', { name: /RESUME EXPEDITION/ }).click();
   await expect(page.getByTestId('citadel-grid')).toBeVisible();
+  await expect(page.locator('.citadel-caption')).toContainText('compare all four crew');
 }
 
 async function returnToTitle(page: Page) {
@@ -140,6 +141,7 @@ test('a new expedition explains Orison, Heart Notes, and every crew stake before
   await expect(page.locator('.staffing-crew-options .vow-duty')).toHaveCount(3);
   await expect(page.locator('.mission-checklist')).toContainText('VOW RESTING');
   await expect(page.getByTestId('tactical-read')).toContainText('HULL AFTER MISSION');
+  await expect(page.getByTestId('tactical-read').locator('span').first().locator('b')).toHaveText(/\d+(?:–\d+)?\/12/);
   await expect(page.getByTestId('tactical-read')).toContainText('RATION AFTER ROOMS');
   const focusName = (await page.locator('.route-card.is-selected .route-focus').innerText()).split(' · ')[0]!.trim();
   const focusId = ({ 'MARA VEY': 'mara', 'TAMSIN ROOK': 'tamsin', 'ORIN VALE': 'orin', 'SABLE-9': 'sable' } as const)[focusName as 'MARA VEY' | 'TAMSIN ROOK' | 'ORIN VALE' | 'SABLE-9'];
@@ -208,6 +210,20 @@ test('crew cards expose actionable vows, trust, pressure, and signatures', async
   await expect(card).toContainText('Holdfast: Mara adds 2 extra protection');
 });
 
+test('the tactical read warns when a selected mission can destroy Orison', async ({ page }) => {
+  await beginRun(page);
+  await page.evaluate(() => {
+    const state = window.__LODE_CHOIR__?.getState();
+    if (!state) throw new Error('Test hook unavailable.');
+    state.integrity = 1;
+    state.routeOffers[0]!.routeId = 'rift_red_quiet';
+    window.__LODE_CHOIR__?.command({ type: 'select_route', instanceId: state.routeOffers[0]!.instanceId });
+  });
+  await expect(page.getByTestId('tactical-read').locator('span').first()).toHaveClass(/is-danger/);
+  await expect(page.getByTestId('tactical-read').locator('span').first().locator('b')).toContainText('0/12');
+  await expect(page.getByTestId('tactical-read')).toContainText('This plan can destroy Orison');
+});
+
 test('built rooms open a visual inspector with level-specific crew tradeoffs', async ({ page }) => {
   await beginRun(page);
   await page.getByTestId('room-0').click();
@@ -235,6 +251,7 @@ test('built rooms open a visual inspector with level-specific crew tradeoffs', a
     window.__LODE_CHOIR__?.refresh();
   });
   await expect(page.getByTestId('room-3')).toHaveClass(/is-selected/);
+  await expect(page.locator('.citadel-caption')).toContainText('sealed chamber for new construction');
   await page.getByTestId('room-0').click();
   await expect(page.getByTestId('room-inspector')).toBeVisible();
   await page.getByRole('button', { name: 'Close room inspection' }).click();
@@ -354,8 +371,11 @@ test('deterministic hook can resolve a finale and begin the next inherited desce
     mara.loyalty = 3;
     mara.signatureUnlocked = true;
     mara.scar = 'The Heart-Lode answered in her own voice.';
-    window.__LODE_CHOIR__?.command({ type: 'choose_ending', endingId: 'harmonize' });
+    window.__LODE_CHOIR__?.refresh();
   });
+  await expect(page.getByTestId('finale-signal').locator('span')).toHaveCount(3);
+  await expect(page.getByTestId('finale-signal')).toContainText('ORISON, YOU CARRIED OUR DOOR WITH YOU');
+  await page.getByTestId('ending-harmonize').click();
   await expect(page.getByTestId('completion-panel')).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Join the Choir' })).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Join the Choir' })).toBeFocused();

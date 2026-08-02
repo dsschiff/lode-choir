@@ -378,6 +378,8 @@ h1, h2 { font-family: var(--serif); font-weight: 500; }
 .mission-story > small b { color: var(--danger-400); }
 .tactical-read { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin: 7px 0; }
 .tactical-read > span { min-height: 72px; display: grid; align-content: center; gap: 3px; padding: 8px; border: 1px solid var(--quiet-line); background: rgba(13,18,22,.62); }
+.tactical-read > span.is-danger { border-color: var(--danger-400); background: rgba(229,111,102,.08); }
+.tactical-read > span.is-danger small, .tactical-read > span.is-danger b { color: var(--danger-400); }
 .tactical-read small { color: var(--vein-400); font-size: .44rem; letter-spacing: .06em; }
 .tactical-read b { font: .72rem var(--serif); }
 .tactical-read em { color: var(--bone-300); font-size: .5rem; line-height: 1.35; }

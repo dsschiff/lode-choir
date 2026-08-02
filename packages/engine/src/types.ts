@@ -77,6 +77,8 @@ export interface RouteForecast {
   heartNotes: number;
   hullDamageMin: number;
   hullDamageMax: number;
+  integrityAfterMin: number;
+  integrityAfterMax: number;
   provisionCost: number;
   netCrewStrain: number;
 }

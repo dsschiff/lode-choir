@@ -164,6 +164,11 @@ test('combined room and mission forecasts match the resolved resource and hull t
     resolved.integrity,
     Math.max(0, Math.min(view.maxIntegrity, state.integrity + roomRepair) - selected.forecast.hullDamageMax),
   );
+  assert.equal(selected.forecast.integrityAfterMin, resolved.integrity);
+  assert.equal(
+    selected.forecast.integrityAfterMax,
+    Math.max(0, Math.min(view.maxIntegrity, state.integrity + roomRepair) - selected.forecast.hullDamageMin),
+  );
 });
 
 test('a personal mission advances its focus vow exactly once', () => {
