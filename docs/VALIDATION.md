@@ -102,16 +102,16 @@ Every command trace was independently replayed to an exactly equal terminal stat
 No run violated phase, shift, hull, Heart Note, non-negative integer resource, or crew
 strain bounds; score components, multiplier, and total agreed in every terminal state.
 
-Standard won 95,111/240,000 runs (39.63%) and Black Descent won 78,794/240,000
-(32.83%), a 6.80-point overall difficulty gap. Policy-level results were:
+Standard won 101,650/240,000 runs (42.35%) and Black Descent won 81,271/240,000
+(33.86%), an 8.49-point overall difficulty gap. Policy-level results were:
 
 | Policy | Standard wins / 80,000 | Black wins / 80,000 |
 | --- | ---: | ---: |
-| Conservative | 70,141 (87.68%) | 70,092 (87.62%) |
-| Balanced | 23,516 (29.40%) | 8,292 (10.36%) |
-| Aggressive | 1,454 (1.82%) | 410 (0.51%) |
+| Conservative | 70,357 (87.95%) | 70,271 (87.84%) |
+| Balanced | 24,640 (30.80%) | 8,589 (10.74%) |
+| Aggressive | 6,653 (8.32%) | 2,411 (3.01%) |
 
-The weakest observed win scored 2,665; the strongest observed loss scored 1,706.
+The weakest observed win scored 2,665; the strongest observed loss scored 1,863.
 The complete 48-cell machine-readable record, including repairs, reservations,
 carried selections, mean score, and mean command length, is in `docs/deep-audit.json`.
 A regression test validates its schema, run/replay totals, per-cell completeness, mode
@@ -119,8 +119,8 @@ aggregates, score boundary, rates, and physical ranges before the evidence can p
 
 A disjoint no-write confirmation over 4,500 `confirmation-*` seeds then completed
 216,000 additional runs and exact replays without replacing the canonical artifact.
-Standard won 43,046/108,000; Black Descent won 35,492/108,000; its weakest win was
-2,665 and strongest loss 1,656. Across the two deep passes, 696,000 full expeditions
+Standard won 45,769/108,000; Black Descent won 36,722/108,000; its weakest win was
+2,665 and strongest loss 1,863. Across the two deep passes, 696,000 full expeditions
 and 696,000 reconstructed replays passed.
 
 ## Interface and persistence
