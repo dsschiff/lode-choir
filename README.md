@@ -30,7 +30,8 @@ citadel development or emergency alloy plating. Distinct endings unlock canonica
 carried—one at a time—into later seeded expeditions. One lumen can also chart a declined
 route so it returns in the following shift, adding cross-shift planning without rerolls.
 Completed runs leave deterministic echo scores and a bounded twelve-run history in the
-Chronicle, alongside unlocked endings, relics, and lore. An optional Black Descent
+Chronicle, including each crewmember's final vow, trust, signature, and scar state,
+alongside unlocked endings, relics, and lore. An optional Black Descent
 contract composes with every relic: it starts Orison light, makes unread high-risk
 faults and emergency plating more punishing, archives the mode separately, and awards
 a transparent 1.25× score. The completion ledger exposes every score component and can

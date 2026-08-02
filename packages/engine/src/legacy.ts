@@ -1,5 +1,5 @@
 import { ENDINGS, LORE, ROUTES, STORY_EVENTS } from './data/content.ts';
-import type { EndingId, GameState, LegacyState, RelicId, RunRecord } from './types.ts';
+import type { CrewId, EndingId, GameState, LegacyState, RelicId, RunCrewRecord, RunRecord } from './types.ts';
 
 const RELIC_ALIASES: Readonly<Record<string, RelicId>> = {
   heart_splinter: 'heart_splinter',
@@ -103,6 +103,13 @@ export function recordLegacyRun(legacy: LegacyState, run: GameState): LegacyStat
     score: scoreRun(run),
     scars: run.crew.filter((crew) => crew.scar).length,
     fulfilledVows: run.crew.filter((crew) => crew.vowProgress >= 3).length,
+    crew: run.crew.map((crew) => ({
+      id: crew.id,
+      vowProgress: crew.vowProgress,
+      loyalty: crew.loyalty,
+      scarred: Boolean(crew.scar),
+      signatureUnlocked: crew.signatureUnlocked,
+    })),
   });
   next.records = next.records.slice(0, 12);
   return next;
@@ -114,6 +121,19 @@ export function serializeLegacy(legacy: LegacyState): string {
 
 function normalizeRecords(values: readonly unknown[]): RunRecord[] {
   const validEndings = new Set(ENDINGS.map((ending) => ending.id));
+  const crewIds = new Set<CrewId>(['mara', 'tamsin', 'orin', 'sable']);
+  const normalizeCrew = (crewValues: unknown): RunCrewRecord[] => Array.isArray(crewValues) ? crewValues.flatMap((value) => {
+    if (!value || typeof value !== 'object') return [];
+    const crew = value as Partial<RunCrewRecord>;
+    if (!crewIds.has(crew.id as CrewId)) return [];
+    return [{
+      id: crew.id as CrewId,
+      vowProgress: Math.max(0, Math.min(3, Math.round(crew.vowProgress ?? 0))),
+      loyalty: Math.max(-2, Math.min(5, Math.round(crew.loyalty ?? 0))),
+      scarred: crew.scarred === true,
+      signatureUnlocked: crew.signatureUnlocked === true,
+    }];
+  }).slice(0, 4) : [];
   return values.flatMap((value) => {
     if (!value || typeof value !== 'object') return [];
     const record = value as Partial<RunRecord>;
@@ -142,6 +162,7 @@ function normalizeRecords(values: readonly unknown[]): RunRecord[] {
       score: Math.max(0, Math.round(record.score)),
       scars: Math.max(0, Math.round(record.scars ?? 0)),
       fulfilledVows: Math.max(0, Math.round(record.fulfilledVows ?? 0)),
+      crew: normalizeCrew(record.crew),
     }];
   }).slice(0, 12);
 }

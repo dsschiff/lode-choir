@@ -1,6 +1,7 @@
 'use client';
 
 import {
+  CREW,
   ENDINGS as ENDING_CONTENT,
   LORE,
   MODULES,
@@ -838,6 +839,16 @@ function CompletionPanel({ view, onNewRun, onChronicle }: { view: GameView; onNe
 function Chronicle({ legacy, onRetry, onBack }: { legacy: LegacyState; onRetry: (record: RunRecord) => void; onBack: () => void }) {
   const standardScores = legacy.records.filter((record) => record.runMode === 'standard' && record.scoreVersion === 2).map((record) => record.score);
   const blackScores = legacy.records.filter((record) => record.runMode === 'black_descent' && record.scoreVersion === 2).map((record) => record.score);
+  const crewEchoes = CREW.map((definition) => {
+    const records = legacy.records.flatMap((record) => record.crew).filter((crew) => crew.id === definition.id);
+    return {
+      definition,
+      vows: records.filter((crew) => crew.vowProgress >= 3).length,
+      signatures: records.filter((crew) => crew.signatureUnlocked).length,
+      scars: records.filter((crew) => crew.scarred).length,
+      trust: records.length > 0 ? Math.max(...records.map((crew) => crew.loyalty)) : 0,
+    };
+  });
   return (
     <MenuPage eyebrow="EXPEDITION ARCHIVE" title="The Chronicle" onBack={onBack}>
       <div className="chronicle-summary">
@@ -847,6 +858,13 @@ function Chronicle({ legacy, onRetry, onBack }: { legacy: LegacyState; onRetry: 
         <span><b>{legacy.endings.length}/3</b> recorded endings</span>
         <span><b>{legacy.lore.length}/{LORE.length}</b> lore fragments</span>
       </div>
+      <h2>Crew echoes</h2>
+      <div className="chronicle-crew" data-testid="chronicle-crew">
+        {crewEchoes.map(({ definition, vows, signatures, scars, trust }) => <article key={definition.id}>
+          <img src={`${BASE_PATH}/art/crew-${definition.id}.webp`} width="720" height="720" alt="" />
+          <span><strong>{definition.name}</strong><small>{definition.role}</small><p>{vows} vows kept · {signatures} signatures awakened · {scars} scars carried · best trust {trust}</p></span>
+        </article>)}
+      </div>
       <h2>Recent expeditions</h2>
       {legacy.records.length ? <ol className="run-history">{legacy.records.map((record, index) => {
         const relic = record.startingRelic ? RELICS.find((candidate) => candidate.id === record.startingRelic) : null;
@@ -854,7 +872,11 @@ function Chronicle({ legacy, onRetry, onBack }: { legacy: LegacyState; onRetry: 
         return <li key={`${record.seed}-${index}`}>
           <span className={record.outcome === 'won' ? 'is-win' : 'is-loss'}>{record.outcome === 'won' ? 'CONCORDANT' : 'SILENCED'} · {record.runMode === 'black_descent' ? 'BLACK DESCENT' : 'STANDARD'}</span>
           <strong>{outcome}</strong><b>{record.score}</b>
-          <small>{record.seed} · SHIFT {record.shift}/7 · {record.heartNotes} NOTES · {record.scars} SCARS{relic ? ` · ${relic.name}` : ''}{record.scoreVersion === 1 ? ' · ARCHIVED FORMULA' : record.runMode === 'black_descent' ? ` · BASE ${record.baseScore} × ${record.scoreMultiplier}` : ''}</small>
+          <small>{record.seed} · SHIFT {record.shift}/7 · {record.heartNotes} NOTES · {record.scars} SCARS · {record.fulfilledVows} VOWS{relic ? ` · ${relic.name}` : ''}{record.scoreVersion === 1 ? ' · ARCHIVED FORMULA' : record.runMode === 'black_descent' ? ` · BASE ${record.baseScore} × ${record.scoreMultiplier}` : ''}</small>
+          {record.crew.length > 0 && <div className="run-crew-line">{record.crew.map((crew) => {
+            const definition = CREW.find((candidate) => candidate.id === crew.id)!;
+            return <span key={crew.id}><img src={`${BASE_PATH}/art/crew-${crew.id}.webp`} width="720" height="720" alt="" /><b>{definition.name}</b><small>VOW {crew.vowProgress}/3 · TRUST {crew.loyalty}{crew.signatureUnlocked ? ' · SIGNATURE' : ''}{crew.scarred ? ' · SCAR' : ''}</small></span>;
+          })}</div>}
           <button type="button" onClick={() => onRetry(record)}>PREPARE SAME SIGNAL</button>
         </li>;
       })}</ol> : <p className="empty-message">No completed expeditions yet.</p>}

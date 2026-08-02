@@ -608,6 +608,14 @@ test('full runs terminate and winning runs update legacy without mutating it', (
   assert.equal(updated.records[0]!.scoreMultiplier, 1);
   assert.equal(updated.records[0]!.runMode, 'standard');
   assert.equal(updated.records[0]!.outcome, 'won');
+  assert.equal(updated.records[0]!.crew.length, 4);
+  for (const archivedCrew of updated.records[0]!.crew) {
+    const crew = run.crew.find((candidate) => candidate.id === archivedCrew.id)!;
+    assert.equal(archivedCrew.vowProgress, crew.vowProgress);
+    assert.equal(archivedCrew.loyalty, crew.loyalty);
+    assert.equal(archivedCrew.scarred, Boolean(crew.scar));
+    assert.equal(archivedCrew.signatureUnlocked, crew.signatureUnlocked);
+  }
   assert.deepEqual(deserializeLegacy(serializeLegacy(updated)), updated);
 
   const lost = createRun({ seed: 'legacy-loss' });
@@ -659,6 +667,7 @@ test('full runs terminate and winning runs update legacy without mutating it', (
   assert.equal(migratedRecord.records[0]!.scoreVersion, 1);
   assert.equal(migratedRecord.records[0]!.baseScore, 725);
   assert.equal(migratedRecord.records[0]!.scoreMultiplier, 1);
+  assert.deepEqual(migratedRecord.records[0]!.crew, []);
 
   let history = createLegacyState();
   for (let index = 0; index < 15; index += 1) {

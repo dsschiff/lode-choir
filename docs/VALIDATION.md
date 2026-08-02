@@ -131,7 +131,7 @@ and 696,000 reconstructed replays passed.
   loadout locking and keyboard selection, all three relic effects, relic resume,
   exact route-cost forecasts, chart hold/swap/refund/reload/return behavior,
   autosave previews/resume, unaffordable story-choice gating, corrupt-save recovery,
-  scored Chronicle history, Black Descent keyboard selection, exact preview,
+  scored Chronicle history with four persistent crew-arc records, Black Descent keyboard selection, exact preview,
   save/resume, completion, archive categorization and fresh-run reset, later phase
   surfaces, validated backup rejection/restore across run, Chronicle, and settings,
   exact event-effect labels, score-ledger disclosure, copied seed-and-mode reports,

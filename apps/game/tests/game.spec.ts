@@ -287,6 +287,11 @@ test('deterministic hook can resolve a finale and begin the next inherited desce
     state.phase = 'finale';
     state.shift = 7;
     state.heartNotes = 3;
+    const mara = state.crew.find((crew) => crew.id === 'mara')!;
+    mara.vowProgress = 3;
+    mara.loyalty = 3;
+    mara.signatureUnlocked = true;
+    mara.scar = 'The Heart-Lode answered in her own voice.';
     window.__LODE_CHOIR__?.command({ type: 'choose_ending', endingId: 'harmonize' });
   });
   await expect(page.getByTestId('completion-panel')).toBeVisible();
@@ -310,8 +315,12 @@ test('deterministic hook can resolve a finale and begin the next inherited desce
   await expect(page.getByRole('heading', { name: 'Recent expeditions' })).toBeVisible();
   await expect(page.locator('.chronicle-summary')).toContainText('1/3 recorded endings');
   await expect(page.locator('.chronicle-summary')).toContainText('1/12 lore fragments');
+  await expect(page.getByTestId('chronicle-crew').locator('article')).toHaveCount(4);
+  await expect(page.getByTestId('chronicle-crew').locator('article').filter({ hasText: 'Mara Vey' })).toContainText('1 vows kept · 1 signatures awakened · 1 scars carried · best trust 3');
   await expect(page.locator('.run-history').first()).toContainText(completedSeed!);
   await expect(page.locator('.run-history').first()).toContainText('CONCORDANT');
+  await expect(page.locator('.run-history').first().locator('.run-crew-line > span')).toHaveCount(4);
+  await expect(page.locator('.run-history').first().locator('.run-crew-line > span').filter({ hasText: 'Mara Vey' })).toContainText('VOW 3/3 · TRUST 3 · SIGNATURE · SCAR');
   await page.getByRole('button', { name: /RETURN/ }).click();
   await page.getByRole('button', { name: 'Start another expedition' }).click();
   await expect(page.getByRole('heading', { name: 'Choose starting equipment' })).toBeVisible();

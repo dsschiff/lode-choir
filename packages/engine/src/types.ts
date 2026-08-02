@@ -174,6 +174,15 @@ export interface RunRecord {
   score: number;
   scars: number;
   fulfilledVows: number;
+  crew: RunCrewRecord[];
+}
+
+export interface RunCrewRecord {
+  id: CrewId;
+  vowProgress: number;
+  loyalty: number;
+  scarred: boolean;
+  signatureUnlocked: boolean;
 }
 
 export interface LegacyState {
