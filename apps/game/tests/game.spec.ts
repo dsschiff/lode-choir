@@ -72,6 +72,22 @@ test('new run reaches the first consequential choice immediately', async ({ page
   expect(routeBox?.y).toBeLessThan(crewBox?.y ?? Number.POSITIVE_INFINITY);
 });
 
+test('a new expedition explains Orison, Heart Notes, and every crew stake before planning', async ({ page }) => {
+  await page.getByTestId('new-run').click();
+  await page.getByTestId('begin-descent').click();
+  await expect(page.getByTestId('prologue-screen')).toBeVisible();
+  await expect(page.getByRole('heading', { name: /moon said your names/i })).toBeVisible();
+  await expect(page.getByText(/walking mining citadel/i)).toBeVisible();
+  await expect(page.locator('.contract-terms')).toContainText('Complete phrases recovered from the signal. Three Notes are enough to answer it.');
+  for (const name of ['Mara Vey', 'Tamsin Rook', 'Orin Vale', 'Sable-9']) await expect(page.getByText(name, { exact: true })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Prepare this shift' })).toHaveCount(0);
+  await page.getByTestId('enter-orison').click();
+  await expect(page.locator('.shift-brief')).toContainText('transmitted all four of their names');
+  await page.getByTestId('route-0').click();
+  await expect(page.getByTestId('mission-story')).toContainText('WHY THIS MISSION MATTERS');
+  await expect(page.getByTestId('mission-story')).toContainText('KNOWN HAZARD');
+});
+
 test('guided planner explains missing steps and deploys with inline staffing', async ({ page }) => {
   await beginRun(page);
   const action = page.getByTestId('resolve-shift');
@@ -83,7 +99,7 @@ test('guided planner explains missing steps and deploys with inline staffing', a
   await page.getByTestId('route-0').click();
   await expect(action).toContainText('STAFF 3');
   await page.getByTestId('staff-0-mara').click();
-  await expect(page.getByTestId('staff-room-0')).toContainText('provision +1');
+  await expect(page.getByTestId('staff-room-0')).toContainText('provision +2');
   await page.getByTestId('staff-1-tamsin').click();
   await expect(page.getByTestId('staff-room-1')).toContainText('alloy +5');
   await page.getByTestId('staff-2-orin').click();
@@ -401,6 +417,7 @@ test('Black Descent previews exact conditions, resumes, scores, archives, and re
   const loadoutScan = await new AxeBuilder({ page }).analyze();
   expect(loadoutScan.violations, JSON.stringify(loadoutScan.violations, null, 2)).toEqual([]);
   await page.getByTestId('begin-descent').click();
+  await page.getByTestId('enter-orison').click();
 
   let state = await page.evaluate(() => window.__LODE_CHOIR__?.getState());
   expect(state?.runMode).toBe('black_descent');
@@ -484,6 +501,28 @@ test('damaged Orison can spend alloy on emergency plating at development', async
   expect(state?.shift).toBe(3);
 });
 
+test('the workshop preselects an open chamber and explains build affordability', async ({ page }) => {
+  await beginRun(page);
+  await page.evaluate(() => {
+    const state = window.__LODE_CHOIR__?.getState();
+    if (!state) throw new Error('Test hook unavailable.');
+    state.phase = 'development';
+    state.shift = 2;
+    state.resources.alloy = 3;
+    state.developmentChoices = ['heart_engine', 'deep_drill', 'ward_array', 'foundry', 'infirmary', 'resonance_chamber'];
+    window.__LODE_CHOIR__?.refresh();
+  });
+  await expect(page.getByTestId('development-panel')).toContainText('Chamber 4 selected for construction.');
+  await expect(page.getByTestId('room-3')).toHaveClass(/is-selected/);
+  await expect(page.getByTestId('build-foundry')).toBeDisabled();
+  await expect(page.getByTestId('build-foundry')).toHaveText('NEED 1 MORE ALLOY');
+  await expect(page.getByTestId('build-infirmary')).toBeEnabled();
+  await expect(page.getByTestId('build-infirmary')).toHaveText('BUILD IN CHAMBER 4');
+  await page.getByTestId('build-infirmary').click();
+  const state = await page.evaluate(() => window.__LODE_CHOIR__?.getState());
+  expect(state?.modules.some((module) => module.id === 'infirmary' && module.slot === 3)).toBe(true);
+});
+
 test('charted routes hold, swap, refund, survive reload, and return next shift', async ({ page }) => {
   await beginRun(page);
   await page.getByTestId('route-0').click();
@@ -555,6 +594,7 @@ async function beginRun(page: Page) {
   await expect(page.locator('.relic-card.is-locked input')).toHaveCount(3);
   await expect(page.locator('.relic-card.is-locked input:not(:disabled)')).toHaveCount(0);
   await page.getByTestId('begin-descent').click();
+  await page.getByTestId('enter-orison').click();
 }
 
 test('title, manual, and planning surfaces have no detectable accessibility violations', async ({ page }) => {
@@ -570,6 +610,9 @@ test('title, manual, and planning surfaces have no detectable accessibility viol
   const loadoutScan = await new AxeBuilder({ page }).analyze();
   expect(loadoutScan.violations, JSON.stringify(loadoutScan.violations, null, 2)).toEqual([]);
   await page.getByTestId('begin-descent').click();
+  const prologueScan = await new AxeBuilder({ page }).analyze();
+  expect(prologueScan.violations, JSON.stringify(prologueScan.violations, null, 2)).toEqual([]);
+  await page.getByTestId('enter-orison').click();
   const planningScan = await new AxeBuilder({ page }).analyze();
   expect(planningScan.violations, JSON.stringify(planningScan.violations, null, 2)).toEqual([]);
 });
@@ -619,6 +662,7 @@ test('unlocked Chronicle relics apply canonical starting effects', async ({ page
     await page.getByTestId('new-run').click();
     await page.getByRole('radio', { name: new RegExp(name, 'i') }).check();
     await page.getByTestId('begin-descent').click();
+    await page.getByTestId('enter-orison').click();
   };
   const returnForAnother = async () => page.getByRole('button', { name: 'Return to title menu' }).click();
 

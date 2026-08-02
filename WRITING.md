@@ -19,3 +19,9 @@ ordinary game action with a metaphor.
   resolving a mission.
 - Preserve established facts and consequences. Atmosphere may never hide a
   cost, requirement, or outcome.
+- Before the first command, answer what Orison is, why it woke the crew, what a
+  Heart Note is, and what happens after seven shifts.
+- Give every mission a person-level reason to matter. Geology alone is not a
+  story.
+- Put character voice in concrete disagreements over rescue, extraction,
+  evidence, and bodily risk.

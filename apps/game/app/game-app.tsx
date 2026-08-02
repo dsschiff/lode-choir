@@ -40,7 +40,7 @@ const LEGACY_KEY = 'lode_choir_legacy_v1';
 const SETTINGS_KEY = 'lode_choir_settings_v1';
 const BASE_PATH = process.env.NEXT_PUBLIC_BASE_PATH ?? '';
 
-type Surface = 'title' | 'loadout' | 'game' | 'manual' | 'chronicle' | 'settings' | 'credits';
+type Surface = 'title' | 'loadout' | 'prologue' | 'game' | 'manual' | 'chronicle' | 'settings' | 'credits';
 type Settings = { muted: boolean; highContrast: boolean; reducedMotion: boolean; volume: number };
 type SavePreview = { seed: string; shift: number; relicName: string | null; runMode: RunMode };
 type ProgressBackup = { game: 'lode-choir-backup'; version: 1; autosave: string | null; legacy: string; settings: Settings };
@@ -94,6 +94,24 @@ const LEADER_EFFECTS: Record<CrewId, string> = {
 };
 
 const RESOURCE_LABELS = { provisions: 'provision', alloy: 'alloy', lumen: 'lumen' } as const;
+
+const SHIFT_BRIEFINGS = [
+  '',
+  'Orison woke the crew after the rock below transmitted all four of their names.',
+  'The first Heart Note was structured language. Orison changed course without an order.',
+  'The abandoned company beacon requests ore totals. Orison refuses to answer it.',
+  'Signals from below now use the call signs of miners buried in Vesper.',
+  'Hairline cracks in Orison pulse in time with the Heart-Lode transmission.',
+  'The signal has resolved into a question: what will the crew do when they reach it?',
+  'The Heart-Lode is directly below Orison. This is the last mission before the answer.',
+] as const;
+
+const PROLOGUE_CREW: readonly { id: CrewId; stake: string }[] = [
+  { id: 'mara', stake: 'A rescue captain who will break the contract rather than abandon another crew.' },
+  { id: 'tamsin', stake: 'A miner whose dead first crew has started answering the drill radio.' },
+  { id: 'orin', stake: 'Orison’s engineer. The citadel is producing signals he did not program.' },
+  { id: 'sable', stake: 'The ninth body in a survey line. Sable-8 erased one minute before death.' },
+];
 
 function signed(value: number): string {
   return `${value >= 0 ? '+' : '−'}${Math.abs(value)}`;
@@ -274,12 +292,13 @@ function Citadel({ view, selectedCrew, selectedBuildSlot, onRoom, onEmpty }: {
               type="button"
               key={slot}
               className={`room ${module.assignedCrew ? 'is-powered' : ''} ${selectedCrew ? 'can-assign' : ''}`}
+              data-module={module.id}
               onClick={() => onRoom(slot)}
               data-testid={`room-${slot}`}
               aria-label={`${module.name}${assigned ? `, assigned to ${assigned.name}` : ', unstaffed'}`}
             >
               <span className="room-level">{String(module.level).padStart(2, '0')}</span>
-              <b className="room-mark">{MODULE_MARKS[module.id]}</b>
+              <span className="room-machine" aria-hidden="true"><i /><i /><i /><b>{MODULE_MARKS[module.id]}</b></span>
               <strong>{module.name}</strong>
               <small>{assigned ? `${assigned.name} · ${tileOutput ?? 'staffed'}` : selectedCrew ? 'Tap to assign' : 'Needs crew'}</small>
             </button>
@@ -402,6 +421,7 @@ function RoutePanel({ view, chartStatus, onSelect, onReserve, onClearReservation
   const requiredRooms = Math.min(3, availableCrew.length, view.modules.length);
   const staffedRooms = view.modules.filter((module) => module.assignedCrew).length;
   const missionReady = Boolean(view.state.selectedRoute);
+  const selectedRoute = view.routes.find((route) => route.instanceId === view.state.selectedRoute);
   const staffingReady = staffedRooms === requiredRooms;
   const firstUnstaffed = view.modules.find((module) => !module.assignedCrew);
   const carriedRelic = view.state.startingRelic ? RELICS.find((relic) => relic.id === view.state.startingRelic) : null;
@@ -426,6 +446,7 @@ function RoutePanel({ view, chartStatus, onSelect, onReserve, onClearReservation
         <span className="phase-tag">PLANNING</span>
       </div>
       <p className="objective">{view.objective}</p>
+      <p className="shift-brief"><span>WHAT IS HAPPENING</span>{SHIFT_BRIEFINGS[view.state.shift]}</p>
       {carriedRelic && <details className="run-relic"><summary>RELIC // {carriedRelic.name}</summary><p>{carriedRelic.startingEffect}</p></details>}
       <div className="planner-step-heading"><span>1</span><div><strong>Choose a mission</strong>{view.state.shift === 1 && <small>Compare the reward with the hull, ration, and strain forecast.</small>}</div><b>{missionReady ? 'SELECTED' : 'REQUIRED'}</b></div>
       <div className="route-list" id="mission-options">
@@ -459,6 +480,11 @@ function RoutePanel({ view, chartStatus, onSelect, onReserve, onClearReservation
           );
         })}
       </div>
+      {selectedRoute && <aside className="mission-story" data-testid="mission-story">
+        <span>WHY THIS MISSION MATTERS</span>
+        <p>{selectedRoute.definition.storyLead}</p>
+        <small><b>KNOWN HAZARD</b> {selectedRoute.definition.hazardText}</small>
+      </aside>}
       <RouteChartStrip view={view} status={chartStatus} onReserve={onReserve} onClear={onClearReservation} />
       <div className="planner-step-heading"><span>2</span><div><strong>Staff {requiredRooms} rooms</strong>{view.state.shift === 1 && <small>Each room lists its exact output. A crew member can staff only one room.</small>}</div><b>{staffedRooms}/{requiredRooms}</b></div>
       <div className="staffing-list" data-testid="staffing-list">
@@ -477,7 +503,7 @@ function RoutePanel({ view, chartStatus, onSelect, onReserve, onClearReservation
                   const isCurrent = module.assignedCrew === crew.id;
                   const canAssign = legal.some((command) => command.type === 'assign_crew' && command.crewId === crew.id && command.slot === module.slot);
                   const forecast = forecastRoomAssignment(view.state as GameState, module.slot, crew.id);
-                  const preview = roomForecastLabels(forecast)[0] ?? 'no immediate output';
+                  const preview = [...roomForecastLabels(forecast), ...forecast.conditions].join(' · ') || 'no immediate output';
                   return (
                     <button
                       type="button"
@@ -580,7 +606,8 @@ function DevelopmentPanel({ view, slot, onSlot, onBuild, onUpgrade, onRepair, on
   onRepair: () => void;
   onSkip: () => void;
 }) {
-  const choiceDefinitions = MODULES.filter((module) => view.state.developmentChoices.includes(module.id));
+  const builtIds = new Set(view.modules.map((module) => module.id));
+  const choiceDefinitions = MODULES.filter((module) => !builtIds.has(module.id));
   const emptySlots = Array.from({ length: 9 }, (_, index) => index).filter((index) => !view.modules.some((module) => module.slot === index));
   const legal = legalCommands(view.state);
   const canBuild = (moduleId: ModuleId, targetSlot: number | null) => targetSlot !== null && legal.some((command) => command.type === 'build_module' && command.moduleId === moduleId && command.slot === targetSlot);
@@ -590,29 +617,37 @@ function DevelopmentPanel({ view, slot, onSlot, onBuild, onUpgrade, onRepair, on
   return (
     <section className="development-panel" aria-labelledby="development-title" data-testid="development-panel">
       <span className="kicker">CITADEL WORKSHOP</span>
-      <h2 id="development-title">Build, upgrade, or repair</h2>
-      <p>Select an empty room, then spend alloy on one improvement. Any choice ends this workshop phase.</p>
+      <h2 id="development-title">Change Orison’s body</h2>
+      <p>Orison carries a nine-chamber body. Build machinery in an open chamber, improve a working room, or plate the hull. One project can be completed before the next shift.</p>
+      <div className="workshop-state"><span>AVAILABLE ALLOY</span><b>{view.state.resources.alloy}</b><small>{slot === null ? 'Choose an open chamber.' : `Chamber ${slot + 1} selected for construction.`}</small></div>
       <div className="slot-picker" aria-label="Empty chamber selection">
         {emptySlots.map((emptySlot) => (
           <button type="button" key={emptySlot} onClick={() => onSlot(emptySlot)} className={slot === emptySlot ? 'is-selected' : ''}>
-            {emptySlot + 1}
+            <span>CHAMBER</span><b>{String(emptySlot + 1).padStart(2, '0')}</b>
           </button>
         ))}
       </div>
       <div className="module-choices">
-        {choiceDefinitions.map((module) => (
-          <article className="module-choice" key={module.id}>
+        {choiceDefinitions.map((module) => {
+          const missingAlloy = Math.max(0, module.buildCost - view.state.resources.alloy);
+          const legalBuild = canBuild(module.id, slot);
+          const action = slot === null ? 'CHOOSE CHAMBER' : missingAlloy > 0 ? `NEED ${missingAlloy} MORE ALLOY` : `BUILD IN CHAMBER ${slot + 1}`;
+          return <article className={`module-choice ${legalBuild ? 'is-affordable' : ''}`} key={module.id} data-module={module.id}>
             <span className="module-sigil">{MODULE_MARKS[module.id]}</span>
-            <div><strong>{module.name}</strong><p>{module.description}</p><small>{module.buildCost} ALLOY</small></div>
-            <button type="button" onClick={() => slot !== null && onBuild(module.id, slot)} disabled={!canBuild(module.id, slot)}>
-              BUILD
+            <div><strong>{module.name}</strong><p>{module.description}</p><em>{module.assignmentHint}</em><small>COST · {module.buildCost} ALLOY</small></div>
+            <button type="button" onClick={() => slot !== null && onBuild(module.id, slot)} disabled={!legalBuild} data-testid={`build-${module.id}`}>
+              {action}
             </button>
-          </article>
-        ))}
+          </article>;
+        })}
       </div>
       <div className="upgrade-row">
-        <span>Upgrade an existing room</span>
-        <div>{view.modules.map((module) => <button key={module.slot} type="button" disabled={!canUpgrade(module.slot)} onClick={() => onUpgrade(module.slot)}>{module.name} · LV{module.level}</button>)}</div>
+        <span><strong>Improve a working room</strong><small>Higher levels increase that room’s base output.</small></span>
+        <div>{view.modules.map((module) => {
+          const missingAlloy = module.upgradeCost === null ? 0 : Math.max(0, module.upgradeCost - view.state.resources.alloy);
+          const label = module.upgradeCost === null ? 'MAX LEVEL' : missingAlloy > 0 ? `NEED ${missingAlloy} MORE ALLOY` : `UPGRADE · ${module.upgradeCost} ALLOY`;
+          return <button key={module.slot} type="button" disabled={!canUpgrade(module.slot)} onClick={() => onUpgrade(module.slot)}><strong>{module.name} · LV{module.level}</strong><small>{label}</small></button>;
+        })}</div>
       </div>
       <div className="repair-row">
         <span><strong>Repair the hull</strong><small>{repairAmount > 0 ? `Restore ${repairAmount} hull and end this workshop phase.` : 'Hull is already full.'}</small></span>
@@ -872,11 +907,41 @@ function resetDocumentScroll(): void {
   window.requestAnimationFrame(() => window.scrollTo(0, 0));
 }
 
+function ProloguePage({ view, onEnter, onAbort }: { view: GameView; onEnter: () => void; onAbort: () => void }) {
+  return (
+    <main className="prologue-screen" data-testid="prologue-screen">
+      <section className="prologue-art" aria-label="Orison crossing the moon Vesper">
+        <img src={`${BASE_PATH}/art/orison-title.webp`} width="1536" height="1024" alt="Orison, a six-legged mining citadel, walking through the black caverns of Vesper." />
+        <div><span>VESPER // DESCENT CONTRACT</span><strong>Seven shifts remain</strong></div>
+      </section>
+      <section className="prologue-copy">
+        <button type="button" className="back-button" onClick={onAbort}>← RETURN TO SETUP</button>
+        <span className="kicker">BEFORE THE FIRST SHIFT</span>
+        <h1>Orison woke you because the moon said your names.</h1>
+        <p className="prologue-premise"><strong>Orison is a walking mining citadel.</strong> Its six legs carry nine working rooms through Vesper’s abandoned mine. Now a signal called the Heart-Lode is speaking through its walls.</p>
+        <div className="contract-terms">
+          <span><b>HEART NOTES</b> Complete phrases recovered from the signal. Three Notes are enough to answer it.</span>
+          <span><b>THE CONTRACT</b> Recover three Notes in seven shifts, keep Orison walking, then decide what the Heart-Lode is.</span>
+          <span><b>EACH SHIFT</b> Choose a site, assign three people to Orison’s rooms, and answer what the mission uncovers.</span>
+        </div>
+        <blockquote>“Nobody drills the Heart until we know whether it can feel the cut.”<cite>— Mara Vey, captain</cite></blockquote>
+        <div className="prologue-crew" aria-label="Orison crew">
+          {PROLOGUE_CREW.map(({ id, stake }) => {
+            const crew = view.crew.find((candidate) => candidate.id === id)!;
+            return <article key={id}><img src={`${BASE_PATH}/art/crew-${id}.webp`} alt="" /><span><strong>{crew.name}</strong><small>{crew.role}</small><p>{stake}</p></span></article>;
+          })}
+        </div>
+        <button type="button" className="primary-action prologue-enter" onClick={onEnter} data-testid="enter-orison"><span>Seed {view.state.seed} · {view.state.runMode === 'black_descent' ? 'Black Descent' : 'Standard Descent'}</span><b>ENTER ORISON</b></button>
+      </section>
+    </main>
+  );
+}
+
 function ManualPage({ onBack }: { onBack: () => void }) {
   return (
     <MenuPage eyebrow="ORISON // FIELD MANUAL" title="How an expedition works" onBack={onBack}>
       <div className="manual-grid">
-        <article><span>01 // GOAL</span><h2>Recover three Heart Notes</h2><p>Finish shift seven with at least three Heart Notes and more than zero hull. Missions marked with Notes advance this goal.</p></article>
+        <article><span>01 // PREMISE</span><h2>Listen before you mine</h2><p>Orison is a walking citadel inside the moon Vesper. Heart Notes are complete phrases recovered from a signal below the abandoned mine.</p></article>
         <article><span>02 // MISSION</span><h2>Choose one destination</h2><p>Each mission card shows rewards, hull damage, ration cost, and total crew strain. Risk is already included in the forecast.</p></article>
         <article><span>03 // ROOMS</span><h2>Staff three rooms</h2><p>Choose one crew member for each room. The planner shows the exact output before you deploy.</p></article>
         <article><span>04 // FOURTH CREW</span><h2>Rest or lead</h2><p>The unassigned crew member rests and removes two strain. A leader provides a listed bonus but costs one extra provision.</p></article>
@@ -1090,7 +1155,7 @@ export function GameApp() {
     localStorage.setItem(LEGACY_KEY, serializeLegacy(next));
   }, [view]); // The completion guard deliberately keeps this tied to state transitions.
 
-  const startRun = useCallback((runSeed = seed, relicId: RelicId | null = selectedRelic, runMode: RunMode = selectedRunMode) => {
+  const startRun = useCallback((runSeed = seed, relicId: RelicId | null = selectedRelic, runMode: RunMode = selectedRunMode, showPrologue = false) => {
     const state = createRun({ seed: runSeed, runMode, ...(relicId ? { relicId } : {}) });
     setSeed(runSeed);
     setView(selectGameView(state));
@@ -1100,7 +1165,7 @@ export function GameApp() {
     setChartStatus(null);
     setNotice(null);
     recordedCompletion.current = null;
-    setSurface('game');
+    setSurface(showPrologue ? 'prologue' : 'game');
     resetDocumentScroll();
     void choirAudio.wake();
   }, [seed, selectedRelic, selectedRunMode]);
@@ -1145,7 +1210,7 @@ export function GameApp() {
       setFeedback(chartCommand ? [] : result.events.filter((event) => event.kind !== 'ending').slice(-3));
       result.events.slice(-2).forEach((event) => choirAudio.play(event));
       if (command.type === 'assign_crew' || command.type === 'assign_route_leader' || command.type === 'unassign_crew') setSelectedCrew(null);
-      if (command.type === 'build_module') setSelectedBuildSlot(null);
+      if (command.type === 'build_module' || command.type === 'upgrade_module' || command.type === 'repair_citadel' || command.type === 'skip_development') setSelectedBuildSlot(null);
       setNotice(null);
     } catch (error) {
       setNotice(error instanceof Error ? error.message : 'Orison rejected that command.');
@@ -1179,6 +1244,11 @@ export function GameApp() {
     if (view?.state.routeLeader) assigned.add(view.state.routeLeader);
     return assigned;
   }, [view]);
+  useEffect(() => {
+    if (view?.state.phase !== 'development') return;
+    const emptySlots = Array.from({ length: 9 }, (_, slot) => slot).filter((slot) => !view.modules.some((module) => module.slot === slot));
+    if (selectedBuildSlot === null || !emptySlots.includes(selectedBuildSlot)) setSelectedBuildSlot(emptySlots[0] ?? null);
+  }, [selectedBuildSlot, view]);
   const openMenuPage = (next: Surface) => { setReturnSurface(surface); setSurface(next); resetDocumentScroll(); };
   const goBack = () => setSurface(returnSurface === 'game' && !view ? 'title' : returnSurface);
   const prepareLoadout = (runSeed = seed, runMode: RunMode = 'standard') => {
@@ -1246,7 +1316,8 @@ export function GameApp() {
 
   const shellClasses = ['app-root', settings.highContrast ? 'high-contrast' : '', settings.reducedMotion ? 'reduced-motion' : ''].filter(Boolean).join(' ');
   if (surface === 'title') return <div className={shellClasses}><TitleScreen seed={seed} hasSave={hasSave} savePreview={savePreview} notice={notice} onSeed={setSeed} onNew={() => prepareLoadout(seed, new URLSearchParams(window.location.search).get('mode') === 'black_descent' ? 'black_descent' : 'standard')} onContinue={continueRun} onNavigate={openMenuPage} /></div>;
-  if (surface === 'loadout') return <div className={shellClasses}><LoadoutPage seed={seed} unlocked={legacy.relics} selected={selectedRelic} runMode={selectedRunMode} onSelect={setSelectedRelic} onMode={setSelectedRunMode} onBegin={() => startRun(seed, selectedRelic, selectedRunMode)} onBack={goBack} /></div>;
+  if (surface === 'loadout') return <div className={shellClasses}><LoadoutPage seed={seed} unlocked={legacy.relics} selected={selectedRelic} runMode={selectedRunMode} onSelect={setSelectedRelic} onMode={setSelectedRunMode} onBegin={() => startRun(seed, selectedRelic, selectedRunMode, true)} onBack={goBack} /></div>;
+  if (surface === 'prologue' && view) return <div className={shellClasses}><ProloguePage view={view} onEnter={() => { setSurface('game'); resetDocumentScroll(); void choirAudio.wake(); }} onAbort={() => { setSurface('loadout'); resetDocumentScroll(); }} /></div>;
   if (surface === 'manual') return <div className={shellClasses}><ManualPage onBack={goBack} /></div>;
   if (surface === 'chronicle') return <div className={shellClasses}><Chronicle legacy={legacy} onRetry={prepareArchivedRun} onBack={goBack} /></div>;
   if (surface === 'settings') return <div className={shellClasses}><SettingsPage settings={settings} installStatus={installStatus} onChange={setSettings} onInstall={installApp} onCreateBackup={createProgressBackup} onRestoreBackup={restoreProgressBackup} onBack={goBack} /></div>;

@@ -30,6 +30,7 @@ test('all content IDs are unique within their tables', () => {
 });
 
 test('routes cover every kind with distinct risk and reward profiles', () => {
+  assert.ok(ROUTES.every((route) => route.storyLead.trim().length >= 30), 'every route needs a concrete story lead');
   for (const kind of ['vein', 'ruin', 'refuge', 'rift'] as const) {
     const routes = ROUTES.filter((route) => route.kind === kind);
     assert.ok(routes.length >= 3, `${kind} needs at least three routes`);

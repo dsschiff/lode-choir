@@ -50,6 +50,7 @@ export interface RouteDefinition {
   title: string;
   kind: RouteKind;
   description: string;
+  storyLead: string;
   rewardText: string;
   hazardText: string;
   baseRewards: Partial<Record<ResourceId, number>>;
@@ -212,7 +213,7 @@ export interface TransitionResult {
 export interface GameView {
   state: Readonly<GameState>;
   crew: ReadonlyArray<CrewState & CrewDefinition>;
-  modules: ReadonlyArray<ModuleState & ModuleDefinition & { forecast: RoomAssignmentForecast | null }>;
+  modules: ReadonlyArray<ModuleState & ModuleDefinition & { forecast: RoomAssignmentForecast | null; upgradeCost: number | null }>;
   routes: ReadonlyArray<RouteOffer & { definition: RouteDefinition; forecast: RouteForecast }>;
   activeStoryEvent: StoryEventDefinition | null;
   canResolveShift: boolean;

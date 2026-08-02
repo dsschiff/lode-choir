@@ -234,7 +234,8 @@ function refreshRevelations(state: GameState): void {
   for (const offer of state.routeOffers) offer.revealed = offer.chartedRevealed;
   const sableInResonance = state.modules.some((module) => module.id === 'resonance_chamber' && module.assignedCrew === 'sable');
   if (sableInResonance) for (const offer of state.routeOffers) offer.revealed = true;
-  if (state.routeLeader === 'sable' && state.selectedRoute) {
+  const sableInWard = state.modules.some((module) => module.id === 'ward_array' && module.assignedCrew === 'sable');
+  if ((sableInWard || state.routeLeader === 'sable') && state.selectedRoute) {
     const selected = state.routeOffers.find((offer) => offer.instanceId === state.selectedRoute);
     if (selected) selected.revealed = true;
   }
@@ -404,17 +405,37 @@ export function forecastRoomAssignment(state: GameState, slot: number, crewId: C
   };
 
   if (module.id === 'heart_engine') {
-    forecast.resources.provisions = strength;
+    forecast.resources.provisions = strength + (crewId === 'mara' ? 1 : 0);
+    if (crewId === 'sable') forecast.resources.lumen = 1;
     forecast.integrityRepair = crewId === 'orin' ? 1 : 0;
-    forecast.crewStrain = crewId === 'sable' ? 0 : -1;
+    forecast.crewStrain = crewId === 'tamsin' ? -2 : crewId === 'sable' ? 0 : -1;
+    if (crewId === 'mara') forecast.conditions = ['Mara stretches the ration yield.'];
+    if (crewId === 'tamsin') forecast.conditions = ['Tamsin takes the quiet shift and recovers more strain.'];
+    if (crewId === 'orin') forecast.conditions = ['Orin repairs 1 hull while the Heart runs.'];
+    if (crewId === 'sable') forecast.conditions = ['Produces 1 lumen; Sable cannot rest here.'];
   } else if (module.id === 'deep_drill') {
     const orinPenalty = crewId === 'orin' ? 1 : 0;
     const tamsinBonus = crewId === 'tamsin' ? (crew.signatureUnlocked ? 2 : 1) : 0;
     forecast.resources.alloy = Math.max(1, strength * 2 - orinPenalty + tamsinBonus);
-    forecast.crewStrain = 1;
+    if (crewId === 'sable') forecast.resources.lumen = 1;
+    forecast.integrityRepair = crewId === 'orin' ? 1 : 0;
+    forecast.crewStrain = crewId === 'mara' ? 0 : crewId === 'tamsin' ? 2 : 1;
+    if (crewId === 'mara') forecast.conditions = ['Mara runs a safe cut: no drill strain.'];
+    if (crewId === 'tamsin') forecast.conditions = ['Redline yields extra alloy but adds 2 drill strain.'];
+    if (crewId === 'orin') forecast.conditions = ['Orin trades 1 alloy for 1 hull repair.'];
+    if (crewId === 'sable') forecast.conditions = ['Maps the mission signal for 1 lumen.'];
   } else if (module.id === 'ward_array') {
-    forecast.protection = strength;
+    const maraBonus = crewId === 'mara' ? (crew.signatureUnlocked ? 2 : 1) : 0;
+    forecast.protection = strength + maraBonus;
     forecast.integrityRepair = Math.ceil(module.level / 2) + (crewId === 'orin' ? 1 : 0);
+    if (crewId === 'tamsin') {
+      forecast.resources.alloy = module.level + 1;
+      forecast.crewStrain = 1;
+      forecast.conditions = ['Tamsin strips stressed braces for alloy.'];
+    }
+    if (crewId === 'mara') forecast.conditions = ['Mara adds extra mission protection.'];
+    if (crewId === 'orin') forecast.conditions = ['Orin adds 1 hull repair.'];
+    if (crewId === 'sable') forecast.conditions = ['Reveals the chosen mission fault.'];
   } else if (module.id === 'foundry') {
     forecast.alloyCost = 1;
     forecast.integrityRepair = state.resources.alloy > 0
@@ -447,21 +468,34 @@ function resolveRooms(state: GameState, events: EngineEvent[]): RoomResolution {
     const crew = state.crew.find((candidate) => candidate.id === crewId)!;
     const strength = roomStrength(state, module, crewId);
     if (module.id === 'heart_engine') {
-      addResource(state, 'provisions', strength);
+      const provisions = strength + (crewId === 'mara' ? 1 : 0);
+      addResource(state, 'provisions', provisions);
+      if (crewId === 'sable') addResource(state, 'lumen', 1);
       if (crewId === 'orin') repair += 1;
-      if (crewId !== 'sable') adjustStrain(state, crewId, -1, events);
-      emit(state, events, 'room', `Heart Engine: +${strength} provisions${crewId === 'orin' ? ', +1 hull' : ''}.`, 'positive');
+      if (crewId !== 'sable') adjustStrain(state, crewId, crewId === 'tamsin' ? -2 : -1, events);
+      emit(state, events, 'room', `Heart Engine: +${provisions} provisions${crewId === 'sable' ? ', +1 lumen' : ''}${crewId === 'orin' ? ', +1 hull' : ''}.`, 'positive');
     } else if (module.id === 'deep_drill') {
       const penalty = crewId === 'orin' ? 1 : 0;
       const bonus = crewId === 'tamsin' ? (crew.signatureUnlocked ? 2 : 1) : 0;
       const output = Math.max(1, strength * 2 - penalty + bonus);
       addResource(state, 'alloy', output);
-      adjustStrain(state, crewId, 1, events);
-      emit(state, events, 'room', `Deep Drill: +${output} alloy.`, 'positive');
+      if (crewId === 'sable') addResource(state, 'lumen', 1);
+      if (crewId === 'orin') repair += 1;
+      adjustStrain(state, crewId, crewId === 'mara' ? 0 : crewId === 'tamsin' ? 2 : 1, events);
+      emit(state, events, 'room', `Deep Drill: +${output} alloy${crewId === 'sable' ? ', +1 lumen' : ''}${crewId === 'orin' ? ', +1 hull' : ''}.`, 'positive');
     } else if (module.id === 'ward_array') {
-      ward += strength;
+      const maraBonus = crewId === 'mara' ? (crew.signatureUnlocked ? 2 : 1) : 0;
+      const protection = strength + maraBonus;
+      ward += protection;
       repair += Math.ceil(module.level / 2) + (crewId === 'orin' ? 1 : 0);
-      emit(state, events, 'room', `Ward Array: ${strength} protection.`);
+      if (crewId === 'tamsin') {
+        const salvage = module.level + 1;
+        addResource(state, 'alloy', salvage);
+        adjustStrain(state, crewId, 1, events);
+        emit(state, events, 'room', `Ward Array: ${protection} protection, +${salvage} alloy.`, 'positive');
+      } else {
+        emit(state, events, 'room', `Ward Array: ${protection} protection.`);
+      }
     } else if (module.id === 'foundry') {
       const drillBonus = hasAdjacentModule(state, module, 'deep_drill') ? 1 : 0;
       const restored = strength + drillBonus;
@@ -498,7 +532,7 @@ interface RouteResolution {
 function projectedWard(state: GameState): number {
   return state.modules.reduce((total, module) => {
     if (module.id !== 'ward_array' || !module.assignedCrew) return total;
-    return total + roomStrength(state, module, module.assignedCrew);
+    return total + forecastRoomAssignment(state, module.slot, module.assignedCrew).protection;
   }, 0);
 }
 
@@ -515,6 +549,7 @@ function projectedRepair(state: GameState): number {
       const penalty = crewId === 'orin' ? 1 : 0;
       const bonus = crewId === 'tamsin' ? (crew.signatureUnlocked ? 2 : 1) : 0;
       alloy += Math.max(1, strength * 2 - penalty + bonus);
+      if (crewId === 'orin') repair += 1;
     }
     if (module.id === 'ward_array') repair += Math.ceil(module.level / 2) + (crewId === 'orin' ? 1 : 0);
     if (module.id === 'foundry' && alloy > 0) {
@@ -527,14 +562,11 @@ function projectedRepair(state: GameState): number {
 
 function projectedDamage(state: GameState, offer: RouteOffer, leader: CrewId | null, revealed: boolean): number {
   const route = routeDefinition(offer.routeId);
-  const maraInWard = state.modules.some((module) => module.id === 'ward_array' && module.assignedCrew === 'mara');
-  const mara = state.crew.find((candidate) => candidate.id === 'mara')!;
-  const maraProtection = maraInWard ? (mara.signatureUnlocked ? 2 : 1) : 0;
   const leaderProtection = leader === 'mara' ? 1 : 0;
   const hiddenHazard = offer.hiddenComplication && !revealed
     ? state.runMode === 'black_descent' && route.hazard >= 3 ? 2 : 1
     : 0;
-  return Math.max(0, route.hazard + hiddenHazard - projectedWard(state) - maraProtection - leaderProtection);
+  return Math.max(0, route.hazard + hiddenHazard - projectedWard(state) - leaderProtection);
 }
 
 function projectedNetStrain(state: GameState, offer: RouteOffer, leader: CrewId | null, revealed: boolean): number {
@@ -544,10 +576,9 @@ function projectedNetStrain(state: GameState, offer: RouteOffer, leader: CrewId 
   for (const module of state.modules) {
     const crewId = module.assignedCrew;
     if (!crewId) continue;
-    const strength = roomStrength(state, module, crewId);
-    if (module.id === 'heart_engine' && crewId !== 'sable') adjust(crewId, -1);
-    if (module.id === 'deep_drill') adjust(crewId, 1);
-    if (module.id === 'infirmary') for (const crew of state.crew) adjust(crew.id, -strength);
+    const forecast = forecastRoomAssignment(state, module.slot, crewId);
+    if (forecast.crewStrain) adjust(crewId, forecast.crewStrain);
+    if (forecast.allCrewStrain) for (const crew of state.crew) adjust(crew.id, forecast.allCrewStrain);
   }
   const baseRouteStrain = route.hazard >= 4 ? 2 : route.hazard >= 2 ? 1 : 0;
   for (const module of state.modules) {
@@ -642,9 +673,6 @@ function projectedRouteRewards(state: GameState, offer: RouteOffer, leader: Crew
   const route = routeDefinition(offer.routeId);
   const rewards = { ...route.baseRewards };
   if (leader === 'tamsin') rewards.alloy = (rewards.alloy ?? 0) + Math.ceil(route.hazard / 2);
-  if (state.modules.some((module) => module.assignedCrew === 'tamsin')) {
-    rewards.alloy = (rewards.alloy ?? 0) + (route.hazard >= 3 ? 2 : 1);
-  }
   return rewards;
 }
 
@@ -698,14 +726,9 @@ function selectNextEvent(state: GameState, events: EngineEvent[]): void {
 }
 
 function availableDevelopmentChoices(state: GameState): ModuleId[] {
-  const choices = new Set<ModuleId>();
-  for (const command of developmentCommands(state)) {
-    if (command.type === 'build_module') choices.add(command.moduleId);
-    if (command.type === 'upgrade_module') {
-      const module = state.modules.find((candidate) => candidate.slot === command.slot);
-      if (module) choices.add(module.id);
-    }
-  }
+  const built = new Set(state.modules.map((module) => module.id));
+  const choices = new Set<ModuleId>(effectiveModules().filter((module) => !built.has(module.id)).map((module) => module.id));
+  for (const module of state.modules) if (module.level < 3) choices.add(module.id);
   return [...choices];
 }
 
@@ -954,6 +977,7 @@ export function selectGameView(state: GameState): GameView {
       ...moduleDefinition(module.id),
       ...module,
       forecast: module.assignedCrew ? forecastRoomAssignment(state, module.slot, module.assignedCrew) : null,
+      upgradeCost: module.level < 3 ? upgradeCost(module) : null,
     })),
     routes: state.routeOffers.map((offer) => ({
       ...offer,

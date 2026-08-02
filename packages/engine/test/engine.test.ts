@@ -58,9 +58,15 @@ test('commands are immutable transitions and reject illegal actions', () => {
 
 test('assignments move crew, displace occupants, and Sable reveals complications', () => {
   let state = createRun({ seed: 'assignment' });
-  state = applyCommand(state, { type: 'assign_crew', crewId: 'mara', slot: 0 }).state;
+  state = applyCommand(state, { type: 'select_route', instanceId: state.routeOffers[0]!.instanceId }).state;
+  state = applyCommand(state, { type: 'assign_crew', crewId: 'sable', slot: 0 }).state;
+  assert.ok(state.routeOffers.every((offer) => !offer.revealed));
+  state = applyCommand(state, { type: 'assign_crew', crewId: 'sable', slot: 2 }).state;
+  assert.equal(state.routeOffers[0]!.revealed, true);
+  assert.equal(state.routeOffers.slice(1).every((offer) => !offer.revealed), true);
+  state = applyCommand(state, { type: 'assign_crew', crewId: 'mara', slot: 2 }).state;
   state = applyCommand(state, { type: 'assign_crew', crewId: 'mara', slot: 1 }).state;
-  assert.equal(state.modules.find((module) => module.slot === 0)!.assignedCrew, null);
+  assert.equal(state.modules.find((module) => module.slot === 2)!.assignedCrew, null);
   assert.equal(state.modules.find((module) => module.slot === 1)!.assignedCrew, 'mara');
   state.modules.push({ id: 'resonance_chamber', slot: 3, level: 1, assignedCrew: null });
   state = applyCommand(state, { type: 'assign_crew', crewId: 'sable', slot: 3 }).state;
@@ -81,14 +87,41 @@ test('room forecasts expose exact specialist output without mutating the run', (
     allCrewStrain: 0,
     heartNotes: 0,
     alloyCost: 0,
-    conditions: [],
+    conditions: ['Orin repairs 1 hull while the Heart runs.'],
   });
   assert.equal(forecastRoomAssignment(state, 1, 'tamsin').resources.alloy, 5);
-  assert.equal(forecastRoomAssignment(state, 2, 'mara').protection, 1);
+  assert.equal(forecastRoomAssignment(state, 2, 'mara').protection, 2);
   assert.deepEqual(state, before);
 
   const assigned = applyCommand(state, { type: 'assign_crew', crewId: 'orin', slot: 0 }).state;
   assert.deepEqual(selectGameView(assigned).modules[0]!.forecast, forecastRoomAssignment(assigned, 0, 'orin'));
+});
+
+test('starter rooms present tradeoffs instead of a strictly dominant crew assignment', () => {
+  const state = createRun({ seed: 'room-tradeoffs' });
+  const revealsMission = (forecast: ReturnType<typeof forecastRoomAssignment>) => forecast.conditions.some((condition) => condition.includes('Reveals')) ? 1 : 0;
+  const utilityVector = (forecast: ReturnType<typeof forecastRoomAssignment>) => [
+    forecast.resources.provisions ?? 0,
+    forecast.resources.alloy ?? 0,
+    forecast.resources.lumen ?? 0,
+    forecast.integrityRepair,
+    forecast.protection,
+    -forecast.crewStrain,
+    -forecast.allCrewStrain,
+    revealsMission(forecast),
+  ];
+  const crewIds = ['mara', 'tamsin', 'orin', 'sable'] as const;
+  for (const slot of [0, 1, 2]) {
+    const vectors = crewIds.map((crewId) => ({ crewId, values: utilityVector(forecastRoomAssignment(state, slot, crewId)) }));
+    for (const candidate of vectors) {
+      for (const alternative of vectors) {
+        if (candidate.crewId === alternative.crewId) continue;
+        const weaklyBetter = candidate.values.every((value, index) => value >= alternative.values[index]!);
+        const strictlyBetter = candidate.values.some((value, index) => value > alternative.values[index]!);
+        assert.equal(weaklyBetter && strictlyBetter, false, `${candidate.crewId} strictly dominates ${alternative.crewId} in starter room ${slot}`);
+      }
+    }
+  }
 });
 
 test('combined room and mission forecasts match the resolved resource and hull totals', () => {
@@ -117,6 +150,38 @@ test('combined room and mission forecasts match the resolved resource and hull t
     resolved.integrity,
     Math.max(0, Math.min(view.maxIntegrity, state.integrity + roomRepair) - selected.forecast.hullDamageMax),
   );
+});
+
+test('every starter-room crew permutation resolves to its displayed forecast', () => {
+  const crewIds = ['mara', 'tamsin', 'orin', 'sable'] as const;
+  for (const first of crewIds) for (const second of crewIds) for (const third of crewIds) {
+    if (new Set([first, second, third]).size !== 3) continue;
+    let state = createRun({ seed: `matrix-${first}-${second}-${third}` });
+    state = applyCommand(state, { type: 'select_route', instanceId: state.routeOffers[0]!.instanceId }).state;
+    state = applyCommand(state, { type: 'assign_crew', crewId: first, slot: 0 }).state;
+    state = applyCommand(state, { type: 'assign_crew', crewId: second, slot: 1 }).state;
+    state = applyCommand(state, { type: 'assign_crew', crewId: third, slot: 2 }).state;
+    const view = selectGameView(state);
+    const mission = view.routes.find((route) => route.instanceId === state.selectedRoute)!.forecast;
+    const rooms = view.modules.map((module) => module.forecast!);
+    const totalRoomResource = (resource: 'provisions' | 'alloy' | 'lumen') => rooms.reduce(
+      (total, room) => total + (room.resources[resource] ?? 0) - (resource === 'alloy' ? room.alloyCost : 0),
+      0,
+    );
+    const repair = rooms.reduce((total, room) => total + room.integrityRepair, 0);
+    const strainBefore = state.crew.reduce((total, crew) => total + crew.strain, 0);
+    const resolved = applyCommand(state, { type: 'resolve_shift' }).state;
+    for (const resource of ['provisions', 'alloy', 'lumen'] as const) {
+      const cost = resource === 'provisions' ? mission.provisionCost : 0;
+      assert.equal(
+        resolved.resources[resource],
+        state.resources[resource] + totalRoomResource(resource) + (mission.rewards[resource] ?? 0) - cost,
+        `${first}/${second}/${third} ${resource}`,
+      );
+    }
+    assert.equal(resolved.integrity, Math.max(0, Math.min(view.maxIntegrity, state.integrity + repair) - mission.hullDamageMax));
+    assert.equal(resolved.crew.reduce((total, crew) => total + crew.strain, 0) - strainBefore, mission.netCrewStrain);
+  }
 });
 
 test('a fourth crew member can replace an assignment but cannot overstaff the citadel', () => {
@@ -160,7 +225,7 @@ test('the fourth available crew member can lead the route without displacing cha
   assert.equal(state.routeLeader, null);
   assert.equal(integrityBefore - state.integrity, forecast.hullDamageMax);
   assert.equal(state.crew.reduce((total, crew) => total + crew.strain, 0) - strainBefore, forecast.netCrewStrain);
-  assert.equal(state.resources.provisions, 3 + (route.baseRewards.provisions ?? 0));
+  assert.equal(state.resources.provisions, 4 + (route.baseRewards.provisions ?? 0));
   assert.equal(state.crew.find((crew) => crew.id === 'sable')!.strain, 1 + (route.hazard >= 4 ? 2 : route.hazard >= 2 ? 1 : 0));
 });
 
@@ -262,6 +327,9 @@ test('development breaks offer legal builds or upgrades and consume alloy', () =
   state = applyCommand(state, { type: 'resolve_shift' }).state;
   state = applyCommand(state, { type: 'choose_event', choiceIndex: 0 }).state;
   assert.equal(state.phase, 'development');
+  assert.ok(state.developmentChoices.includes('foundry'));
+  assert.ok(state.developmentChoices.includes('infirmary'));
+  assert.ok(state.developmentChoices.includes('resonance_chamber'));
   const commands = legalCommands(state);
   assert.ok(commands.some((command) => command.type === 'build_module' || command.type === 'upgrade_module'));
   assert.ok(commands.some((command) => command.type === 'skip_development'));
