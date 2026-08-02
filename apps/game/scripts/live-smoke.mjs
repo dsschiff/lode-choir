@@ -7,6 +7,27 @@ url.searchParams.set('seed', 'LIVE-ORISON');
 url.searchParams.set('no-sw', '1');
 url.searchParams.set('release-check', Date.now().toString());
 
+async function auditPublicCache() {
+  const workerUrl = new URL('sw.js', url);
+  workerUrl.search = `?release-check=${Date.now()}`;
+  const workerResponse = await fetch(workerUrl, { cache: 'no-store' });
+  if (!workerResponse.ok) throw new Error(`Public service worker returned ${workerResponse.status}.`);
+  const worker = await workerResponse.text();
+  const paths = [...new Set([...worker.matchAll(/"\.\/([^"?]+)"/g)].map((match) => match[1]))];
+  if (paths.length < 30) throw new Error(`Public service worker declares only ${paths.length} cached files.`);
+  const checks = await Promise.all(paths.map(async (path) => {
+    const assetUrl = new URL(path, url);
+    assetUrl.search = `?release-check=${Date.now()}`;
+    const response = await fetch(assetUrl, { cache: 'no-store' });
+    const bytes = (await response.arrayBuffer()).byteLength;
+    return { path, status: response.status, bytes };
+  }));
+  const failed = checks.filter((check) => check.status < 200 || check.status >= 300 || check.bytes === 0);
+  if (failed.length > 0) throw new Error(`Public offline cache is incomplete: ${JSON.stringify(failed)}.`);
+  return { files: checks.length, bytes: checks.reduce((sum, check) => sum + check.bytes, 0) };
+}
+
+const cacheAudit = await auditPublicCache();
 const browser = await chromium.launch({ headless: true });
 const errors = [];
 
@@ -54,7 +75,7 @@ try {
   if (!journal.includes(eventTitle)) throw new Error(`Public journal did not retain ${eventTitle}.`);
   if (errors.length > 0) throw new Error(errors.join('\n'));
 
-  console.log(JSON.stringify({ target: url.origin + url.pathname, build, expectedSha: expectedSha ?? null, eventTitle, viewport: '390x844', errors: 0 }));
+  console.log(JSON.stringify({ target: url.origin + url.pathname, build, expectedSha: expectedSha ?? null, eventTitle, viewport: '390x844', publicCache: cacheAudit, errors: 0 }));
 } finally {
   await browser.close();
 }

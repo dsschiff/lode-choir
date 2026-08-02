@@ -163,7 +163,8 @@ and 696,000 reconstructed replays passed.
 - `npm run test:live` repeats the critical phone path against GitHub Pages. It confirms
   build 0.4, prologue and supply copy, staffing, deployment, one story choice, journal
   retention, zero failed asset requests, zero horizontal overflow, and zero page or
-  console errors at 390×844. The Pages workflow injects
+  console errors at 390×844. It also fetches every file declared by the deployed
+  offline cache and rejects missing or empty responses. The Pages workflow injects
   the triggering Git commit into the visible title-screen stamp, then retries this smoke
   with `LODE_CHOIR_EXPECT_SHA` after deployment; the workflow cannot turn green while
   Pages is serving an older export.
