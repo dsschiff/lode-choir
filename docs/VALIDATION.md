@@ -164,7 +164,7 @@ and 696,000 reconstructed replays passed.
   touch targets, sticky resource rail, citadel grid, engine-derived route forecasts,
   leader preview, mobile action-before-roster order, and long scrolling with no
   horizontal overflow.
-- The 24-image review suite uses the fixed `QA-ORISON` URL seed and reduced-motion
+- The 26-image review suite uses the fixed `QA-ORISON` URL seed and reduced-motion
   media. Two consecutive full captures produced identical SHA-256 hashes for every
   JPEG, so visual evidence no longer drifts with random title seeds or animation frames.
 

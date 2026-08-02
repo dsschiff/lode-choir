@@ -110,9 +110,25 @@ async function capture(browser, name, viewport, mobile = false) {
   await page.evaluate(() => {
     const state = window.__LODE_CHOIR__?.getState();
     if (!state) return;
+    state.status = 'lost';
+    state.phase = 'complete';
+    state.shift = 4;
+    state.heartNotes = 2;
+    state.integrity = 0;
+    state.endingText = 'The last leg folds beneath Orison. The recovered signal remains in the log.';
+    window.__LODE_CHOIR__?.refresh();
+  });
+  await screenshot('loss');
+
+  await page.evaluate(() => {
+    const state = window.__LODE_CHOIR__?.getState();
+    if (!state) return;
+    state.status = 'playing';
     state.phase = 'finale';
     state.shift = 7;
     state.heartNotes = 3;
+    state.integrity = 8;
+    state.endingText = null;
     window.__LODE_CHOIR__?.refresh();
   });
   await screenshot('finale');

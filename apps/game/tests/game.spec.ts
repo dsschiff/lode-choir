@@ -419,6 +419,7 @@ test('deterministic hook can resolve a finale and begin the next inherited desce
   await page.getByRole('button', { name: 'Copy expedition report' }).click();
   await expect(page.getByRole('button', { name: 'Report copied' })).toBeVisible();
   await expect.poll(() => page.evaluate(() => localStorage.getItem('copied-expedition-report'))).toContain('Replay this signal:');
+  await expect.poll(() => page.evaluate(() => localStorage.getItem('copied-expedition-report'))).toContain('Signal: THE CUT DID NOT END US.');
   await expect.poll(() => page.evaluate(() => localStorage.getItem('copied-expedition-report'))).toContain('mode=standard');
   await expect(page.locator('.feedback-stack .feedback')).toHaveCount(0);
   const completedSeed = await page.evaluate(() => window.__LODE_CHOIR__?.getState()?.seed);

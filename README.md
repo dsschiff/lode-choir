@@ -83,5 +83,5 @@ Current review captures: [desktop title](docs/screenshots/title-desktop.jpg),
 [desktop planning](docs/screenshots/planning-desktop.jpg), and
 [phone planning](docs/screenshots/planning-phone.jpg), and
 [phone expedition log](docs/screenshots/journal-phone.jpg). The same folder also contains
-reproducible Settings, Standard and Black Descent loadouts, event, development,
-prologue, finale, completion, and Chronicle captures for both viewports.
+reproducible Settings, Standard and Black Descent loadouts, prologue, event,
+development, loss, finale, completion, and Chronicle captures for both viewports.
