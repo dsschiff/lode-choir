@@ -162,7 +162,8 @@ and 696,000 reconstructed replays passed.
   its exact child server, and returns in under 35 seconds on this host.
 - `npm run test:live` repeats the critical phone path against GitHub Pages. It confirms
   build 0.4, prologue and supply copy, staffing, deployment, one story choice, journal
-  retention, and zero page or console errors at 390×844. The Pages workflow injects
+  retention, zero failed asset requests, zero horizontal overflow, and zero page or
+  console errors at 390×844. The Pages workflow injects
   the triggering Git commit into the visible title-screen stamp, then retries this smoke
   with `LODE_CHOIR_EXPECT_SHA` after deployment; the workflow cannot turn green while
   Pages is serving an older export.
@@ -171,6 +172,9 @@ and 696,000 reconstructed replays passed.
   touch targets, sticky resource rail, citadel grid, engine-derived route forecasts,
   leader preview, mobile action-before-roster order, and long scrolling with no
   horizontal overflow.
+- Automated clipping checks inspect the title, loadout, prologue, and selected-mission
+  planner at 320, 390, 768, and 1280 pixels. They reject document overflow and any text
+  clipped by an element with hidden or clipped overflow.
 - The 26-image review suite uses the fixed `QA-ORISON` URL seed and reduced-motion
   media. Two consecutive full captures produced identical SHA-256 hashes for every
   JPEG, so visual evidence no longer drifts with random title seeds or animation frames.

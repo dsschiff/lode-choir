@@ -841,23 +841,34 @@ test('title, manual, and planning surfaces have no detectable accessibility viol
   expect(planningScan.violations, JSON.stringify(planningScan.violations, null, 2)).toEqual([]);
 });
 
-test('decision text remains visible without horizontal overflow at supported widths', async ({ page }) => {
-  await beginRun(page);
+test('critical-path text remains visible without horizontal overflow at supported widths', async ({ page }) => {
+  const inspectLayout = async (surface: string) => {
+    for (const width of [320, 390, 768, 1280]) {
+      await page.setViewportSize({ width, height: width < 800 ? 844 : 900 });
+      const report = await page.evaluate(() => ({
+        horizontalOverflow: document.documentElement.scrollWidth - window.innerWidth,
+        clipped: [...document.querySelectorAll<HTMLElement>('body *')].flatMap((element) => {
+          const text = element.textContent?.trim();
+          if (!text || element.children.length > 0 || element.classList.contains('sr-only') || element.getClientRects().length === 0) return [];
+          const style = getComputedStyle(element);
+          const clipped = (['hidden', 'clip'].includes(style.overflowX) && element.scrollWidth > element.clientWidth + 1)
+            || (['hidden', 'clip'].includes(style.overflowY) && element.scrollHeight > element.clientHeight + 1);
+          return clipped ? [{ tag: element.tagName, className: element.className, text: text.slice(0, 100) }] : [];
+        }),
+      }));
+      expect(report.horizontalOverflow, `${surface} horizontal overflow at ${width}px`).toBeLessThanOrEqual(0);
+      expect(report.clipped, `${surface} clipped text at ${width}px: ${JSON.stringify(report.clipped)}`).toEqual([]);
+    }
+  };
+
+  await inspectLayout('title');
+  await page.getByTestId('new-run').click();
+  await inspectLayout('loadout');
+  await page.getByTestId('begin-descent').click();
+  await inspectLayout('prologue');
+  await page.getByTestId('enter-orison').click();
   await page.getByTestId('route-0').click();
-  for (const width of [320, 390, 768, 1280]) {
-    await page.setViewportSize({ width, height: width < 800 ? 844 : 900 });
-    const report = await page.evaluate(() => ({
-      horizontalOverflow: document.documentElement.scrollWidth - window.innerWidth,
-      clipped: [...document.querySelectorAll<HTMLElement>('body *')].flatMap((element) => {
-        const text = element.textContent?.trim();
-        if (!text || element.children.length > 0 || element.classList.contains('sr-only') || element.getClientRects().length === 0) return [];
-        const clipped = element.scrollWidth > element.clientWidth + 1 || element.scrollHeight > element.clientHeight + 1;
-        return clipped ? [{ tag: element.tagName, className: element.className, text: text.slice(0, 100) }] : [];
-      }),
-    }));
-    expect(report.horizontalOverflow, `horizontal overflow at ${width}px`).toBeLessThanOrEqual(0);
-    expect(report.clipped, `clipped text at ${width}px: ${JSON.stringify(report.clipped)}`).toEqual([]);
-  }
+  await inspectLayout('planning');
 });
 
 test('unlocked Chronicle relics apply canonical starting effects', async ({ page }) => {
