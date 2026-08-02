@@ -5,13 +5,13 @@ import { gzipSync } from 'node:zlib';
 const outputRoot = resolve('out');
 const deploymentPrefix = process.env.GITHUB_PAGES === 'true' ? '/lode-choir' : '';
 const limits = {
-  total: 1_600_000,
+  total: 1_250_000,
   javascript: 800_000,
   gzipJavascript: 300_000,
-  images: 550_000,
+  images: 250_000,
   css: 64_000,
-  initialShell: 1_100_000,
-  gzipInitialShell: 475_000,
+  initialShell: 1_000_000,
+  gzipInitialShell: 400_000,
   largestFile: 250_000,
 };
 
